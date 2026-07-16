@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THEEB MIND — عقلية الذيب</title>
+    <style>
+        /* ═══════════════════════════════════════════════════════════════
+           THEEB MIND — Landing Page (Premium Edition)
+           Baseline: Original Landing.tsx structure
+           Enhancement: +30% typography, +30% motion, +30% depth
+           Font: Thmanyah (local woff2)
+        ═══════════════════════════════════════════════════════════════ */
+
+        @font-face {
+            font-family: 'ThmanyahSans';
+            src: url('assets/fonts/thmanyahsans-Light.woff2') format('woff2');
+            font-weight: 300; font-display: swap;
+        }
+        @font-face {
+            font-family: 'ThmanyahSans';
+            src: url('assets/fonts/thmanyahsans-Regular.woff2') format('woff2');
+            font-weight: 400; font-display: swap;
+        }
+        @font-face {
+            font-family: 'ThmanyahSans';
+            src: url('assets/fonts/thmanyahsans-Medium.woff2') format('woff2');
+            font-weight: 500; font-display: swap;
+        }
+        @font-face {
+            font-family: 'ThmanyahSans';
+            src: url('assets/fonts/thmanyahsans-Bold.woff2') format('woff2');
+            font-weight: 700; font-display: swap;
+        }
+        @font-face {
+            font-family: 'ThmanyahSans';
+            src: url('assets/fonts/thmanyahsans-Black.woff2') format('woff2');
+            font-weight: 900; font-display: swap;
+        }
+        @font-face {
+            font-family: 'ThmanyahSerifDisplay';
+            src: url('assets/fonts/thmanyahserifdisplay-Light.woff2') format('woff2');
+            font-weight: 300; font-display: swap;
+        }
+        @font-face {
+            font-family: 'ThmanyahSerifDisplay';
+            src: url('assets/fonts/thmanyahserifdisplay-Regular.woff2') format('woff2');
+            font-weight: 400; font-display: swap;
+        }
+        @font-face {
+            font-family: 'ThmanyahSerifDisplay';
+            src: url('assets/fonts/thmanyahserifdisplay-Medium.woff2') format('woff2');
+            font-weight: 500; font-display: swap;
+        }
+        @font-face {
+            font-family: 'ThmanyahSerifDisplay';
+            src: url('assets/fonts/thmanyahserifdisplay-Bold.woff2') format('woff2');
+            font-weight: 700; font-display: swap;
+        }
+        @font-face {
+            font-family: 'ThmanyahSerifDisplay';
+            src: url('assets/fonts/thmanyahserifdisplay-Black.woff2') format('woff2');
+            font-weight: 900; font-display: swap;
+        }
+
+        :root {
+            --void: #050508;
+            --void-light: #0a0c14;
+            --surface: #0f111a;
+            --elevated: #161928;
+            --gold: #c9a84c;
+            --gold-bright: #e0c066;
+            --gold-dim: #a0842e;
+            --gold-glow: rgba(201, 168, 76, 0.12);
+            --emerald: #0d8a6a;
+            --emerald-bright: #14b386;
+            --emerald-glow: rgba(13, 138, 106, 0.15);
+            --warning: #d4a843;
+            --red: #c45050;
+            --cream: #f0ede8;
+            --cream-muted: rgba(240, 237, 232, 0.6);
+            --cream-subtle: rgba(240, 237, 232, 0.35);
+            --border: rgba(201, 168, 76, 0.08);
+            --border-medium: rgba(201, 168, 76, 0.15);
+            --font-display: 'ThmanyahSerifDisplay', serif;
+            --font-body: 'ThmanyahSans', sans-serif;
+            --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--void);
+            color: var(--cream);
+            direction: rtl;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.7;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SCROLL REVEAL — Cinematic entrance
+        ═══════════════════════════════════════════════════════════════ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(32px);
+            transition: opacity 0.9s var(--ease-premium), transform 0.9s var(--ease-premium);
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.35s; }
+        .reveal-delay-4 { transition-delay: 0.5s; }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SCREEN 1: HERO
+        ═══════════════════════════════════════════════════════════════ */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 60px 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Ambient glow orbs */
+        .hero-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+        }
+        .hero-orb-1 {
+            width: 600px; height: 600px;
+            top: 20%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%);
+        }
+        .hero-orb-2 {
+            width: 400px; height: 400px;
+            bottom: 10%; right: -10%;
+            background: radial-gradient(circle, rgba(13,138,106,0.05) 0%, transparent 70%);
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 720px;
+        }
+
+        .hero-wolf {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 32px;
+            opacity: 0.7;
+            filter: drop-shadow(0 0 24px rgba(201,168,76,0.25));
+        }
+        .hero-wolf img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .hero-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 6px;
+            margin-bottom: 20px;
+        }
+
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: clamp(36px, 6vw, 72px);
+            font-weight: 800;
+            color: var(--cream);
+            line-height: 1.15;
+            margin-bottom: 12px;
+        }
+        .hero-title .gold {
+            color: var(--gold);
+        }
+
+        .hero-desc {
+            font-size: clamp(16px, 2vw, 20px);
+            color: var(--cream-muted);
+            max-width: 480px;
+            margin: 0 auto 40px;
+            line-height: 1.6;
+        }
+
+        .hero-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 40px;
+            background: var(--gold);
+            color: var(--void);
+            font-family: var(--font-body);
+            font-size: 16px;
+            font-weight: 700;
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.4s var(--ease-premium);
+            letter-spacing: 0.5px;
+        }
+        .hero-cta:hover {
+            background: var(--gold-bright);
+            box-shadow: 0 0 40px var(--gold-glow);
+            transform: translateY(-2px);
+        }
+        .hero-cta-arrow {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+        .hero-cta:hover .hero-cta-arrow {
+            transform: translateX(-4px);
+        }
+
+        .hero-ghost {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            background: transparent;
+            color: var(--cream-muted);
+            font-size: 15px;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .hero-ghost:hover {
+            border-color: var(--border-medium);
+            color: var(--cream);
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+
+        /* Three feature icons */
+        .hero-features {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+        .hero-feature {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .hero-feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+        .hero-feature-icon.gold-bg { background: rgba(201,168,76,0.1); }
+        .hero-feature-icon.warning-bg { background: rgba(212,168,67,0.1); }
+        .hero-feature-icon.emerald-bg { background: rgba(13,138,106,0.1); }
+        .hero-feature-label {
+            font-size: 12px;
+            color: var(--cream-subtle);
+            font-weight: 500;
+        }
+
+        /* Scroll hint */
+        .scroll-hint {
+            position: absolute;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: var(--cream-subtle);
+            text-decoration: none;
+            transition: color 0.3s;
+            z-index: 2;
+        }
+        .scroll-hint:hover { color: var(--cream-muted); }
+        .scroll-hint span { font-size: 11px; }
+        .scroll-hint-arrow {
+            font-size: 18px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); opacity: 0.4; }
+            50% { transform: translateY(6px); opacity: 0.8; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SCREEN 2: DECISION ANALYSIS
+        ═══════════════════════════════════════════════════════════════ */
+        .section-light {
+            background: linear-gradient(180deg, #0a0c14 0%, #0f111a 100%);
+            padding: 80px 24px;
+        }
+        .section-dark {
+            background: var(--void);
+            padding: 80px 24px;
+        }
+        .section-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 5px;
+            margin-bottom: 12px;
+        }
+        .section-label.gold { color: var(--gold); }
+        .section-label.warning { color: var(--warning); }
+        .section-label.emerald { color: var(--emerald-bright); }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: clamp(28px, 4vw, 48px);
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 40px;
+        }
+        .section-title.light { color: var(--cream); }
+        .section-title.dark { color: #1a1a2e; }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        /* Mockup card */
+        .mockup-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            transition: border-color 0.4s;
+        }
+        .mockup-card:hover {
+            border-color: var(--border-medium);
+        }
+
+        .mockup-row {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+        .mockup-col {
+            flex: 1;
+            min-width: 280px;
+        }
+
+        /* Score display */
+        .score-circle {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 2px solid rgba(201,168,76,0.2);
+            background: rgba(201,168,76,0.04);
+            box-shadow: 0 0 30px rgba(201,168,76,0.08);
+        }
+        .score-value {
+            font-family: var(--font-display);
+            font-size: 48px;
+            font-weight: 900;
+            color: var(--gold);
+            line-height: 1;
+        }
+        .score-label {
+            font-size: 11px;
+            color: var(--cream-subtle);
+            margin-top: 4px;
+        }
+        .score-grade {
+            margin-top: 8px;
+            padding: 4px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .score-grade.a {
+            background: rgba(13,138,106,0.15);
+            color: var(--emerald-bright);
+        }
+
+        /* Analysis list */
+        .analysis-list {
+            background: var(--elevated);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+        }
+        .analysis-item {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .analysis-item:last-child { border-bottom: none; }
+        .analysis-item .check {
+            color: var(--emerald-bright);
+            font-weight: 700;
+            margin-left: 8px;
+        }
+        .analysis-item .detail {
+            color: var(--cream-muted);
+        }
+
+        .section-cta {
+            text-align: center;
+            margin-top: 32px;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            background: var(--gold);
+            color: var(--void);
+            font-family: var(--font-body);
+            font-size: 15px;
+            font-weight: 700;
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.4s var(--ease-premium);
+        }
+        .btn-primary:hover {
+            background: var(--gold-bright);
+            box-shadow: 0 0 30px var(--gold-glow);
+            transform: translateY(-2px);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SCREEN 3: MISINFO DETECTION
+        ═══════════════════════════════════════════════════════════════ */
+        .fake-tweet {
+            background: var(--elevated);
+            border: 1px solid rgba(212,168,67,0.15);
+            border-radius: 14px;
+            padding: 24px;
+        }
+        .tweet-author {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .tweet-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(212,168,67,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--warning);
+        }
+        .tweet-name {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .tweet-handle {
+            font-size: 11px;
+            color: var(--cream-subtle);
+        }
+        .tweet-body {
+            font-size: 14px;
+            color: var(--cream-muted);
+            line-height: 1.7;
+        }
+
+        .warning-card {
+            background: var(--elevated);
+            border: 1px solid rgba(212,168,67,0.25);
+            border-radius: 14px;
+            padding: 24px;
+        }
+        .warning-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .warning-icon {
+            font-size: 36px;
+        }
+        .warning-title {
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--warning);
+        }
+        .warning-sub {
+            font-size: 13px;
+            color: rgba(212,168,67,0.6);
+        }
+        .warning-reasons {
+            list-style: none;
+            padding: 0;
+        }
+        .warning-reasons li {
+            padding: 6px 0;
+            font-size: 13px;
+            color: var(--cream-muted);
+        }
+        .warning-reasons li::before {
+            content: '•';
+            color: var(--warning);
+            margin-left: 8px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SCREEN 4: BEHAVIORAL INTELLIGENCE
+        ═══════════════════════════════════════════════════════════════ */
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 4px;
+            height: 140px;
+            padding: 16px;
+            background: var(--elevated);
+            border-radius: 14px;
+        }
+        .bar {
+            width: 24px;
+            background: linear-gradient(to top, var(--emerald), var(--emerald-bright));
+            border-radius: 4px 4px 0 0;
+            transition: height 0.8s var(--ease-premium);
+        }
+        .improvement-stat {
+            text-align: center;
+            margin-top: 12px;
+        }
+        .improvement-value {
+            font-family: var(--font-display);
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--emerald-bright);
+        }
+        .improvement-label {
+            font-size: 13px;
+            color: var(--cream-subtle);
+        }
+
+        .insight-card {
+            padding: 20px;
+            border-radius: 14px;
+            margin-bottom: 12px;
+        }
+        .insight-card.danger {
+            background: rgba(196,80,80,0.08);
+            border: 1px solid rgba(196,80,80,0.2);
+        }
+        .insight-card.success {
+            background: rgba(13,138,106,0.08);
+            border: 1px solid rgba(13,138,106,0.2);
+        }
+        .insight-card .insight-title {
+            font-weight: 700;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        .insight-card.danger .insight-title { color: var(--red); }
+        .insight-card.success .insight-title { color: var(--emerald-bright); }
+        .insight-card .insight-desc {
+            font-size: 13px;
+            color: var(--cream-muted);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SCREEN 5: WOLF PHILOSOPHY
+        ═══════════════════════════════════════════════════════════════ */
+        .philosophy {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .philosophy-line {
+            font-family: var(--font-display);
+            font-size: clamp(22px, 3.5vw, 36px);
+            font-weight: 700;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .philosophy-line.gold {
+            color: var(--gold);
+        }
+        .philosophy-line.muted {
+            color: var(--cream);
+        }
+
+        .philosophy-wolf-line {
+            margin-top: 40px;
+            opacity: 0.15;
+        }
+        .philosophy-wolf-line svg {
+            width: 200px;
+            height: 40px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SCREEN 6: TRUST SIGNALS
+        ═══════════════════════════════════════════════════════════════ */
+        .trust-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 24px;
+            text-align: center;
+        }
+        .trust-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .trust-emoji {
+            font-size: 32px;
+        }
+        .trust-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--cream);
+        }
+        .trust-sub {
+            font-size: 11px;
+            color: var(--cream-subtle);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SCREEN 7: CTA
+        ═══════════════════════════════════════════════════════════════ */
+        .cta-section {
+            position: relative;
+            overflow: hidden;
+        }
+        .cta-glow {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(201,168,76,0.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .cta-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .cta-title {
+            font-family: var(--font-display);
+            font-size: clamp(28px, 4vw, 44px);
+            font-weight: 800;
+            color: var(--cream);
+            margin-bottom: 12px;
+        }
+        .cta-sub {
+            font-size: 18px;
+            color: var(--cream-muted);
+            margin-bottom: 32px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           FOOTER
+        ═══════════════════════════════════════════════════════════════ */
+        .footer {
+            background: var(--void-light);
+            padding: 40px 24px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+        .footer-disclaimer {
+            font-size: 11px;
+            color: var(--cream-subtle);
+            max-width: 600px;
+            margin: 0 auto 16px;
+            line-height: 1.7;
+        }
+        .footer-copy {
+            font-size: 11px;
+            color: rgba(240,237,232,0.15);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           RESPONSIVE
+        ═══════════════════════════════════════════════════════════════ */
+        @media (max-width: 768px) {
+            .mockup-row { flex-direction: column; }
+            .hero-features { gap: 20px; }
+            .hero-actions { flex-direction: column; }
+            .trust-grid { grid-template-columns: repeat(2, 1fr); }
+            .section-dark, .section-light { padding: 60px 20px; }
+            .mockup-card { padding: 24px; }
+        }
+
+        @media (max-width: 480px) {
+            .trust-grid { grid-template-columns: 1fr 1fr; }
+            .hero-title { font-size: 32px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SCREEN 1: HERO
+    ═══════════════════════════════════════════════════════════════ -->
+    <section class="hero">
+        <div class="hero-orb hero-orb-1"></div>
+        <div class="hero-orb hero-orb-2"></div>
+
+        <div class="hero-content">
+            <!-- Wolf mark -->
+            <div class="hero-wolf reveal">
+                <img src="assets/wolf-luxury.png" alt="THEEB MIND">
+            </div>
+
+            <p class="hero-label reveal reveal-delay-1">DHEEB MINDSET</p>
+
+            <h1 class="hero-title reveal reveal-delay-1">
+                لا تتنبأ بالسوق.<br>
+                <span class="gold">افهم قراراتك.</span>
+            </h1>
+
+            <p class="hero-desc reveal reveal-delay-2">
+                منصة ذكاء اصطناعي تساعدك على اتخاذ قرارات مالية أفضل.
+            </p>
+
+            <div class="hero-actions reveal reveal-delay-3">
+                <a href="https://theeb-mind.vercel.app/analyze" class="hero-cta">
+                    ابدأ التحليل
+                    <span class="hero-cta-arrow">←</span>
+                </a>
+                <a href="#how-it-works" class="hero-ghost">
+                    شاهد كيف تعمل
+                </a>
+            </div>
+
+            <!-- Three feature icons -->
+            <div class="hero-features reveal reveal-delay-4">
+                <div class="hero-feature">
+                    <div class="hero-feature-icon gold-bg">📊</div>
+                    <span class="hero-feature-label">تحليل القرار</span>
+                </div>
+                <div class="hero-feature">
+                    <div class="hero-feature-icon warning-bg">🛡️</div>
+                    <span class="hero-feature-label">كشف التضليل</span>
+                </div>
+                <div class="hero-feature">
+                    <div class="hero-feature-icon emerald-bg">🧠</div>
+                    <span class="hero-feature-label">الرؤية السلوكية</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scroll hint -->
+        <a href="#how-it-works" class="scroll-hint">
+            <span>اكتشف المزيد</span>
+            <span class="scroll-hint-arrow">↓</span>
+        </a>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SCREEN 2: DECISION ANALYSIS
+    ═══════════════════════════════════════════════════════════════ -->
+    <section id="how-it-works" class="section-light">
+        <div class="section-container">
+            <div class="section-header reveal">
+                <p class="section-label gold">التجربة الأولى</p>
+                <h2 class="section-title light">هل قرارك صحيح؟</h2>
+            </div>
+
+            <div class="mockup-card reveal reveal-delay-1">
+                <div class="mockup-row">
+                    <div class="mockup-col" style="text-align:center;">
+                        <p style="color:var(--cream-muted);font-size:13px;margin-bottom:8px;">ارفع صورة الشارت.</p>
+                        <p style="color:var(--cream);font-size:16px;font-weight:500;margin-bottom:24px;">الذكاء الاصطناعي يقيّم جودة قرارك.</p>
+
+                        <div class="score-circle" style="margin:0 auto;">
+                            <span class="score-value">78</span>
+                            <span class="score-label">جودة القرار من 100</span>
+                        </div>
+                        <div style="margin-top:12px;">
+                            <span class="score-grade a">A · درجة ممتاز</span>
+                        </div>
+                    </div>
+
+                    <div class="mockup-col">
+                        <div class="analysis-list">
+                            <div class="analysis-item">
+                                <span class="check">✓</span> التوقيت مناسب
+                                <div class="detail">المخاطرة محسومة</div>
+                            </div>
+                            <div class="analysis-item">
+                                <span class="check">✓</span> هيكل السوق يدعم الاتجاه
+                                <div class="detail">المنطقة المؤسسية مؤكدة</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-cta reveal reveal-delay-2">
+                <a href="https://theeb-mind.vercel.app/analyze" class="btn-primary">
+                    جرّب الآن ←
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SCREEN 3: MISINFO DETECTION
+    ═══════════════════════════════════════════════════════════════ -->
+    <section class="section-dark">
+        <div class="section-container">
+            <div class="section-header reveal">
+                <p class="section-label warning">التجربة الثانية</p>
+                <h2 class="section-title light">هل هذا المحتوى صادق؟</h2>
+            </div>
+
+            <div class="mockup-card reveal reveal-delay-1">
+                <div class="mockup-row">
+                    <div class="mockup-col">
+                        <div class="fake-tweet">
+                            <div class="tweet-author">
+                                <div class="tweet-avatar">م</div>
+                                <div>
+                                    <div class="tweet-name">محمد الفالي</div>
+                                    <div class="tweet-handle">خبير مالي معتمد ✓</div>
+                                </div>
+                            </div>
+                            <p class="tweet-body">
+                                "فرصة لا تفوتها — ربح مضمون 300% في أسبوع! لا تتأخر — العرض ينتهي خلال 24 ساعة فقط!"
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mockup-col">
+                        <div class="warning-card">
+                            <div class="warning-header">
+                                <span class="warning-icon">⚠️</span>
+                                <div>
+                                    <div class="warning-title">محتوى مشبوه</div>
+                                    <div class="warning-sub">درجة الثقة: 23 من 100</div>
+                                </div>
+                            </div>
+                            <ul class="warning-reasons">
+                                <li>أرباح مضمونة — ادعاءات غير واقعية</li>
+                                <li>ضغط زمني مصطنع — لحملك على القرار السريع</li>
+                                <li>سلطة مزيفة — لا يوجد إثبات للاعتماد</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-cta reveal reveal-delay-2">
+                <a href="https://theeb-mind.vercel.app/verify" class="btn-primary">
+                    جرّب الآن ←
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SCREEN 4: BEHAVIORAL INTELLIGENCE
+    ═══════════════════════════════════════════════════════════════ -->
+    <section class="section-light">
+        <div class="section-container">
+            <div class="section-header reveal">
+                <p class="section-label emerald">التجربة الثالثة</p>
+                <h2 class="section-title light">كيف تتحسن؟</h2>
+            </div>
+
+            <div class="mockup-card reveal reveal-delay-1">
+                <div class="mockup-row">
+                    <div class="mockup-col" style="text-align:center;">
+                        <p style="color:var(--cream-subtle);font-size:13px;margin-bottom:16px;">تتبّع قراراتك. اكتشف أنماطك. حسّن انضباطك.</p>
+
+                        <div class="bar-chart">
+                            <div class="bar" style="height:35%"></div>
+                            <div class="bar" style="height:42%"></div>
+                            <div class="bar" style="height:45%"></div>
+                            <div class="bar" style="height:52%"></div>
+                            <div class="bar" style="height:48%"></div>
+                            <div class="bar" style="height:58%"></div>
+                            <div class="bar" style="height:64%"></div>
+                            <div class="bar" style="height:68%"></div>
+                            <div class="bar" style="height:72%"></div>
+                            <div class="bar" style="height:76%"></div>
+                        </div>
+                        <div class="improvement-stat">
+                            <div class="improvement-value">+41%</div>
+                            <div class="improvement-label">تحسن في الانضباط</div>
+                        </div>
+                    </div>
+
+                    <div class="mockup-col">
+                        <div class="insight-card danger">
+                            <div class="insight-title">⚠️ أكثر أخطائك</div>
+                            <div class="insight-desc">الدخول خارج نافذة نشاط السوق</div>
+                        </div>
+                        <div class="insight-card success">
+                            <div class="insight-title">✓ نقطة قوة</div>
+                            <div class="insight-desc">الانتظار لتأكيد إعادة التوازن</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-cta reveal reveal-delay-2">
+                <a href="https://theeb-mind.vercel.app/journal" class="btn-primary">
+                    ابدأ التتبع ←
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SCREEN 5: WOLF PHILOSOPHY
+    ═══════════════════════════════════════════════════════════════ -->
+    <section class="section-dark">
+        <div class="section-container philosophy">
+            <p class="section-label gold reveal" style="text-align:center;">عقلية الذيب</p>
+
+            <div class="reveal reveal-delay-1">
+                <p class="philosophy-line muted">لا يطارد كل فرصة.</p>
+                <p class="philosophy-line muted">يقرأ البيئة.</p>
+                <p class="philosophy-line muted">ينتظر اللحظة.</p>
+                <p class="philosophy-line gold">يتحرك بدقة.</p>
+            </div>
+
+            <div class="philosophy-wolf-line reveal reveal-delay-2">
+                <svg viewBox="0 0 200 40" fill="none">
+                    <path d="M20 35L40 8L60 25L80 5L100 30L120 10L140 28L160 6L180 35" stroke="#c9a84c" stroke-width="1"/>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SCREEN 6: TRUST SIGNALS
+    ═══════════════════════════════════════════════════════════════ -->
+    <section class="section-light">
+        <div class="section-container">
+            <div class="trust-grid reveal">
+                <div class="trust-item">
+                    <span class="trust-emoji">🇸🇦</span>
+                    <span class="trust-label">صنع في السعودية</span>
+                </div>
+                <div class="trust-item">
+                    <span class="trust-emoji">🎓</span>
+                    <span class="trust-label">تحليل تعليمي</span>
+                    <span class="trust-sub">ليس نصيحة مالية</span>
+                </div>
+                <div class="trust-item">
+                    <span class="trust-emoji">🔤</span>
+                    <span class="trust-label">عربي أولاً</span>
+                </div>
+                <div class="trust-item">
+                    <span class="trust-emoji">🤖</span>
+                    <span class="trust-label">ذكاء اصطناعي متقدم</span>
+                </div>
+                <div class="trust-item">
+                    <span class="trust-emoji">🏆</span>
+                    <span class="trust-label">PRO5 Ventures</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SCREEN 7: CTA
+    ═══════════════════════════════════════════════════════════════ -->
+    <section class="section-dark cta-section">
+        <div class="cta-glow"></div>
+        <div class="cta-content">
+            <h2 class="cta-title reveal">ابدأ الآن. افهم قراراتك.</h2>
+            <p class="cta-sub reveal reveal-delay-1">الخطوة الأولى لقرار أفضل</p>
+            <div class="reveal reveal-delay-2">
+                <a href="https://theeb-mind.vercel.app/analyze" class="btn-primary" style="padding:18px 48px;font-size:17px;">
+                    ابدأ التحليل ←
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         FOOTER
+    ═══════════════════════════════════════════════════════════════ -->
+    <footer class="footer">
+        <p class="footer-disclaimer">
+            هذه المنصة تقدم تحليلاً تعليمياً وتقييماً لجودة القرار المالي. لا تشكل نصيحة مالية أو توصية بالشراء أو البيع. جميع قرارات التداول يتخذها المستخدم بنفسه وعلى مسؤوليته الخاصة.
+        </p>
+        <p class="footer-copy">
+            © 2026 DHEEB MINDSET — PRO5 Ventures
+        </p>
+    </footer>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════
+        // SCROLL REVEAL — Intersection Observer
+        // ═══════════════════════════════════════════════════════════
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // ═══════════════════════════════════════════════════════════
+        // PARALLAX — Subtle orb movement on scroll
+        // ═══════════════════════════════════════════════════════════
+        const orb1 = document.querySelector('.hero-orb-1');
+        const orb2 = document.querySelector('.hero-orb-2');
+
+        window.addEventListener('scroll', () => {
+            const scrollY = window.scrollY;
+            if (orb1) orb1.style.transform = `translate(-50%, -50%) translateY(${scrollY * 0.04}px)`;
+            if (orb2) orb2.style.transform = `translateY(${scrollY * 0.02}px)`;
+        }, { passive: true });
+    </script>
+
+</body>
+</html>

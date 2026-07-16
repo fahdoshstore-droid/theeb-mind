@@ -1,0 +1,34 @@
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import Layout from './components/shared/Layout';
+import AnalyzeChart from './pages/AnalyzeChart';
+import VerifyContent from './pages/VerifyContent';
+import Journal from './pages/Journal';
+import Landing from './pages/Landing';
+import Performance from './pages/Performance';
+
+// Scroll to top on route change
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
+export default function App() {
+  return (
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* Landing page — no sidebar, cinematic */}
+        <Route path="/" element={<Landing />} />
+        {/* App pages — with sidebar layout */}
+        <Route path="/analyze" element={<AnalyzeChart />} />
+        <Route path="/verify" element={<Layout><VerifyContent /></Layout>} />
+        <Route path="/journal" element={<Layout><Journal /></Layout>} />
+        <Route path="/performance" element={<Layout><Performance /></Layout>} />
+      </Routes>
+    </>
+  );
+}
