@@ -8,7 +8,8 @@ const WOLF = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtAAAALQCAIAAAA2NdDL
 //  5 components only · Constitution overrides everything · Single verdict
 // ════════════════════════════════════════════════════
 
-import { getPsychologyState, submitGate, evaluateRules } from '../lib/api';
+import { getPsychologyState, submitGate, evaluateRules, getMarketSnapshots, getMacroNarrative } from '../lib/api';
+import type { MarketSnapshot } from '../lib/types';
 
 // ── Psychology gate questions (mirrors backend gate-questions.ts ids 1-5) ──
 const GATE_QS = [
@@ -149,6 +150,10 @@ export default function TheebMindGate() {
   // Rule violations — async backend evaluation with local fallback
   const [backendViolations,setBackendViolations]=useState<string[]|null>(null);
 
+  // Market Intelligence — live snapshots + macro narrative
+  const [mktSnaps,setMktSnaps]=useState<MarketSnapshot[]>([]);
+  const [macroNarr,setMacroNarr]=useState<string>('');
+
   const trendCycle: Trend[] = ['bullish','bearish','neutral'];
   const locCycle: Location[] = ['discount','equilibrium','premium'];
 
@@ -161,6 +166,12 @@ export default function TheebMindGate() {
     getPsychologyState('user-1')
       .then(s=>{ setPsychVerdict(s.riskTolerance==='high'?'STOP':null); setGateChecked(true); })
       .catch(()=>setGateChecked(true));
+  },[]);
+
+  // Load live market snapshots + macro narrative on mount
+  useEffect(()=>{
+    getMarketSnapshots().then(s=>setMktSnaps(s)).catch(()=>{});
+    getMacroNarrative('user-1').then(n=>setMacroNarr(n?.narrativeText??'')).catch(()=>{});
   },[]);
 
   // Debounced backend rule evaluation — persists violations for audit trail
@@ -301,14 +312,26 @@ export default function TheebMindGate() {
         <div style={{width:1,height:24,background:C.border}}/>
         <div className="tm-mkt" style={{display:'flex',gap:14,fontFamily:'JetBrains Mono',fontSize:11,color:C.t2,flex:1,overflow:'hidden'}}>
           <span>NQ <b style={{color:C.t1}}>18,642.25</b> <span style={{color:C.green}}>+0.62%</span></span>
-          <span>DXY <b style={{color:C.t1}}>104.6</b></span>
-          <span>VIX <b style={{color:C.t1}}>13.4</b></span>
+          {['DXY','VIX','US10Y'].map(inst=>{
+            const snap=mktSnaps.find(s=>s.instrument===inst);
+            if(!snap)return null;
+            const col=snap.direction==='bullish'?C.green:snap.direction==='bearish'?C.red:C.t1;
+            return <span key={inst}>{inst} <b style={{color:col}}>{snap.value.toFixed(inst==='US10Y'?2:1)}</b></span>;
+          })}
         </div>
         <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
           <span style={{width:6,height:6,borderRadius:'50%',background:C.green,boxShadow:'0 0 6px '+C.green,animation:'pulse 1.8s infinite',display:'inline-block'}}/>
           <span className="tm-ny" style={{fontFamily:'JetBrains Mono',fontSize:10,color:C.gold}}>NY {time}</span>
         </div>
       </div>
+
+      {/* MACRO NARRATIVE BANNER */}
+      {macroNarr && (
+        <div style={{background:'rgba(201,168,76,0.06)',borderBottom:'1px solid rgba(201,168,76,0.15)',padding:'7px 16px',display:'flex',gap:8,alignItems:'flex-start',flexShrink:0}}>
+          <span style={{fontFamily:'JetBrains Mono',fontSize:9,color:C.gold,letterSpacing:'.12em',flexShrink:0,marginTop:1}}>السردية الكلية</span>
+          <span style={{fontSize:11,color:C.t2,lineHeight:1.5}}>{macroNarr}</span>
+        </div>
+      )}
 
       {/* MAIN — 3 col desktop, 1 col mobile (verdict first) */}
       <div className="tm-main" style={{flex:1,display:'grid',gridTemplateColumns:'230px 1fr 260px',overflow:'hidden',gap:1,background:C.border2}}>

@@ -340,5 +340,56 @@ export async function getTradeFingerprint(decisionId: string, userId: string): P
   return requestUnwrapped<import('./types').TradeFingerprint>(`/intelligence/fingerprint/${decisionId}?userId=${userId}`);
 }
 
+// ── Market Intelligence Module ─────────────────────────
+
+/** Returns latest snapshot per instrument */
+export async function getMarketSnapshots(): Promise<import('./types').MarketSnapshot[]> {
+  return requestUnwrapped<import('./types').MarketSnapshot[]>('/market/snapshots');
+}
+
+export async function updateMarketSnapshot(payload: {
+  instrument: string; metric: string; value: number;
+  direction: 'bullish' | 'bearish' | 'neutral'; note?: string;
+}): Promise<import('./types').MarketSnapshot> {
+  return requestUnwrapped<import('./types').MarketSnapshot>('/market/snapshots', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getEconomicEvents(): Promise<import('./types').EconomicEvent[]> {
+  return requestUnwrapped<import('./types').EconomicEvent[]>('/market/events');
+}
+
+/** Returns this week's bias entries for the user */
+export async function getWeeklyBias(userId: string): Promise<import('./types').WeeklyBias[]> {
+  return requestUnwrapped<import('./types').WeeklyBias[]>(`/market/bias/${userId}`);
+}
+
+export async function setWeeklyBias(
+  userId: string,
+  payload: { instrument: string; bias: 'bullish' | 'bearish' | 'neutral'; notes?: string }
+): Promise<void> {
+  await requestUnwrapped<unknown>(`/market/bias/${userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Returns this week's macro narrative, or null if not set */
+export async function getMacroNarrative(userId: string): Promise<import('./types').MacroNarrative | null> {
+  return requestUnwrapped<import('./types').MacroNarrative | null>(`/market/narrative/${userId}`);
+}
+
+export async function setMacroNarrative(userId: string, narrativeText: string): Promise<import('./types').MacroNarrative> {
+  return requestUnwrapped<import('./types').MacroNarrative>(`/market/narrative/${userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ narrativeText }),
+  });
+}
+
 // ── Re-export demo data for sample text ──
 export { DEMO_MISLEADING_TEXT } from './demo-data';

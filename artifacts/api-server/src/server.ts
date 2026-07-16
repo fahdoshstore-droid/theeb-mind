@@ -15,6 +15,7 @@ import { memoryRoutes } from './modules/memory/memory.routes.js';
 import { backfillFingerprints } from './modules/memory/memory.service.js';
 import { qualityRoutes } from './modules/quality/quality.routes.js';
 import { intelligenceRoutes } from './modules/intelligence/intelligence.routes.js';
+import { marketRoutes } from './modules/market/market.routes.js';
 
 const app: Express = express();
 
@@ -39,6 +40,7 @@ app.use('/api/rules', rulesRoutes);
 app.use('/api/memory', memoryRoutes);
 app.use('/api/quality', qualityRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
+app.use('/api/market', marketRoutes);
 
 // Error handler
 app.use(errorHandler);

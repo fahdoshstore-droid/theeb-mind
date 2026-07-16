@@ -7,6 +7,7 @@ import {
   Menu,
   X,
   Zap,
+  Globe,
 } from 'lucide-react';
 import { USE_DEMO_MODE } from '../../lib/api';
 
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/verify', icon: ShieldCheck, label: 'كشف التضليل' },
   { to: '/journal', icon: Brain, label: 'الرؤية السلوكية' },
   { to: '/intelligence', icon: Zap, label: 'ذكاء الصفقات' },
+  { to: '/market', icon: Globe, label: 'ذكاء السوق' },
 ];
 
 const DISCLAIMER =

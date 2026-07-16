@@ -166,3 +166,52 @@ CREATE TABLE IF NOT EXISTS trade_intelligence_cache (
 );
 CREATE INDEX IF NOT EXISTS idx_tic_user ON trade_intelligence_cache(user_id);
 CREATE INDEX IF NOT EXISTS idx_tic_key ON trade_intelligence_cache(user_id, cache_key);
+
+-- ─── Market Intelligence ───────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS market_snapshots (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  instrument TEXT NOT NULL,
+  metric TEXT NOT NULL,
+  value REAL NOT NULL,
+  direction TEXT NOT NULL DEFAULT 'neutral' CHECK(direction IN ('bullish','bearish','neutral')),
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_msnap_instrument ON market_snapshots(instrument, metric, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS economic_events (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  title TEXT NOT NULL,
+  title_ar TEXT,
+  impact TEXT NOT NULL DEFAULT 'medium' CHECK(impact IN ('high','medium','low')),
+  event_date TEXT NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  actual TEXT,
+  forecast TEXT,
+  previous TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_eco_date ON economic_events(event_date DESC);
+
+CREATE TABLE IF NOT EXISTS weekly_bias (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  user_id TEXT NOT NULL,
+  instrument TEXT NOT NULL,
+  bias TEXT NOT NULL DEFAULT 'neutral' CHECK(bias IN ('bullish','bearish','neutral')),
+  week_key TEXT NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, instrument, week_key)
+);
+CREATE INDEX IF NOT EXISTS idx_wbias_user ON weekly_bias(user_id, week_key);
+
+CREATE TABLE IF NOT EXISTS macro_narratives (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  user_id TEXT NOT NULL,
+  narrative_text TEXT NOT NULL,
+  week_key TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, week_key)
+);
+CREATE INDEX IF NOT EXISTS idx_mnarr_user ON macro_narratives(user_id, week_key);

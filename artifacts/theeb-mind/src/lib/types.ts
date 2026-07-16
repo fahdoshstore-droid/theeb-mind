@@ -372,6 +372,55 @@ export interface AHAMomentResult {
   explanation: string;
 }
 
+// ── Market Intelligence ───────────────────────────────────────────────────────
+
+export interface MarketSnapshot {
+  id: string;
+  instrument: string;
+  metric: string;
+  value: number;
+  direction: 'bullish' | 'bearish' | 'neutral';
+  note?: string;
+  createdAt: string;
+}
+
+export interface EconomicEvent {
+  id: string;
+  title: string;
+  titleAr?: string;
+  impact: 'high' | 'medium' | 'low';
+  eventDate: string;
+  currency: string;
+  actual?: string;
+  forecast?: string;
+  previous?: string;
+}
+
+export interface WeeklyBias {
+  id: string;
+  userId: string;
+  instrument: string;
+  bias: 'bullish' | 'bearish' | 'neutral';
+  weekKey: string;
+  notes?: string;
+}
+
+export interface MacroNarrative {
+  id: string;
+  userId: string;
+  narrativeText: string;
+  weekKey: string;
+  createdAt: string;
+}
+
+export interface MarketOverview {
+  snapshots: MarketSnapshot[];
+  events: EconomicEvent[];
+  weekBias: WeeklyBias[];
+  narrative: MacroNarrative | null;
+  weekKey: string;
+}
+
 export interface TradeFingerprint {
   decisionId: string;
   ahaResult: AHAMomentResult;
