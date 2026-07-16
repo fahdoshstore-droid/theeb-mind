@@ -15,7 +15,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { getJournal, getAnalytics, recordOutcome, getRuleViolations, getTradeFingerprint } from '../lib/api';
 import type { Decision, AnalyticsResult, Outcome, Grade, RuleViolationRecord, TradeFingerprint } from '../lib/types';
 import GuardBadge from '../components/shared/GuardBadge';
@@ -170,6 +170,7 @@ function SkeletonCards() {
 }
 
 export default function Journal() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null);
   const [violations, setViolations] = useState<RuleViolationRecord[]>([]);
@@ -182,6 +183,8 @@ export default function Journal() {
   // Filters
   const [gradeFilter, setGradeFilter] = useState<Grade | 'all'>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<Outcome | 'all'>('all');
+  const instrumentFilter = searchParams.get('instrument') ?? 'all';
+  const clearInstrumentFilter = () => setSearchParams({});
 
   // Outcome modal
   const [modalDecisionId, setModalDecisionId] = useState<string | null>(null);
@@ -247,6 +250,7 @@ export default function Journal() {
   const filtered = decisions.filter((d) => {
     if (gradeFilter !== 'all' && d.scoring.grade !== gradeFilter) return false;
     if (outcomeFilter !== 'all' && d.outcome !== outcomeFilter) return false;
+    if (instrumentFilter !== 'all' && (d.instrument ?? '') !== instrumentFilter) return false;
     return true;
   });
 
@@ -408,7 +412,7 @@ export default function Journal() {
           <Filter size={18} className="text-cream/40" />
           <h3 className="font-bold text-cream">تصفية</h3>
         </div>
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex gap-4 flex-wrap items-end">
           <div>
             <label className="block text-xs text-cream/50 mb-1">الدرجة</label>
             <select
@@ -437,6 +441,14 @@ export default function Journal() {
               ))}
             </select>
           </div>
+          {instrumentFilter !== 'all' && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gold/40 bg-gold/10 text-gold text-sm font-mono">
+              <span>أداة: {instrumentFilter}</span>
+              <button onClick={clearInstrumentFilter} className="hover:text-cream transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

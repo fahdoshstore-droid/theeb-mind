@@ -253,6 +253,10 @@ export async function getPsychCorrelation(userId: string): Promise<PsychCorrelat
   return requestUnwrapped<PsychCorrelation>(`/performance/psychology-correlation/${userId}`);
 }
 
+export async function getQualityTrend(userId: string): Promise<import('./types').QualityTrendPoint[]> {
+  return requestUnwrapped<import('./types').QualityTrendPoint[]>(`/performance/quality-trend/${userId}`);
+}
+
 export async function getTimeAnalysis(userId: string): Promise<KillzoneStat[]> {
   return requestUnwrapped<KillzoneStat[]>(`/performance/time-analysis/${userId}`);
 }

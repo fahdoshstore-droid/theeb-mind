@@ -4,6 +4,7 @@ import { calculateAnalytics } from './analytics.js';
 import type { JournalAnalytics } from './journal.types.js';
 import type { Decision } from '../../shared/types.js';
 import { updateFailurePatterns } from '../memory/memory.service.js';
+import { invalidateCacheForUser } from '../intelligence/intelligence.service.js';
 
 export function getDecisionsByUser(userId: string): Decision[] {
   return db.stmt('getDecisionsByUser').all(userId) as Decision[];
@@ -33,6 +34,11 @@ export function recordOutcome(input: OutcomeInput): void {
   try {
     updateFailurePatterns(input.userId, input.decisionId, input.outcome);
   } catch { /* non-critical — never fail the outcome record */ }
+
+  // ── Intelligence: bust stale cache immediately ─────────
+  try {
+    invalidateCacheForUser(input.userId);
+  } catch { /* non-critical */ }
 }
 
 export function getAnalytics(userId: string, period: string): JournalAnalytics {

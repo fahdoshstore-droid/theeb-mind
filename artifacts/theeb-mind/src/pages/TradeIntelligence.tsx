@@ -3,6 +3,7 @@
 // ============================================
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Zap, RefreshCw, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import { getIntelligencePatterns, getIntelligenceTrends } from '../lib/api';
 import type { PatternSummary, TrendSummary } from '../lib/types';
@@ -64,19 +65,27 @@ function TrendBars({ points }: { points: { score: number; grade: string }[] }) {
 
 // ── Heatmap Cell ─────────────────────────────────────────
 
-function HeatCell({ winRate, trades, instrument, timeframe }: {
-  winRate: number; trades: number; instrument: string; timeframe: string;
+function HeatCell({ winRate, trades, instrument, timeframe, onClick }: {
+  winRate: number; trades: number; instrument: string; timeframe: string; onClick?: () => void;
 }) {
   const level = winRate < 35 ? 'high' : winRate < 55 ? 'medium' : 'low';
   return (
-    <div style={{
-      padding: '8px 6px',
-      borderRadius: 6,
-      background: riskBg(level),
-      border: '1px solid ' + riskBorder(level),
-      textAlign: 'center',
-      minWidth: 64,
-    }}>
+    <div
+      onClick={onClick}
+      title={onClick ? `عرض صفقات ${instrument}` : undefined}
+      style={{
+        padding: '8px 6px',
+        borderRadius: 6,
+        background: riskBg(level),
+        border: '1px solid ' + riskBorder(level),
+        textAlign: 'center',
+        minWidth: 64,
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'opacity .15s',
+      }}
+      onMouseEnter={e => { if (onClick) (e.currentTarget as HTMLDivElement).style.opacity = '.75'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+    >
       <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, fontWeight: 800, color: riskColor(level) }}>
         {winRate}%
       </div>
@@ -122,6 +131,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ── Main Page ────────────────────────────────────────────
 
 export default function TradeIntelligence() {
+  const navigate = useNavigate();
   const [patterns, setPatterns] = useState<PatternSummary | null>(null);
   const [trends, setTrends] = useState<TrendSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -333,6 +343,7 @@ export default function TradeIntelligence() {
                     timeframe={cell.timeframe}
                     winRate={cell.winRate}
                     trades={cell.totalTrades}
+                    onClick={() => navigate(`/journal?instrument=${encodeURIComponent(cell.instrument)}`)}
                   />
                 ))}
               </div>

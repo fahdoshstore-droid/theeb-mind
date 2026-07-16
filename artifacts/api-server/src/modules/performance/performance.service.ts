@@ -54,6 +54,12 @@ export interface KillzoneStat {
   total: number;
 }
 
+export interface QualityTrendPoint {
+  date: string;
+  avgScore: number;
+  count: number;
+}
+
 // ── Helpers ────────────────────────────────────────────
 
 function safeJsonParse(raw: string | null): Record<string, any> | null {
@@ -216,6 +222,27 @@ export function getPsychCorrelation(userId: string): PsychCorrelation {
   }
 
   return { matrix, verdicts: VERDICTS, outcomes: OUTCOMES };
+}
+
+export function getQualityTrend(userId: string): QualityTrendPoint[] {
+  const rows = db.raw.prepare(`
+    SELECT
+      date(created_at)                     AS day,
+      ROUND(AVG(CAST(quality_score AS REAL)), 1) AS avg_score,
+      COUNT(*)                             AS cnt
+    FROM decisions
+    WHERE user_id = ?
+      AND quality_score IS NOT NULL
+      AND date(created_at) >= date('now', '-30 days')
+    GROUP BY day
+    ORDER BY day ASC
+  `).all(userId) as { day: string; avg_score: number; cnt: number }[];
+
+  return rows.map(r => ({
+    date:     r.day,
+    avgScore: r.avg_score ?? 0,
+    count:    Number(r.cnt),
+  }));
 }
 
 export function getTimeAnalysis(userId: string): KillzoneStat[] {

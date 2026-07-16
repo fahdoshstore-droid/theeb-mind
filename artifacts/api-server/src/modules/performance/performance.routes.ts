@@ -6,6 +6,7 @@ import {
   getInstrumentBreakdown,
   getPsychCorrelation,
   getTimeAnalysis,
+  getQualityTrend,
 } from './performance.service.js';
 
 const router: RouterType = Router();
@@ -76,6 +77,16 @@ router.get('/time-analysis/:userId', (req: Request, res: Response) => {
   if (!userId) return;
   try {
     res.json({ success: true, data: getTimeAnalysis(userId) });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: { message: err instanceof Error ? err.message : 'خطأ' } });
+  }
+});
+
+router.get('/quality-trend/:userId', (req: Request, res: Response) => {
+  const userId = resolveUserId(req, res);
+  if (!userId) return;
+  try {
+    res.json({ success: true, data: getQualityTrend(userId) });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: { message: err instanceof Error ? err.message : 'خطأ' } });
   }

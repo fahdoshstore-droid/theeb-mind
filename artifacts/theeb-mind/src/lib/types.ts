@@ -196,6 +196,12 @@ export interface PsychCorrelation {
   outcomes: string[];
 }
 
+export interface QualityTrendPoint {
+  date: string;
+  avgScore: number;
+  count: number;
+}
+
 export interface KillzoneStat {
   killzone: string;
   wins: number;

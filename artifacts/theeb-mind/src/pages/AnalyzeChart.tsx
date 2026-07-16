@@ -8,8 +8,8 @@ const WOLF = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtAAAALQCAIAAAA2NdDL
 //  5 components only · Constitution overrides everything · Single verdict
 // ════════════════════════════════════════════════════
 
-import { getPsychologyState, submitGate, evaluateRules, getMarketSnapshots, getMacroNarrative } from '../lib/api';
-import type { MarketSnapshot } from '../lib/types';
+import { getPsychologyState, submitGate, evaluateRules, getMarketSnapshots, getMacroNarrative, evaluateQuality } from '../lib/api';
+import type { MarketSnapshot, UnifiedQualityResult } from '../lib/types';
 
 // ── Psychology gate questions (mirrors backend gate-questions.ts ids 1-5) ──
 const GATE_QS = [
@@ -154,6 +154,9 @@ export default function TheebMindGate() {
   const [mktSnaps,setMktSnaps]=useState<MarketSnapshot[]>([]);
   const [macroNarr,setMacroNarr]=useState<string>('');
 
+  // Live quality score from the real scoring engine
+  const [apiQuality,setApiQuality]=useState<UnifiedQualityResult|null>(null);
+
   const trendCycle: Trend[] = ['bullish','bearish','neutral'];
   const locCycle: Location[] = ['discount','equilibrium','premium'];
 
@@ -173,6 +176,36 @@ export default function TheebMindGate() {
     getMarketSnapshots().then(s=>setMktSnaps(s)).catch(()=>{});
     getMacroNarrative('user-1').then(n=>setMacroNarr(n?.narrativeText??'')).catch(()=>{});
   },[]);
+
+  // Debounced live quality evaluation via the real scoring engine
+  useEffect(()=>{
+    const timer=setTimeout(async()=>{
+      try{
+        const result=await evaluateQuality({
+          marketStructure: trend!=='neutral',
+          fairValueGap:    imbalance,
+          orderBlock,
+          liquiditySweep:  raid,
+          killzoneActive:  false,
+          immediateRebalance,
+          gatePercentage:  psychVerdict===null ? 80 : 30,
+          gateVerdict:     psychVerdict===null ? 'pass' : 'fail',
+          behavioralLock:  psychVerdict==='STOP',
+          psychPhase:      'green',
+          rrr,
+          rrrPass:         rrr>=2.5,
+          riskAmount,
+          tradeCountToday: tradesTaken,
+          isPreMarket:     false,
+          consecutiveLosses: consecLosses,
+          isNoTradeDay:    false,
+          alignmentScore:  75,
+        });
+        setApiQuality(result);
+      }catch{ /* keep local fallback */ }
+    },400);
+    return()=>clearTimeout(timer);
+  },[trend,raid,imbalance,orderBlock,immediateRebalance,rrr,riskAmount,tradesTaken,consecLosses,psychVerdict]);
 
   // Debounced backend rule evaluation — persists violations for audit trail
   useEffect(()=>{
@@ -358,11 +391,11 @@ export default function TheebMindGate() {
           {/* C4 — QUALITY BREAKDOWN */}
           {(() => {
             const trilFactors = [trilPass.trend, trilPass.raid, trilPass.imbalance, trilPass.location, trilPass.orderBlock, trilPass.immediateRebalance];
-            const confNorm   = Math.round((trilFactors.filter(Boolean).length / 6) * 100);
-            const psychNorm  = violations.length === 0 ? 100 : Math.max(20, 100 - violations.length * 20);
-            const rrrNorm    = Math.min(100, Math.round((rrr / 2.5) * 100));
-            const safetyNorm = riskAmount > 500 ? 35 : tradesTaken >= 2 ? 45 : 90;
-            const composite  = Math.round(confNorm * 0.30 + psychNorm * 0.25 + rrrNorm * 0.25 + safetyNorm * 0.15);
+            const confNorm   = apiQuality ? Math.round(apiQuality.breakdown.confluence.normalized)  : Math.round((trilFactors.filter(Boolean).length / 6) * 100);
+            const psychNorm  = apiQuality ? Math.round(apiQuality.breakdown.psychology.normalized)  : (violations.length === 0 ? 100 : Math.max(20, 100 - violations.length * 20));
+            const rrrNorm    = apiQuality ? Math.round(apiQuality.breakdown.quality.normalized)     : Math.min(100, Math.round((rrr / 2.5) * 100));
+            const safetyNorm = apiQuality ? Math.round(apiQuality.breakdown.safety.normalized)      : (riskAmount > 500 ? 35 : tradesTaken >= 2 ? 45 : 90);
+            const composite  = apiQuality ? apiQuality.composite_score : Math.round(confNorm * 0.30 + psychNorm * 0.25 + rrrNorm * 0.25 + safetyNorm * 0.15);
             const barColor   = (v: number) => v >= 75 ? C.green : v >= 50 ? C.gold : C.red;
             const rows: [string, string, number, number][] = [
               ['التوافق',  'CONFLUENCE', confNorm,  30],

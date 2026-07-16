@@ -9,6 +9,7 @@ import {
   getPsychCorrelation,
   getTimeAnalysis,
   getFailurePatterns,
+  getQualityTrend,
 } from '../lib/api';
 import type {
   PerformanceSummary,
@@ -18,6 +19,7 @@ import type {
   PsychCorrelation,
   KillzoneStat,
   FailurePattern,
+  QualityTrendPoint,
 } from '../lib/types';
 
 const USER_ID = 'user-1';
@@ -118,6 +120,81 @@ function EquityCurve({ data }: { data: EquityPoint[] }) {
         r="4"
         fill={lastIsUp ? '#00D68F' : '#FF3B5C'}
       />
+    </svg>
+  );
+}
+
+// ── Quality Trend Chart SVG ────────────────────────────────────────────────────
+function QualityTrendChart({ data }: { data: QualityTrendPoint[] }) {
+  if (data.length < 2) {
+    return (
+      <div className="flex items-center justify-center h-32 text-cream/30 text-sm">
+        لا توجد بيانات كافية — سجّل تحليلات لترى التطور
+      </div>
+    );
+  }
+
+  const W = 800, H = 120, PAD = { top: 12, right: 16, bottom: 28, left: 40 };
+  const innerW = W - PAD.left - PAD.right;
+  const innerH = H - PAD.top - PAD.bottom;
+
+  const scores = data.map(p => p.avgScore);
+  const minVal = Math.max(0, Math.min(...scores) - 10);
+  const maxVal = Math.min(100, Math.max(...scores) + 10);
+  const range  = maxVal - minVal || 1;
+
+  const toX = (i: number) => PAD.left + (i / (data.length - 1)) * innerW;
+  const toY = (v: number) => PAD.top + innerH - ((v - minVal) / range) * innerH;
+
+  const points = data.map((p, i) => `${toX(i)},${toY(p.avgScore)}`).join(' ');
+  const lastScore = scores[scores.length - 1];
+  const lineColor = lastScore >= 70 ? '#3ecf8e' : lastScore >= 50 ? '#c9a84c' : '#e53e3e';
+  const fillColor = lastScore >= 70 ? 'rgba(62,207,142,0.07)' : lastScore >= 50 ? 'rgba(201,168,76,0.07)' : 'rgba(229,62,62,0.07)';
+
+  // Y-axis ticks at 0, 50, 75, 100
+  const yTicks = [minVal, 50, 75, maxVal].filter(v => v >= minVal && v <= maxVal);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+      {/* Reference lines */}
+      {[50, 75].map(v => v >= minVal && v <= maxVal && (
+        <g key={v}>
+          <line x1={PAD.left} y1={toY(v)} x2={W - PAD.right} y2={toY(v)}
+            stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3,3" />
+          <text x={PAD.left - 5} y={toY(v) + 4} textAnchor="end"
+            fontSize="8" fill="rgba(255,255,255,0.25)">{v}</text>
+        </g>
+      ))}
+      {/* Grid lines */}
+      {yTicks.filter(v => v !== 50 && v !== 75).map((v, i) => (
+        <g key={`g${i}`}>
+          <line x1={PAD.left} y1={toY(v)} x2={W - PAD.right} y2={toY(v)}
+            stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+          <text x={PAD.left - 5} y={toY(v) + 4} textAnchor="end"
+            fontSize="8" fill="rgba(255,255,255,0.2)">{Math.round(v)}</text>
+        </g>
+      ))}
+      {/* Fill */}
+      <polyline
+        points={`${toX(0)},${PAD.top + innerH} ${points} ${toX(data.length - 1)},${PAD.top + innerH}`}
+        fill={fillColor} stroke="none"
+      />
+      {/* Curve */}
+      <polyline points={points} fill="none" stroke={lineColor} strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round" />
+      {/* Dots on each data point */}
+      {data.map((p, i) => (
+        <circle key={i} cx={toX(i)} cy={toY(p.avgScore)} r="3"
+          fill={p.avgScore >= 70 ? '#3ecf8e' : p.avgScore >= 50 ? '#c9a84c' : '#e53e3e'}
+          opacity="0.85" />
+      ))}
+      {/* X-axis date labels (show first, middle, last) */}
+      {[0, Math.floor((data.length - 1) / 2), data.length - 1].map(i => (
+        <text key={i} x={toX(i)} y={H - 4} textAnchor="middle"
+          fontSize="8" fill="rgba(255,255,255,0.25)">
+          {data[i].date.slice(5)}
+        </text>
+      ))}
     </svg>
   );
 }
@@ -470,6 +547,7 @@ function LoadingSkeleton() {
 export default function Performance() {
   const [summary,         setSummary]         = useState<PerformanceSummary | null>(null);
   const [equity,          setEquity]          = useState<EquityPoint[]>([]);
+  const [qualityTrend,    setQualityTrend]    = useState<QualityTrendPoint[]>([]);
   const [drawdown,        setDrawdown]        = useState<DrawdownResult | null>(null);
   const [instruments,     setInstruments]     = useState<InstrumentStat[]>([]);
   const [psych,           setPsych]           = useState<PsychCorrelation | null>(null);
@@ -482,9 +560,10 @@ export default function Performance() {
     setLoading(true);
     setError(null);
     try {
-      const [s, e, d, ins, p, k, fp] = await Promise.allSettled([
+      const [s, e, qt, d, ins, p, k, fp] = await Promise.allSettled([
         getPerformanceSummary(USER_ID),
         getEquityCurve(USER_ID),
+        getQualityTrend(USER_ID),
         getDrawdown(USER_ID),
         getInstrumentBreakdown(USER_ID),
         getPsychCorrelation(USER_ID),
@@ -493,6 +572,7 @@ export default function Performance() {
       ]);
       if (s.status === 'fulfilled') setSummary(s.value);
       if (e.status === 'fulfilled') setEquity(e.value);
+      if (qt.status === 'fulfilled') setQualityTrend(qt.value);
       if (d.status === 'fulfilled') setDrawdown(d.value);
       if (ins.status === 'fulfilled') setInstruments(ins.value);
       if (p.status === 'fulfilled') setPsych(p.value);
@@ -579,6 +659,32 @@ export default function Performance() {
           <span className="text-xs text-cream/30 font-mono">{equity.length} نقطة</span>
         </div>
         <EquityCurve data={equity} />
+      </div>
+
+      {/* Quality Trend */}
+      <div className="card-dark">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-cream flex items-center gap-2">
+            <Activity size={16} className="text-gold" />
+            تطور جودة القرارات — آخر 30 يوم
+          </h3>
+          <span className="text-xs text-cream/30 font-mono">{qualityTrend.length} يوم</span>
+        </div>
+        <QualityTrendChart data={qualityTrend} />
+        {qualityTrend.length >= 2 && (
+          <div className="flex gap-6 mt-3 pt-3 border-t border-white/5">
+            {[
+              { label: 'آخر جلسة', val: qualityTrend[qualityTrend.length - 1].avgScore },
+              { label: 'المتوسط', val: Math.round(qualityTrend.reduce((s, p) => s + p.avgScore, 0) / qualityTrend.length) },
+              { label: 'الأعلى', val: Math.max(...qualityTrend.map(p => p.avgScore)) },
+            ].map(({ label, val }) => (
+              <div key={label}>
+                <p className="text-xs text-cream/40">{label}</p>
+                <p className={`text-lg font-bold font-mono ${val >= 70 ? 'text-emerald' : val >= 50 ? 'text-gold' : 'text-warning'}`}>{val}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Row 2: Instruments + Psych Matrix */}
