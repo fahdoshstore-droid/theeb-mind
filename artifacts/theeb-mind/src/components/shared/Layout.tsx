@@ -6,6 +6,7 @@ import {
   Brain,
   Menu,
   X,
+  Zap,
 } from 'lucide-react';
 import { USE_DEMO_MODE } from '../../lib/api';
 
@@ -13,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/analyze', icon: BarChart3, label: 'تحليل القرار' },
   { to: '/verify', icon: ShieldCheck, label: 'كشف التضليل' },
   { to: '/journal', icon: Brain, label: 'الرؤية السلوكية' },
+  { to: '/intelligence', icon: Zap, label: 'ذكاء الصفقات' },
 ];
 
 const DISCLAIMER =

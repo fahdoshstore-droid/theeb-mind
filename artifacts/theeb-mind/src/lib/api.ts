@@ -326,5 +326,19 @@ export async function backfillMemory(userId: string): Promise<{ inserted: number
   return requestUnwrapped<{ inserted: number }>(`/memory/backfill/${userId}`, { method: 'POST' });
 }
 
+// ── Trade Intelligence Module ──────────────────────────
+
+export async function getIntelligencePatterns(userId: string): Promise<import('./types').PatternSummary> {
+  return requestUnwrapped<import('./types').PatternSummary>(`/intelligence/patterns/${userId}`);
+}
+
+export async function getIntelligenceTrends(userId: string): Promise<import('./types').TrendSummary> {
+  return requestUnwrapped<import('./types').TrendSummary>(`/intelligence/trends/${userId}`);
+}
+
+export async function getTradeFingerprint(decisionId: string, userId: string): Promise<import('./types').TradeFingerprint> {
+  return requestUnwrapped<import('./types').TradeFingerprint>(`/intelligence/fingerprint/${decisionId}?userId=${userId}`);
+}
+
 // ── Re-export demo data for sample text ──
 export { DEMO_MISLEADING_TEXT } from './demo-data';

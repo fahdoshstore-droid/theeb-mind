@@ -6,6 +6,7 @@ import VerifyContent from './pages/VerifyContent';
 import Journal from './pages/Journal';
 import Landing from './pages/Landing';
 import Performance from './pages/Performance';
+import TradeIntelligence from './pages/TradeIntelligence';
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/verify" element={<Layout><VerifyContent /></Layout>} />
         <Route path="/journal" element={<Layout><Journal /></Layout>} />
         <Route path="/performance" element={<Layout><Performance /></Layout>} />
+        <Route path="/intelligence" element={<Layout><TradeIntelligence /></Layout>} />
       </Routes>
     </>
   );

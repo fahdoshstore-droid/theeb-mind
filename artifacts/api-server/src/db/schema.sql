@@ -155,3 +155,14 @@ CREATE TABLE IF NOT EXISTS quality_evaluations (
 CREATE INDEX IF NOT EXISTS idx_quality_eval_user ON quality_evaluations(user_id);
 CREATE INDEX IF NOT EXISTS idx_quality_eval_decision ON quality_evaluations(decision_id);
 CREATE INDEX IF NOT EXISTS idx_quality_eval_created ON quality_evaluations(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS trade_intelligence_cache (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  cache_key TEXT NOT NULL,
+  data_json TEXT NOT NULL DEFAULT '{}',
+  computed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, cache_key)
+);
+CREATE INDEX IF NOT EXISTS idx_tic_user ON trade_intelligence_cache(user_id);
+CREATE INDEX IF NOT EXISTS idx_tic_key ON trade_intelligence_cache(user_id, cache_key);

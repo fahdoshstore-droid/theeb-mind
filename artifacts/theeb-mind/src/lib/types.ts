@@ -301,3 +301,85 @@ export interface QualityEvaluation {
   flags_json: string;
   created_at: string;
 }
+
+// ── Trade Intelligence Module ──────────────────────────
+
+export interface SignatureAggregate {
+  type: string;
+  typeAr: string;
+  hitCount: number;
+  totalChecked: number;
+  avgLossRate: number;
+  riskLevel: 'high' | 'medium' | 'low';
+}
+
+export interface HeatmapCell {
+  instrument: string;
+  timeframe: string;
+  winRate: number;
+  totalTrades: number;
+  riskLevel: 'high' | 'medium' | 'low';
+}
+
+export interface TopPattern {
+  patternKey: string;
+  hitCount: number;
+  instrument: string;
+  timeframe: string;
+  killzone: string;
+  grade: string;
+}
+
+export interface PatternSummary {
+  signatures: SignatureAggregate[];
+  dangerZones: SignatureAggregate[];
+  heatmap: HeatmapCell[];
+  topFailurePatterns: TopPattern[];
+  computedAt: string;
+}
+
+export interface TrendPoint {
+  decisionId: string;
+  score: number;
+  grade: string;
+  createdAt: string;
+  instrument: string;
+}
+
+export interface TrendSummary {
+  qualityTrend: TrendPoint[];
+  gradeDistribution: Record<string, number>;
+  bestInstrument: string | null;
+  worstInstrument: string | null;
+  averageScore: number;
+  computedAt: string;
+}
+
+export interface FailureSignature {
+  type: string;
+  typeAr: string;
+  matched: boolean;
+  weight: number;
+  evidence: string;
+  pastOccurrences: number;
+  lossRate: number;
+}
+
+export interface AHAMomentResult {
+  similarityPercent: number;
+  signatures: FailureSignature[];
+  hook: string;
+  explanation: string;
+}
+
+export interface TradeFingerprint {
+  decisionId: string;
+  ahaResult: AHAMomentResult;
+  decision: {
+    instrument: string;
+    timeframe: string;
+    grade: string;
+    createdAt: string;
+    type: string;
+  };
+}

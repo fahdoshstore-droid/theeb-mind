@@ -16,8 +16,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getJournal, getAnalytics, recordOutcome, getRuleViolations } from '../lib/api';
-import type { Decision, AnalyticsResult, Outcome, Grade, RuleViolationRecord } from '../lib/types';
+import { getJournal, getAnalytics, recordOutcome, getRuleViolations, getTradeFingerprint } from '../lib/api';
+import type { Decision, AnalyticsResult, Outcome, Grade, RuleViolationRecord, TradeFingerprint } from '../lib/types';
 import GuardBadge from '../components/shared/GuardBadge';
 
 const USER_ID = 'user-1';
@@ -177,6 +177,7 @@ export default function Journal() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'violations'>('overview');
+  const [fingerprints, setFingerprints] = useState<Record<string, TradeFingerprint | 'loading' | 'none'>>({});
 
   // Filters
   const [gradeFilter, setGradeFilter] = useState<Grade | 'all'>('all');
@@ -187,6 +188,20 @@ export default function Journal() {
   const [outcomeValue, setOutcomeValue] = useState<Outcome>('win');
   const [pnlValue, setPnlValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const handleExpandDecision = async (decisionId: string) => {
+    const next = expandedId === decisionId ? null : decisionId;
+    setExpandedId(next);
+    if (next && !fingerprints[next]) {
+      setFingerprints((prev) => ({ ...prev, [next]: 'loading' }));
+      try {
+        const fp = await getTradeFingerprint(next, USER_ID);
+        setFingerprints((prev) => ({ ...prev, [next]: fp }));
+      } catch {
+        setFingerprints((prev) => ({ ...prev, [next]: 'none' }));
+      }
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -440,7 +455,7 @@ export default function Journal() {
             <div key={d.id} className="card-dark">
               {/* Header Row */}
               <button
-                onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
+                onClick={() => handleExpandDecision(d.id)}
                 className="w-full flex items-center justify-between text-right"
               >
                 <div className="flex items-center gap-3">
@@ -512,6 +527,38 @@ export default function Journal() {
                     <span className="text-sm font-medium text-cream">الجاهزية النفسية</span>
                     <GuardBadge verdict={d.scoring.gateVerdict} size="sm" />
                   </div>
+
+                  {/* AHA Moment Badge */}
+                  {(() => {
+                    const fp = fingerprints[d.id];
+                    if (!fp || fp === 'none') return null;
+                    if (fp === 'loading') return (
+                      <div className="text-xs text-cream/30 animate-pulse">جاري تحليل بصمة الصفقة...</div>
+                    );
+                    const sim = fp.ahaResult.similarityPercent;
+                    if (sim === 0) return null;
+                    const matched = fp.ahaResult.signatures.filter(s => s.matched);
+                    const badgeColor = sim >= 70 ? 'text-warning' : sim >= 40 ? 'text-gold' : 'text-cream/60';
+                    const badgeBg = sim >= 70 ? 'bg-warning/10 border-warning/30' : sim >= 40 ? 'bg-gold/10 border-gold/30' : 'bg-white/5 border-white/10';
+                    return (
+                      <div className={`rounded-lg border p-3 ${badgeBg}`}>
+                        <div className={`flex items-center gap-2 font-bold text-xs ${badgeColor} mb-1`}>
+                          <span>⚡ AHA MOMENT</span>
+                          <span className="font-mono">{sim}%</span>
+                          <span className="font-normal text-cream/40">تشابه مع أنماط خاسرة سابقة</span>
+                        </div>
+                        {matched.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {matched.map(s => (
+                              <span key={s.type} className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeBg} ${badgeColor}`}>
+                                {s.typeAr}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Outcome */}
                   {d.outcome && d.pnl !== undefined && (
