@@ -49,7 +49,7 @@ function EquityCurve({ data }: { data: EquityPoint[] }) {
   if (data.length < 2) {
     return (
       <div className="flex items-center justify-center h-40 text-cream/30 text-sm">
-        لا توجد بيانات كافية — سجّل نتائج صفقاتك أولاً
+        سجّل نتيجة أول صفقة من مركز القرار لترى منحنى الإنصاف هنا
       </div>
     );
   }
@@ -129,7 +129,7 @@ function QualityTrendChart({ data }: { data: QualityTrendPoint[] }) {
   if (data.length < 2) {
     return (
       <div className="flex items-center justify-center h-32 text-cream/30 text-sm">
-        لا توجد بيانات كافية — سجّل تحليلات لترى التطور
+        أكمل تحليلاً من مركز القرار لترى تطور جودة قراراتك
       </div>
     );
   }

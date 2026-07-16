@@ -11,12 +11,16 @@ import {
 } from 'lucide-react';
 import { USE_DEMO_MODE } from '../../lib/api';
 
-const NAV_ITEMS = [
-  { to: '/analyze', icon: BarChart3, label: 'تحليل القرار' },
-  { to: '/verify', icon: ShieldCheck, label: 'كشف التضليل' },
-  { to: '/journal', icon: Brain, label: 'الرؤية السلوكية' },
-  { to: '/intelligence', icon: Zap, label: 'ذكاء الصفقات' },
-  { to: '/market', icon: Globe, label: 'ذكاء السوق' },
+const PRIMARY_NAV = [
+  { to: '/analyze', icon: BarChart3, label: 'مركز القرار' },
+];
+const SECONDARY_NAV = [
+  { to: '/market', icon: Globe, label: 'السياق الكلي' },
+  { to: '/journal', icon: Brain, label: 'السجل والأداء' },
+  { to: '/intelligence', icon: Zap, label: 'أنماط الفشل' },
+];
+const UTILITY_NAV = [
+  { to: '/verify', icon: ShieldCheck, label: 'التحقق' },
 ];
 
 const DISCLAIMER =
@@ -76,8 +80,31 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
+          {/* PRIMARY */}
+          {PRIMARY_NAV.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-colors duration-200 ${
+                  isActive
+                    ? 'bg-gold/25 text-gold border border-gold/30'
+                    : 'text-gold/80 hover:bg-gold/10 hover:text-gold border border-transparent'
+                }`
+              }
+            >
+              <Icon size={20} />
+              <span className="text-sm">⚡ {label}</span>
+            </NavLink>
+          ))}
+
+          {/* Divider */}
+          <div className="my-2 border-t border-white/8" />
+
+          {/* SECONDARY */}
+          {SECONDARY_NAV.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
@@ -91,6 +118,28 @@ export default function Layout({ children }: { children: ReactNode }) {
               }
             >
               <Icon size={18} />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* UTILITY */}
+          {UTILITY_NAV.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors duration-200 ${
+                  isActive
+                    ? 'bg-white/10 text-cream/70'
+                    : 'text-cream/35 hover:bg-white/5 hover:text-cream/55'
+                }`
+              }
+            >
+              <Icon size={15} />
               <span>{label}</span>
             </NavLink>
           ))}

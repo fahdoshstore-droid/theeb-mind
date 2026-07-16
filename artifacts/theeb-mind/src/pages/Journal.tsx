@@ -277,8 +277,8 @@ export default function Journal() {
   return (
     <div className="space-y-8 slide-up-stagger">
       <div>
-        <h2 className="text-2xl font-bold text-cream">الرؤية السلوكية</h2>
-        <p className="text-cream/50 mt-1">تتبع قراراتك وسجل نتائجها</p>
+        <h2 className="text-2xl font-bold text-cream">السجل والأداء</h2>
+        <p className="text-cream/50 mt-1">قراراتك · نتائجك · أنماطك</p>
       </div>
 
       {/* Tab Switcher */}

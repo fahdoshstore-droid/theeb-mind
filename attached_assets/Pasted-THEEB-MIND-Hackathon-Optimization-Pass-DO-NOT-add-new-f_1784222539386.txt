@@ -1,0 +1,143 @@
+THEEB MIND — Hackathon Optimization Pass
+DO NOT add new features. DO NOT add new pages. DO NOT add new modules.
+Use existing codebase only. Reorganize what exists.
+
+==================================================
+STACK
+==================================================
+
+Frontend: React + Vite + Tailwind + React Router v6
+Backend: Node.js + Express + SQLite + TypeScript
+Monorepo: pnpm workspaces
+Main pages: artifacts/theeb-mind/src/pages/
+Nav: artifacts/theeb-mind/src/components/shared/Layout.tsx
+
+==================================================
+TASK 1 — NAVIGATION HIERARCHY
+==================================================
+
+File: artifacts/theeb-mind/src/components/shared/Layout.tsx
+
+Current nav (flat, 6 equal items):
+- تحليل القرار (/analyze)
+- كشف التضليل (/verify)
+- الرؤية السلوكية (/journal)
+- ذكاء الصفقات (/intelligence)
+- ذكاء السوق (/market)
+
+Change to this hierarchy:
+
+PRIMARY (top, larger font or gold accent):
+- ⚡ مركز القرار (/analyze)
+
+SECONDARY (normal):
+- السياق الكلي (/market)
+- السجل والأداء (/journal)
+- أنماط الفشل (/intelligence)
+
+UTILITY (bottom, smaller/dimmer):
+- التحقق (/verify)
+
+==================================================
+TASK 2 — REORDER /analyze LEFT PANEL
+==================================================
+
+File: artifacts/theeb-mind/src/pages/AnalyzeChart.tsx
+
+Current order in the LEFT column (tm-left):
+1. DECISION GATE (verdict card) ← good, keep first
+2. TRIL VALIDATION (read-only result rows)
+3. QUALITY BREAKDOWN (bars)
+4. Demo controls (قراءة الشارت — the toggles + sliders)
+
+Problem: user inputs are at the BOTTOM, verdict at TOP.
+The user cannot see the verdict change as they toggle.
+
+New order for the LEFT column:
+1. DECISION GATE (verdict card) ← same
+2. TRIL VALIDATION (read-only) ← same
+3. QUALITY BREAKDOWN ← same
+4. Demo controls (toggles + sliders) ← same
+
+This is already the correct order. The real fix is:
+
+Move the demo controls (قراءة الشارت) section from the
+LEFT panel into the RIGHT panel (tm-right), above THEEB CONSTITUTION.
+
+The RIGHT panel currently has:
+- THEEB COACH
+- THEEB CONSTITUTION
+- footer quote
+
+New RIGHT panel order:
+1. قراءة الشارت (the 6 toggles + RRR/trades sliders) ← MOVED HERE
+2. THEEB COACH
+3. THEEB CONSTITUTION
+4. footer quote
+
+==================================================
+TASK 3 — ADD MARKET CONTEXT CHIP TO /analyze TOPBAR
+==================================================
+
+File: artifacts/theeb-mind/src/pages/AnalyzeChart.tsx
+
+The topbar already shows DXY, VIX, US10Y from live API.
+
+After the existing market chips, add one more chip:
+
+- If macroNarr is non-empty: show a small gold badge "السياق: مُحدَّث ✓"
+  that links to /market (react-router Link)
+- If macroNarr is empty: show nothing (don't add a broken state)
+
+==================================================
+TASK 4 — RENAME /journal PAGE TITLE
+==================================================
+
+File: artifacts/theeb-mind/src/pages/Journal.tsx
+
+Change the page heading from:
+"الرؤية السلوكية"
+subtitle: "تتبع قراراتك وسجل نتائجها"
+
+To:
+"السجل والأداء"
+subtitle: "قراراتك · نتائجك · أنماطك"
+
+==================================================
+TASK 5 — FIX EMPTY STATES
+==================================================
+
+File: artifacts/theeb-mind/src/pages/Performance.tsx
+
+When equity data is empty (equity.length < 2), the EquityCurve component
+currently shows: "لا توجد بيانات كافية — سجّل نتائج صفقاتك أولاً"
+
+Change this message to:
+"سجّل نتيجة أول صفقة من مركز القرار لترى منحنى الإنصاف هنا"
+
+When qualityTrend data is empty (qualityTrend.length < 2):
+Change: "لا توجد بيانات كافية — سجّل تحليلات لترى التطور"
+To: "أكمل تحليلاً من مركز القرار لترى تطور جودة قراراتك"
+
+==================================================
+TASK 6 — PROMOTE /analyze AS DEFAULT HOME
+==================================================
+
+File: artifacts/theeb-mind/src/App.tsx
+
+Ensure the root route / redirects to /analyze:
+
+Add: <Route path="/" element={<Navigate to="/analyze" replace />} />
+
+(Use Navigate from react-router-dom)
+
+==================================================
+CONSTRAINTS
+==================================================
+
+- Do NOT remove any existing functionality
+- Do NOT change any backend files
+- Do NOT add new pages or routes (except the / redirect)
+- Do NOT change any API calls
+- Do NOT install new packages
+- Run pnpm run typecheck after all changes to confirm zero errors
