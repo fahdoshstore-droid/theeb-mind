@@ -1,0 +1,146 @@
+THEEB MIND — Hackathon Optimization Pass
+
+DO NOT add new products.
+DO NOT add portfolio management.
+DO NOT add wealth management.
+DO NOT add AI agents.
+DO NOT add crypto features.
+DO NOT add new modules.
+
+Use the existing codebase only.
+
+Goal:
+Maximize AMAD 2026 judging score.
+
+Judging Criteria:
+- Impact & Problem Fit (25%)
+- Technical Solution (20%)
+- Innovation (25%)
+- Scalability (15%)
+- User Experience (10%)
+- Presentation Clarity (5%)
+
+==================================================
+TASK
+==================================================
+
+Review the ENTIRE current codebase.
+
+Then perform a UX + Product Architecture audit.
+
+Focus ONLY on:
+
+1. User Journey
+2. Information Architecture
+3. Decision Clarity
+4. Judge Experience
+5. Personal Trader Experience
+
+==================================================
+CONTEXT
+==================================================
+
+THEEB MIND is NOT:
+
+- a signal service
+- a journal
+- a broker
+- a portfolio tool
+
+THEEB MIND is:
+
+Decision Intelligence OS
+
+Core Philosophy:
+
+"The market is not the problem.
+The decision is."
+
+Final Output:
+
+READY
+WAIT
+DO NOT TRADE
+
+==================================================
+WHAT I WANT
+==================================================
+
+Analyze:
+
+/analyze
+/journal
+/performance
+/intelligence
+/market
+/verify
+
+And identify:
+
+- What feels fragmented
+- What creates friction
+- What confuses first-time users
+- What reduces judging score
+- What should be merged
+- What should be promoted
+- What should be hidden
+
+==================================================
+SPECIFIC QUESTION
+==================================================
+
+Can THEEB MIND be reorganized around a single
+Decision Center / Command Center page?
+
+Without removing existing functionality.
+
+If yes:
+
+Design the optimal structure.
+
+Show:
+
+- Page hierarchy
+- Navigation hierarchy
+- Widget hierarchy
+- Mobile-first hierarchy
+
+==================================================
+OUTPUT FORMAT
+==================================================
+
+1. Current Weaknesses
+
+2. Judging Score Impact
+
+3. Recommended Changes
+(sorted by Impact ÷ Effort)
+
+4. New Navigation Structure
+
+5. Command Center Layout
+
+6. Mobile Layout
+
+7. Estimated Score Before
+
+8. Estimated Score After
+
+IMPORTANT:
+
+Do NOT write code.
+
+Do NOT generate files.
+
+Do NOT implement.
+
+Act as:
+- Fintech Judge
+- Product Designer
+- UX Architect
+- Trading Workflow Expert
+
+Audit the existing product only.
+No feature invention.
+No architecture invention.
+No scope expansion.
