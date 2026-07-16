@@ -1,0 +1,143 @@
+THEEB MIND — Visual Redesign Pass
+DO NOT add new features. DO NOT add new pages. DO NOT change logic.
+Touch colors, typography, spacing, and visual hierarchy only.
+
+==================================================
+CURRENT DESIGN SYSTEM
+==================================================
+
+index.css (Tailwind v4 @theme tokens):
+  --color-void:          #050508   ← main background
+  --color-void-light:    #0a0c14
+  --color-void-lighter:  #0f111a
+  --color-cream:         #f0ede8   ← primary text
+  --color-gold:          #c9a84c   ← primary accent
+  --color-gold-bright:   #e0c066
+  --color-gold-dim:      #a0842e
+  --color-emerald:       #0d8a6a   ← success
+  --color-emerald-bright:#14b386
+  --color-warning:       #c45050   ← danger
+
+AnalyzeChart.tsx (inline color object):
+  const C = {
+    bg:'#04060A', card:'#0A0F1A', card2:'#0D1422', bg3:'#020409',
+    green:'#00D68F',   ← TRIL pass / good states
+    gold:'#C9A84C',    ← labels / accents
+    red:'#FF3B5C',     ← TRIL fail / bad states
+    amber:'#FBBF24',   ← warnings
+    t1:'#EEF1F4',      ← primary text
+    t2:'#8895A6',      ← secondary text
+    t3:'#3A4456',      ← muted / labels
+    border:'rgba(0,214,143,0.08)',
+    border2:'rgba(255,255,255,0.05)',
+  }
+
+Fonts:
+  Tajawal (Arabic body + UI)
+  JetBrains Mono (numbers, labels, codes)
+
+==================================================
+FILES TO TOUCH
+==================================================
+
+1. artifacts/theeb-mind/src/index.css
+   → Change @theme color tokens
+   → Change body/scrollbar defaults
+
+2. artifacts/theeb-mind/src/pages/AnalyzeChart.tsx
+   → Change const C = { ... } object (line 28-33)
+   → Change any hardcoded hex values in JSX inline styles
+
+3. artifacts/theeb-mind/src/components/shared/Layout.tsx
+   → Change Tailwind classes (bg-gold, text-gold, border-gold, etc.)
+   → Change sidebar background and nav item active states
+
+4. artifacts/theeb-mind/src/pages/Performance.tsx
+   → Change Tailwind color classes
+
+5. artifacts/theeb-mind/src/pages/Journal.tsx
+   → Change Tailwind color classes
+
+6. artifacts/theeb-mind/src/pages/TradeIntelligence.tsx
+   → Change Tailwind color classes + any heatmap colors
+
+7. artifacts/theeb-mind/src/pages/MarketIntelligence.tsx
+   → Change Tailwind color classes + direction badge colors
+
+==================================================
+NEW COLOR DIRECTION  ← اختر واحداً أو حدد ألوانك
+==================================================
+
+OPTION A — Deep Navy × Electric Blue × Gold
+  Background:   #020B18  (deep ocean)
+  Card:         #071628
+  Card2:        #0B1E35
+  Accent 1:     #1E8FFF  (electric blue — replaces emerald green)
+  Accent 2:     #C9A84C  (gold — keeps same)
+  Danger:       #FF3B5C  (keeps same)
+  Text 1:       #E8F0F8
+  Text 2:       #7A90A8
+  Text 3:       #3A4F68
+  Borders:      rgba(30,143,255,0.10)
+
+OPTION B — Obsidian × Amber × Platinum
+  Background:   #08070A  (near-black with warm tint)
+  Card:         #111018
+  Card2:        #181620
+  Accent 1:     #F59E0B  (amber — bolder gold)
+  Accent 2:     #D1D5DB  (platinum — replaces cream)
+  Danger:       #EF4444
+  Success:      #10B981
+  Text 1:       #F9FAFB
+  Text 2:       #9CA3AF
+  Text 3:       #4B5563
+  Borders:      rgba(245,158,11,0.10)
+
+OPTION C — Pitch Black × Neon Green × White
+  Background:   #000000
+  Card:         #0A0A0A
+  Card2:        #111111
+  Accent 1:     #00FF87  (neon green — brighter emerald)
+  Accent 2:     #FFFFFF  (pure white for labels)
+  Danger:       #FF3B5C
+  Text 1:       #FFFFFF
+  Text 2:       #6B7280
+  Text 3:       #374151
+  Borders:      rgba(0,255,135,0.10)
+
+[اكتب اختيارك هنا أو أدخل ألوانك الخاصة]
+
+==================================================
+VERDICT COLORS (لا تتغير في المنطق، فقط البصري)
+==================================================
+
+READY / اجتهز:
+  Current: C.green (#00D68F)
+  Update to: [Accent 1 of chosen palette]
+
+CAUTION / تحقق:
+  Current: C.gold (#C9A84C)
+  Update to: [Accent 2 or amber]
+
+DO NOT TRADE / لا تتداول:
+  Current: C.red (#FF3B5C)
+  Keep same or update
+
+==================================================
+TYPOGRAPHY UPGRADES (اختياري)
+==================================================
+
+If changing font sizes:
+- Verdict text in AnalyzeChart: tm-verdict-en (currently 19px)
+- Topbar brand: currently 13px JetBrains Mono
+- Quality score: currently 11px bold
+
+Suggested upgrade:
+- Increase verdict to 24px
+- Increase quality composite score to 16px
+
+==================================================
+CONSTRAINTS
+==================================================
+
+- Do NOT change any function names
