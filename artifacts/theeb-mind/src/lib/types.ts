@@ -203,3 +203,48 @@ export interface KillzoneStat {
   breakevens: number;
   total: number;
 }
+
+// ── Rule Enforcement Engine ────────────────────────────
+
+export interface RuleContext {
+  tradesTaken: number;
+  riskAmount: number;
+  rrr: number;
+  dailyPnl: number;
+  consecLosses: number;
+  dayOfWeek: number;
+}
+
+export interface RuleViolation {
+  ruleId: string;
+  ruleName: string;
+  severity: 'warning' | 'block';
+  description: string;
+}
+
+export interface RuleEvaluateResult {
+  violations: RuleViolation[];
+  blocked: boolean;
+  warnings: string[];
+}
+
+export interface RuleViolationRecord {
+  id: number;
+  user_id: string;
+  rule_id: string;
+  rule_name: string;
+  severity: 'warning' | 'block';
+  context_json: string;
+  created_at: string;
+  /** Total number of times this rule has been violated by this user (all time) */
+  totalOccurrences: number;
+}
+
+export interface RuleConfig {
+  id: string;
+  name: string;
+  nameEn: string;
+  description: string;
+  threshold: number | number[];
+  severity: 'warning' | 'block';
+}

@@ -8,7 +8,7 @@ const WOLF = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtAAAALQCAIAAAA2NdDL
 //  5 components only · Constitution overrides everything · Single verdict
 // ════════════════════════════════════════════════════
 
-import { getPsychologyState, submitGate } from '../lib/api';
+import { getPsychologyState, submitGate, evaluateRules } from '../lib/api';
 
 // ── Psychology gate questions (mirrors backend gate-questions.ts ids 1-5) ──
 const GATE_QS = [
@@ -146,6 +146,9 @@ export default function TheebMindGate() {
   const [gateAnswers,setGateAnswers]=useState<Record<number,number>>({});
   const [gateSubmitting,setGateSubmitting]=useState(false);
 
+  // Rule violations — async backend evaluation with local fallback
+  const [backendViolations,setBackendViolations]=useState<string[]|null>(null);
+
   const trendCycle: Trend[] = ['bullish','bearish','neutral'];
   const locCycle: Location[] = ['discount','equilibrium','premium'];
 
@@ -159,6 +162,20 @@ export default function TheebMindGate() {
       .then(s=>{ setPsychVerdict(s.riskTolerance==='high'?'STOP':null); setGateChecked(true); })
       .catch(()=>setGateChecked(true));
   },[]);
+
+  // Debounced backend rule evaluation — persists violations for audit trail
+  useEffect(()=>{
+    const timer=setTimeout(async()=>{
+      try{
+        const result=await evaluateRules({tradesTaken,riskAmount,rrr,dailyPnl,consecLosses,dayOfWeek:new Date().getDay()});
+        setBackendViolations(result.warnings);
+      }catch{
+        // Network error — clear stale backend result so local checkConstitution is used
+        setBackendViolations(null);
+      }
+    },300);
+    return()=>clearTimeout(timer);
+  },[tradesTaken,riskAmount,rrr,dailyPnl,consecLosses]);
 
   async function handleGateSubmit(){
     setGateSubmitting(true);
@@ -176,7 +193,8 @@ export default function TheebMindGate() {
 
   const dow = new Date().getDay();
   const trilPass = checkTRIL({trend,raid,imbalance,location,orderBlock,immediateRebalance});
-  const violations = checkConstitution({tradesTaken,riskAmount,rrr,dailyPnl,consecLosses,dayOfWeek:dow});
+  // Use backend violations when available; fall back to local for instant response
+  const violations = backendViolations ?? checkConstitution({tradesTaken,riskAmount,rrr,dailyPnl,consecLosses,dayOfWeek:dow});
   const verdict = getVerdict(trilPass, violations);
   const coach = getCoach(verdict, trilPass, violations);
 

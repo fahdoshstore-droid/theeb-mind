@@ -10,6 +10,7 @@ import { verifyRoutes } from './modules/verify/verify.routes.js';
 import { journalRoutes } from './modules/journal/journal.routes.js';
 import { psychologyRoutes } from './modules/psychology/psychology.routes.js';
 import { performanceRoutes } from './modules/performance/performance.routes.js';
+import { rulesRoutes } from './modules/rules/rules.routes.js';
 
 const app: Express = express();
 
@@ -30,6 +31,7 @@ app.use('/api/verify', verifyRoutes);
 app.use('/api/journal', journalRoutes);
 app.use('/api/psychology', psychologyRoutes);
 app.use('/api/performance', performanceRoutes);
+app.use('/api/rules', rulesRoutes);
 
 // Error handler
 app.use(errorHandler);

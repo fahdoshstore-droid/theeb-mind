@@ -91,3 +91,16 @@ CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_type ON audit_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_verifications_user ON verifications(user_id);
+
+CREATE TABLE IF NOT EXISTS rule_violations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  rule_id TEXT NOT NULL,
+  rule_name TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'warning' CHECK(severity IN ('warning', 'block')),
+  context_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_rule_violations_user ON rule_violations(user_id);
+CREATE INDEX IF NOT EXISTS idx_rule_violations_created ON rule_violations(created_at);

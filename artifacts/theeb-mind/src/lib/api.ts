@@ -257,5 +257,30 @@ export async function getTimeAnalysis(userId: string): Promise<KillzoneStat[]> {
   return requestUnwrapped<KillzoneStat[]>(`/performance/time-analysis/${userId}`);
 }
 
+// ── Rule Enforcement Engine ──────────────────────────
+
+export async function evaluateRules(context: {
+  tradesTaken: number;
+  riskAmount: number;
+  rrr: number;
+  dailyPnl: number;
+  consecLosses: number;
+  dayOfWeek: number;
+}): Promise<import('./types').RuleEvaluateResult> {
+  return requestUnwrapped<import('./types').RuleEvaluateResult>('/rules/evaluate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ context }),
+  });
+}
+
+export async function getRuleViolations(userId: string, limit = 50): Promise<import('./types').RuleViolationRecord[]> {
+  return requestUnwrapped<import('./types').RuleViolationRecord[]>(`/rules/violations/${userId}?limit=${limit}`);
+}
+
+export async function getRuleConfig(): Promise<import('./types').RuleConfig[]> {
+  return requestUnwrapped<import('./types').RuleConfig[]>('/rules/config');
+}
+
 // ── Re-export demo data for sample text ──
 export { DEMO_MISLEADING_TEXT } from './demo-data';

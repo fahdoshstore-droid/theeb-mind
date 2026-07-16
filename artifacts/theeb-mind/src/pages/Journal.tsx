@@ -12,10 +12,12 @@ import {
   AlertTriangle,
   Flame,
   Activity,
+  ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getJournal, getAnalytics, recordOutcome } from '../lib/api';
-import type { Decision, AnalyticsResult, Outcome, Grade } from '../lib/types';
+import { getJournal, getAnalytics, recordOutcome, getRuleViolations } from '../lib/api';
+import type { Decision, AnalyticsResult, Outcome, Grade, RuleViolationRecord } from '../lib/types';
 import GuardBadge from '../components/shared/GuardBadge';
 
 const USER_ID = 'user-1';
@@ -170,9 +172,11 @@ function SkeletonCards() {
 export default function Journal() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null);
+  const [violations, setViolations] = useState<RuleViolationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'violations'>('overview');
 
   // Filters
   const [gradeFilter, setGradeFilter] = useState<Grade | 'all'>('all');
@@ -188,12 +192,14 @@ export default function Journal() {
     setLoading(true);
     setError(null);
     try {
-      const [j, a] = await Promise.allSettled([
+      const [j, a, v] = await Promise.allSettled([
         getJournal(USER_ID),
         getAnalytics(USER_ID),
+        getRuleViolations(USER_ID, 50),
       ]);
       if (j.status === 'fulfilled') setDecisions(j.value.decisions);
       if (a.status === 'fulfilled') setAnalytics(a.value);
+      if (v.status === 'fulfilled') setViolations(v.value);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
     } finally {
@@ -255,6 +261,44 @@ export default function Journal() {
         <h2 className="text-2xl font-bold text-cream">الرؤية السلوكية</h2>
         <p className="text-cream/50 mt-1">تتبع قراراتك وسجل نتائجها</p>
       </div>
+
+      {/* Tab Switcher */}
+      <div className="flex gap-2 border-b border-white/10 pb-0">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 transition-colors ${
+            activeTab === 'overview'
+              ? 'border-gold text-gold'
+              : 'border-transparent text-cream/50 hover:text-cream/80'
+          }`}
+        >
+          السجل والتحليل
+        </button>
+        <button
+          onClick={() => setActiveTab('violations')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 transition-colors ${
+            activeTab === 'violations'
+              ? 'border-warning text-warning'
+              : 'border-transparent text-cream/50 hover:text-cream/80'
+          }`}
+        >
+          <ShieldAlert size={14} />
+          المخالفات
+          {violations.length > 0 && (
+            <span className="text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded-full">
+              {violations.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ── Violations Tab ── */}
+      {activeTab === 'violations' && (
+        <ViolationsTab violations={violations} />
+      )}
+
+      {/* ── Overview Tab guard ── */}
+      {activeTab !== 'overview' ? null : (<>
 
       {/* Behavioral Insights */}
       <div className="space-y-3">
@@ -540,6 +584,107 @@ export default function Journal() {
           </div>
         </div>
       )}
+    </>)}
+    </div>
+  );
+}
+
+// ── Violations Tab Component ─────────────────────────────────────────────────
+function ViolationsTab({ violations }: { violations: RuleViolationRecord[] }) {
+  const SEVERITY_CONFIG = {
+    block:   { label: 'إيقاف',    cls: 'bg-warning/10 text-warning border-warning/30' },
+    warning: { label: 'تحذير',   cls: 'bg-gold/10 text-gold border-gold/30' },
+  } as const;
+
+  // totalOccurrences comes from the backend per-rule count
+  const occurrenceByRule = violations.reduce<Record<string, number>>((acc, v) => {
+    // Use backend totalOccurrences; keep the max per rule_id since every row carries it
+    acc[v.rule_id] = Math.max(acc[v.rule_id] ?? 0, v.totalOccurrences);
+    return acc;
+  }, {});
+
+  if (violations.length === 0) {
+    return (
+      <div className="card-dark text-center py-16">
+        <div className="w-16 h-16 mx-auto bg-emerald/10 rounded-2xl flex items-center justify-center mb-4">
+          <ShieldCheck size={32} className="text-emerald" />
+        </div>
+        <p className="text-emerald font-semibold text-lg">لا مخالفات مسجلة</p>
+        <p className="text-cream/40 text-sm mt-1">أنت ملتزم بالدستور — استمر</p>
+      </div>
+    );
+  }
+
+  // Rule streak summary cards
+  const ruleStats = Object.entries(occurrenceByRule)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 3);
+
+  return (
+    <div className="space-y-6">
+      {/* Summary strip */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="card-dark">
+          <p className="text-xs text-cream/50 mb-1">إجمالي المخالفات</p>
+          <p className="text-3xl font-extrabold text-warning">{violations.length}</p>
+        </div>
+        <div className="card-dark">
+          <p className="text-xs text-cream/50 mb-1">أكثر قاعدة مخالفة</p>
+          {ruleStats[0] ? (
+            <>
+              <p className="text-sm font-bold text-cream">{violations.find(v => v.rule_id === ruleStats[0][0])?.rule_name ?? '—'}</p>
+              <p className="text-xs text-cream/40">{ruleStats[0][1]} مرة</p>
+            </>
+          ) : <p className="text-cream/40 text-sm">—</p>}
+        </div>
+      </div>
+
+      {/* Top offending rules */}
+      {ruleStats.length > 0 && (
+        <div className="card-dark">
+          <h3 className="text-sm font-bold text-cream mb-3">القواعد الأكثر مخالفة</h3>
+          <div className="space-y-2">
+            {ruleStats.map(([ruleId, total]) => {
+              const sev = violations.find(v => v.rule_id === ruleId)?.severity ?? 'warning';
+              const cfg = SEVERITY_CONFIG[sev];
+              return (
+                <div key={ruleId} className="flex items-center justify-between text-sm">
+                  <span className="text-cream/70">
+                    {violations.find(v => v.rule_id === ruleId)?.rule_name ?? ruleId}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>
+                    <span className="font-bold text-cream">{total}×</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Violation history list */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-bold text-cream/60 uppercase tracking-wider">سجل المخالفات</h3>
+        {violations.map((v) => {
+          const cfg = SEVERITY_CONFIG[v.severity] ?? SEVERITY_CONFIG.warning;
+          const dateStr = new Date(v.created_at).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+          return (
+            <div key={v.id} className={`rounded-xl border p-3 flex items-start gap-3 ${cfg.cls}`}>
+              <ShieldAlert size={16} className="mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold truncate">{v.rule_name}</p>
+                  <span className="text-xs opacity-70 shrink-0">{dateStr}</span>
+                </div>
+                {v.totalOccurrences > 1 && (
+                  <p className="text-xs opacity-60 mt-0.5">تكرر {v.totalOccurrences} مرات إجمالاً</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
