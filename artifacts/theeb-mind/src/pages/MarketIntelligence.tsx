@@ -18,17 +18,17 @@ import type { MarketSnapshot, EconomicEvent, WeeklyBias, MacroNarrative } from '
 const USER_ID = 'user-1';
 
 const C = {
-  bg: '#04060A',
-  card: '#0A0F1A',
+  bg: '#020B18',
+  card: '#071628',
   border: 'rgba(0,214,143,0.08)',
   border2: 'rgba(255,255,255,0.05)',
   gold: '#C9A84C',
-  green: '#00D68F',
+  green: '#1E8FFF',
   red: '#FF3B5C',
   amber: '#FBBF24',
-  t1: '#EEF1F4',
-  t2: '#8895A6',
-  t3: '#3A4456',
+  t1: '#E8F0F8',
+  t2: '#7A90A8',
+  t3: '#3A4F68',
 } as const;
 
 // ── COT static seed data (institutional positioning) ─────────────────────────

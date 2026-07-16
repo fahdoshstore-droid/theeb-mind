@@ -107,7 +107,7 @@ function EquityCurve({ data }: { data: EquityPoint[] }) {
       <polyline
         points={points}
         fill="none"
-        stroke={lastIsUp ? '#00D68F' : '#FF3B5C'}
+        stroke={lastIsUp ? '#1E8FFF' : '#FF3B5C'}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -118,7 +118,7 @@ function EquityCurve({ data }: { data: EquityPoint[] }) {
         cx={toX(data.length - 1)}
         cy={toY(lastPt.cumulative)}
         r="4"
-        fill={lastIsUp ? '#00D68F' : '#FF3B5C'}
+        fill={lastIsUp ? '#1E8FFF' : '#FF3B5C'}
       />
     </svg>
   );
@@ -148,8 +148,8 @@ function QualityTrendChart({ data }: { data: QualityTrendPoint[] }) {
 
   const points = data.map((p, i) => `${toX(i)},${toY(p.avgScore)}`).join(' ');
   const lastScore = scores[scores.length - 1];
-  const lineColor = lastScore >= 70 ? '#3ecf8e' : lastScore >= 50 ? '#c9a84c' : '#e53e3e';
-  const fillColor = lastScore >= 70 ? 'rgba(62,207,142,0.07)' : lastScore >= 50 ? 'rgba(201,168,76,0.07)' : 'rgba(229,62,62,0.07)';
+  const lineColor = lastScore >= 70 ? '#1E8FFF' : lastScore >= 50 ? '#c9a84c' : '#FF3B5C';
+  const fillColor = lastScore >= 70 ? 'rgba(30,143,255,0.07)' : lastScore >= 50 ? 'rgba(201,168,76,0.07)' : 'rgba(255,59,92,0.07)';
 
   // Y-axis ticks at 0, 50, 75, 100
   const yTicks = [minVal, 50, 75, maxVal].filter(v => v >= minVal && v <= maxVal);
@@ -185,7 +185,7 @@ function QualityTrendChart({ data }: { data: QualityTrendPoint[] }) {
       {/* Dots on each data point */}
       {data.map((p, i) => (
         <circle key={i} cx={toX(i)} cy={toY(p.avgScore)} r="3"
-          fill={p.avgScore >= 70 ? '#3ecf8e' : p.avgScore >= 50 ? '#c9a84c' : '#e53e3e'}
+          fill={p.avgScore >= 70 ? '#1E8FFF' : p.avgScore >= 50 ? '#c9a84c' : '#FF3B5C'}
           opacity="0.85" />
       ))}
       {/* X-axis date labels (show first, middle, last) */}

@@ -12,19 +12,19 @@
 
 /* ── Theme: Color tokens for Tailwind v4 ── */
 @theme {
-  --color-void: #050508;
-  --color-void-light: #0a0c14;
-  --color-void-lighter: #0f111a;
-  --color-cream: #f0ede8;
+  --color-void: #020B18;
+  --color-void-light: #071628;
+  --color-void-lighter: #0B1E35;
+  --color-cream: #E8F0F8;
   --color-gold: #c9a84c;
   --color-gold-bright: #e0c066;
   --color-gold-dim: #a0842e;
-  --color-emerald: #0d8a6a;
-  --color-emerald-bright: #14b386;
+  --color-emerald: #1565C0;
+  --color-emerald-bright: #1E8FFF;
   --color-warning: #c45050;
-  --color-navy: #0f111a;
-  --color-gold-light: #f0ede8;
-  --color-emerald-light: #e6fbf3;
+  --color-navy: #071628;
+  --color-gold-light: #E8F0F8;
+  --color-emerald-light: #e6f0ff;
   --color-warning-light: #fff0f1;
 }
 
@@ -44,8 +44,8 @@ body {
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--color-void); }
-::-webkit-scrollbar-thumb { background: rgba(201, 168, 76, 0.15); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(201, 168, 76, 0.3); }
+::-webkit-scrollbar-thumb { background: rgba(30, 143, 255, 0.15); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(30, 143, 255, 0.3); }
 
 /* ─────────────────────────────────────
    SECTIONS

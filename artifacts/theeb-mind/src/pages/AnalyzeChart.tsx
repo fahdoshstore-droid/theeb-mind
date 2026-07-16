@@ -26,10 +26,10 @@ const GATE_QS = [
     options:[{label:'نعم، محدد ومكتوب'},{label:'عندي منطقة تقريبية'},{label:'لا، أشوف السوق وأقرر'}]},
 ];
 const C = {
-  bg:'#04060A', card:'#0A0F1A', card2:'#0D1422', bg3:'#020409',
-  green:'#00D68F', gold:'#C9A84C', red:'#FF3B5C', amber:'#FBBF24',
-  t1:'#EEF1F4', t2:'#8895A6', t3:'#3A4456',
-  border:'rgba(0,214,143,0.08)', border2:'rgba(255,255,255,0.05)',
+  bg:'#020B18', card:'#071628', card2:'#0B1E35', bg3:'#010810',
+  green:'#1E8FFF', gold:'#C9A84C', red:'#FF3B5C', amber:'#FBBF24',
+  t1:'#E8F0F8', t2:'#7A90A8', t3:'#3A4F68',
+  border:'rgba(30,143,255,0.10)', border2:'rgba(255,255,255,0.05)',
 } as const;
 
 // ── types ──
@@ -380,7 +380,7 @@ export default function TheebMindGate() {
           {/* C2 — DECISION GATE */}
           <div className="tm-verdict" style={{padding:'16px 12px',borderRadius:12,textAlign:'center',background:'linear-gradient(160deg,'+verdict.color+'12,transparent)',border:'1.5px solid '+verdict.color+'45',animation:'fadeIn .4s ease'}}>
             <div className="tm-vlabel" style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.2em',marginBottom:8}}>DECISION GATE</div>
-            <div className="tm-verdict-en" style={{fontSize:19,fontWeight:900,color:verdict.color,lineHeight:1.25,textShadow:'0 0 20px '+verdict.color+'40'}}>{verdict.verdict}</div>
+            <div className="tm-verdict-en" style={{fontSize:24,fontWeight:900,color:verdict.color,lineHeight:1.25,textShadow:'0 0 24px '+verdict.color+'50'}}>{verdict.verdict}</div>
             <div className="tm-verdict-ar" style={{fontSize:13,color:verdict.color,fontWeight:700,marginTop:4}}>{verdict.ar}</div>
             <div className="tm-verdict-reason" style={{fontSize:10,color:C.t2,marginTop:8,lineHeight:1.5}}>{verdict.reason}</div>
           </div>
@@ -413,7 +413,7 @@ export default function TheebMindGate() {
               <div style={{padding:'12px',borderRadius:10,background:C.card2,border:'1px solid '+C.border}}>
                 <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.18em',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <span>QUALITY BREAKDOWN</span>
-                  <span style={{color: composite>=75?C.green:composite>=55?C.gold:C.red,fontWeight:800,fontSize:11}}>{composite}</span>
+                  <span style={{color: composite>=75?C.green:composite>=55?C.gold:C.red,fontWeight:800,fontSize:16}}>{composite}</span>
                 </div>
                 {rows.map(([ar, en, val, wt])=>(
                   <div key={en} style={{marginBottom:7}}>

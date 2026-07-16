@@ -13,13 +13,13 @@ const USER_ID = 'user-1';
 // ── Grade colour helpers ─────────────────────────────────
 
 function gradeColor(grade: string): string {
-  if (grade === 'A+' || grade === 'A') return '#3ecf8e';
+  if (grade === 'A+' || grade === 'A') return '#1E8FFF';
   if (grade === 'B') return '#c9a84c';
-  return '#e53e3e';
+  return '#FF3B5C';
 }
 
 function riskColor(level: 'high' | 'medium' | 'low'): string {
-  return level === 'high' ? '#e53e3e' : level === 'medium' ? '#c9a84c' : '#3ecf8e';
+  return level === 'high' ? '#FF3B5C' : level === 'medium' ? '#c9a84c' : '#1E8FFF';
 }
 
 function riskBg(level: 'high' | 'medium' | 'low'): string {
@@ -312,16 +312,16 @@ export default function TradeIntelligence() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {trends.bestInstrument && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9 }}>
-                          <TrendingUp size={10} style={{ color: '#3ecf8e' }} />
+                          <TrendingUp size={10} style={{ color: '#1E8FFF' }} />
                           <span style={{ color: 'rgba(255,255,255,.4)' }}>الأفضل:</span>
-                          <span style={{ color: '#3ecf8e', fontFamily: 'JetBrains Mono' }}>{trends.bestInstrument}</span>
+                          <span style={{ color: '#1E8FFF', fontFamily: 'JetBrains Mono' }}>{trends.bestInstrument}</span>
                         </div>
                       )}
                       {trends.worstInstrument && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9 }}>
-                          <TrendingDown size={10} style={{ color: '#e53e3e' }} />
+                          <TrendingDown size={10} style={{ color: '#FF3B5C' }} />
                           <span style={{ color: 'rgba(255,255,255,.4)' }}>الأضعف:</span>
-                          <span style={{ color: '#e53e3e', fontFamily: 'JetBrains Mono' }}>{trends.worstInstrument}</span>
+                          <span style={{ color: '#FF3B5C', fontFamily: 'JetBrains Mono' }}>{trends.worstInstrument}</span>
                         </div>
                       )}
                     </div>
