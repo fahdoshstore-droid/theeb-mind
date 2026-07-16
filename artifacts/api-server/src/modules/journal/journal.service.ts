@@ -3,6 +3,7 @@ import type { OutcomeInput } from './journal.types.js';
 import { calculateAnalytics } from './analytics.js';
 import type { JournalAnalytics } from './journal.types.js';
 import type { Decision } from '../../shared/types.js';
+import { updateFailurePatterns } from '../memory/memory.service.js';
 
 export function getDecisionsByUser(userId: string): Decision[] {
   return db.stmt('getDecisionsByUser').all(userId) as Decision[];
@@ -27,6 +28,11 @@ export function recordOutcome(input: OutcomeInput): void {
     input.notes ?? null,
     input.decisionId
   );
+
+  // ── Memory Engine: update failure patterns ────────────
+  try {
+    updateFailurePatterns(input.userId, input.decisionId, input.outcome);
+  } catch { /* non-critical — never fail the outcome record */ }
 }
 
 export function getAnalytics(userId: string, period: string): JournalAnalytics {

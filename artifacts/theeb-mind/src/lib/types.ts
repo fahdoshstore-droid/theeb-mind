@@ -248,3 +248,24 @@ export interface RuleConfig {
   threshold: number | number[];
   severity: 'warning' | 'block';
 }
+
+// ── Memory Engine ──────────────────────────────────────
+
+export interface FailurePattern {
+  id: number;
+  user_id: string;
+  pattern_key: string;
+  hit_count: number;
+  last_seen: string;
+  notes: string | null;
+  total_trades: number;
+}
+
+export interface MemoryContext {
+  sameSetupCount: number;
+  sameSetupLosses: number;
+  sameSetupWins: number;
+  lossRate: number;
+  failurePattern: FailurePattern | null;
+  patternKey: string;
+}

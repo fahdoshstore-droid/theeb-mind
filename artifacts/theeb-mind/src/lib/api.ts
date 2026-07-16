@@ -282,5 +282,25 @@ export async function getRuleConfig(): Promise<import('./types').RuleConfig[]> {
   return requestUnwrapped<import('./types').RuleConfig[]>('/rules/config');
 }
 
+// ── Memory Engine ─────────────────────────────────────
+
+export async function getFailurePatterns(userId: string, limit = 10): Promise<import('./types').FailurePattern[]> {
+  return requestUnwrapped<import('./types').FailurePattern[]>(`/memory/patterns/${userId}?limit=${limit}`);
+}
+
+export async function getMemoryContext(
+  userId: string,
+  params: { instrument: string; timeframe: string; killzone?: string; grade?: string },
+): Promise<import('./types').MemoryContext> {
+  const qs = new URLSearchParams({ instrument: params.instrument, timeframe: params.timeframe });
+  if (params.killzone) qs.set('killzone', params.killzone);
+  if (params.grade) qs.set('grade', params.grade);
+  return requestUnwrapped<import('./types').MemoryContext>(`/memory/context/${userId}?${qs.toString()}`);
+}
+
+export async function backfillMemory(userId: string): Promise<{ inserted: number }> {
+  return requestUnwrapped<{ inserted: number }>(`/memory/backfill/${userId}`, { method: 'POST' });
+}
+
 // ── Re-export demo data for sample text ──
 export { DEMO_MISLEADING_TEXT } from './demo-data';

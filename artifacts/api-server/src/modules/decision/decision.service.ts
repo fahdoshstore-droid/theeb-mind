@@ -15,6 +15,7 @@ import { db } from '../../db/db.js';
 import type { FallbackRequest } from '../../shared/validators.js';
 import type { ConfluenceInput } from '../scoring/confluence.engine.js';
 import type { QualityInput } from '../scoring/quality-score.js';
+import { createFingerprint } from '../memory/memory.service.js';
 
 export interface AnalyzeInput {
   userId: string;
@@ -181,7 +182,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
     JSON.stringify(visionResult),                                                    // analysis_json
     JSON.stringify(confluence),                                                      // scoring_json
     null,                                                                            // psychology_json
-    JSON.stringify({ rrr: visionResult.rrr, riskAmount: input.riskAmount ?? null }), // risk_json ← persisted for performance analytics
+    JSON.stringify({ rrr: visionResult.rrr, riskAmount: input.riskAmount ?? null }), // risk_json
     JSON.stringify({ coachingMessage }),                                              // coaching_json
     quality.totalScore,
     quality.grade,
@@ -190,6 +191,18 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
     0,
     1
   );
+
+  // ── Memory Engine: fingerprint this decision ──────────
+  createFingerprint({
+    userId: input.userId,
+    decisionId,
+    instrument: input.instrument,
+    timeframe: input.timeframe,
+    killzone: killzone.key ?? null,
+    grade: quality.grade,
+    qualityScore: quality.totalScore,
+    riskAmount: input.riskAmount ?? 0,
+  });
 
   return result;
 }
@@ -329,7 +342,7 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
     JSON.stringify({ manual: true, ...confluenceInput }),                             // analysis_json
     JSON.stringify(confluence),                                                       // scoring_json
     null,                                                                             // psychology_json
-    JSON.stringify({ rrr: CONFIG.MIN_RRR, riskAmount: input.riskAmount ?? null }),   // risk_json ← persisted for performance analytics
+    JSON.stringify({ rrr: CONFIG.MIN_RRR, riskAmount: input.riskAmount ?? null }),   // risk_json
     JSON.stringify({ coachingMessage }),                                              // coaching_json
     quality.totalScore,
     quality.grade,
@@ -338,6 +351,18 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
     0,
     1
   );
+
+  // ── Memory Engine: fingerprint this decision ──────────
+  createFingerprint({
+    userId: input.userId,
+    decisionId,
+    instrument: input.instrument,
+    timeframe: input.timeframe,
+    killzone: killzone.key ?? null,
+    grade: quality.grade,
+    qualityScore: quality.totalScore,
+    riskAmount: input.riskAmount ?? 0,
+  });
 
   return result;
 }

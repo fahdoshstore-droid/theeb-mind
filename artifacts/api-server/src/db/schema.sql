@@ -104,3 +104,37 @@ CREATE TABLE IF NOT EXISTS rule_violations (
 );
 CREATE INDEX IF NOT EXISTS idx_rule_violations_user ON rule_violations(user_id);
 CREATE INDEX IF NOT EXISTS idx_rule_violations_created ON rule_violations(created_at);
+
+CREATE TABLE IF NOT EXISTS memory_fingerprints (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  decision_id TEXT NOT NULL UNIQUE,
+  instrument TEXT NOT NULL,
+  timeframe TEXT NOT NULL,
+  killzone TEXT,
+  grade TEXT NOT NULL,
+  quality_score REAL NOT NULL DEFAULT 0,
+  risk_amount REAL NOT NULL DEFAULT 0,
+  setup_tags_json TEXT NOT NULL DEFAULT '[]',
+  outcome TEXT,
+  signatures_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (decision_id) REFERENCES decisions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_memory_fp_user ON memory_fingerprints(user_id);
+CREATE INDEX IF NOT EXISTS idx_memory_fp_decision ON memory_fingerprints(decision_id);
+CREATE INDEX IF NOT EXISTS idx_memory_fp_setup ON memory_fingerprints(user_id, instrument, timeframe);
+CREATE INDEX IF NOT EXISTS idx_memory_fp_outcome ON memory_fingerprints(user_id, outcome);
+
+CREATE TABLE IF NOT EXISTS failure_patterns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  pattern_key TEXT NOT NULL,
+  hit_count INTEGER NOT NULL DEFAULT 0,
+  last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+  notes TEXT,
+  UNIQUE(user_id, pattern_key)
+);
+CREATE INDEX IF NOT EXISTS idx_failure_patterns_user ON failure_patterns(user_id);
+CREATE INDEX IF NOT EXISTS idx_failure_patterns_hits ON failure_patterns(user_id, hit_count DESC);

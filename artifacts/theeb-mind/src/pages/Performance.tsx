@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, TrendingUp, TrendingDown, Activity, Target, BarChart3, Clock } from 'lucide-react';
+import { ArrowRight, TrendingUp, TrendingDown, Activity, Target, BarChart3, Clock, ShieldAlert } from 'lucide-react';
 import {
   getPerformanceSummary,
   getEquityCurve,
@@ -8,6 +8,7 @@ import {
   getInstrumentBreakdown,
   getPsychCorrelation,
   getTimeAnalysis,
+  getFailurePatterns,
 } from '../lib/api';
 import type {
   PerformanceSummary,
@@ -16,6 +17,7 @@ import type {
   InstrumentStat,
   PsychCorrelation,
   KillzoneStat,
+  FailurePattern,
 } from '../lib/types';
 
 const USER_ID = 'user-1';
@@ -365,6 +367,88 @@ function DrawdownGauge({ data }: { data: DrawdownResult }) {
   );
 }
 
+// ── Failure Fingerprints Panel ─────────────────────────────────────────────────
+function FailureFingerprintsPanel({ patterns }: { patterns: FailurePattern[] }) {
+  function dangerConfig(hitCount: number): { label: string; cls: string } {
+    if (hitCount >= 5) return { label: 'خطر عالي',    cls: 'bg-warning/15 text-warning border-warning/40' };
+    if (hitCount >= 3) return { label: 'تحذير',       cls: 'bg-gold/15 text-gold border-gold/40' };
+    return              { label: 'مراقبة',            cls: 'bg-cream/10 text-cream/60 border-cream/20' };
+  }
+
+  // Parse pattern_key: "{instrument}:{timeframe}:{killzone}:{grade}"
+  // Instruments can contain ':' (e.g. "OANDA:NAS100USD"), so pop last 3 tokens from the right.
+  function parseKey(key: string): { instrument: string; timeframe: string; killzone: string; grade: string } {
+    const parts = key.split(':');
+    const grade     = parts.pop() ?? '—';
+    const killzone  = parts.pop() ?? '—';
+    const timeframe = parts.pop() ?? '—';
+    const instrument = parts.join(':') || '—'; // rejoin any remaining segments
+    return { instrument, timeframe, killzone: killzone === 'none' ? '—' : killzone, grade };
+  }
+
+  const KILLZONE_AR: Record<string, string> = {
+    asian: 'آسيوي', london: 'لندن', nyAM: 'ن.ص', nyLunch: 'ن.غ', nyPM: 'ن.م',
+  };
+
+  return (
+    <div className="card-dark">
+      <h3 className="font-bold text-cream mb-4 flex items-center gap-2">
+        <ShieldAlert size={16} className="text-warning" />
+        بصمات الفشل
+        <span className="text-xs text-cream/40 font-normal mr-auto">أكثر الأنماط تكراراً في خسائرك</span>
+      </h3>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-cream/40 text-xs border-b border-white/5">
+              <th className="text-right pb-2 font-medium">النمط</th>
+              <th className="text-center pb-2 font-medium">الإطار</th>
+              <th className="text-center pb-2 font-medium">النافذة</th>
+              <th className="text-center pb-2 font-medium">الدرجة</th>
+              <th className="text-center pb-2 font-medium">خسائر</th>
+              <th className="text-center pb-2 font-medium">من إجمالي</th>
+              <th className="text-center pb-2 font-medium">آخر ظهور</th>
+              <th className="text-center pb-2 font-medium">مستوى الخطر</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {patterns.map((p) => {
+              const { instrument, timeframe, killzone, grade } = parseKey(p.pattern_key);
+              const cfg = dangerConfig(p.hit_count);
+              const lastSeen = new Date(p.last_seen).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' });
+              const lossRate = p.total_trades > 0 ? Math.round((p.hit_count / p.total_trades) * 100) : 0;
+              return (
+                <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="py-2.5 font-mono text-cream font-semibold">{instrument}</td>
+                  <td className="py-2.5 text-center font-mono text-cream/70">{timeframe}</td>
+                  <td className="py-2.5 text-center text-cream/60">{KILLZONE_AR[killzone] ?? killzone}</td>
+                  <td className="py-2.5 text-center">
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                      grade === 'A+' || grade === 'A' ? 'text-emerald bg-emerald/10' :
+                      grade === 'B' ? 'text-gold bg-gold/10' : 'text-warning bg-warning/10'
+                    }`}>{grade}</span>
+                  </td>
+                  <td className="py-2.5 text-center font-bold text-warning">{p.hit_count}</td>
+                  <td className="py-2.5 text-center text-cream/50">
+                    {p.total_trades > 0 ? `${lossRate}% (${p.total_trades})` : '—'}
+                  </td>
+                  <td className="py-2.5 text-center text-cream/40 text-xs">{lastSeen}</td>
+                  <td className="py-2.5 text-center">
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${cfg.cls}`}>
+                      {cfg.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ── Loading skeleton ───────────────────────────────────────────────────────────
 function LoadingSkeleton() {
   return (
@@ -384,26 +468,28 @@ function LoadingSkeleton() {
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function Performance() {
-  const [summary,     setSummary]     = useState<PerformanceSummary | null>(null);
-  const [equity,      setEquity]      = useState<EquityPoint[]>([]);
-  const [drawdown,    setDrawdown]    = useState<DrawdownResult | null>(null);
-  const [instruments, setInstruments] = useState<InstrumentStat[]>([]);
-  const [psych,       setPsych]       = useState<PsychCorrelation | null>(null);
-  const [killzones,   setKillzones]   = useState<KillzoneStat[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState<string | null>(null);
+  const [summary,         setSummary]         = useState<PerformanceSummary | null>(null);
+  const [equity,          setEquity]          = useState<EquityPoint[]>([]);
+  const [drawdown,        setDrawdown]        = useState<DrawdownResult | null>(null);
+  const [instruments,     setInstruments]     = useState<InstrumentStat[]>([]);
+  const [psych,           setPsych]           = useState<PsychCorrelation | null>(null);
+  const [killzones,       setKillzones]       = useState<KillzoneStat[]>([]);
+  const [failurePatterns, setFailurePatterns] = useState<FailurePattern[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [s, e, d, ins, p, k] = await Promise.allSettled([
+      const [s, e, d, ins, p, k, fp] = await Promise.allSettled([
         getPerformanceSummary(USER_ID),
         getEquityCurve(USER_ID),
         getDrawdown(USER_ID),
         getInstrumentBreakdown(USER_ID),
         getPsychCorrelation(USER_ID),
         getTimeAnalysis(USER_ID),
+        getFailurePatterns(USER_ID, 5),
       ]);
       if (s.status === 'fulfilled') setSummary(s.value);
       if (e.status === 'fulfilled') setEquity(e.value);
@@ -411,6 +497,7 @@ export default function Performance() {
       if (ins.status === 'fulfilled') setInstruments(ins.value);
       if (p.status === 'fulfilled') setPsych(p.value);
       if (k.status === 'fulfilled') setKillzones(k.value);
+      if (fp.status === 'fulfilled') setFailurePatterns(fp.value);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ');
     } finally {
@@ -531,6 +618,9 @@ export default function Performance() {
           {drawdown && <DrawdownGauge data={drawdown} />}
         </div>
       </div>
+
+      {/* بصمات الفشل — Failure Fingerprints */}
+      {failurePatterns.length > 0 && <FailureFingerprintsPanel patterns={failurePatterns} />}
 
     </div>
   );

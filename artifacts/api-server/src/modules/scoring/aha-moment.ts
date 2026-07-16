@@ -1,14 +1,12 @@
 // ============================================
-// THEEB MIND — AHA Moment Engine
+// THEEB MIND — AHA Moment Engine (v2)
 // ============================================
-// Detects historical failure signatures by
-// comparing the current trade setup against
-// the user's past losing trades.
-// Returns a strict JSON hook with similarity %.
+// Detects historical failure signatures using
+// the memory_fingerprints and failure_patterns
+// tables instead of raw decisions scans.
 // ============================================
 
 import { db } from '../../db/db.js';
-import { CONFIG } from '../../config/constants.js';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -30,92 +28,45 @@ export interface FailureSignature {
   weight: number;
   evidence: string;
   pastOccurrences: number;
-  lossRate: number; // 0–1: what % of past trades with this signature lost
+  lossRate: number; // 0–1
 }
 
 export interface AHAMomentResult {
   similarityPercent: number;
   signatures: FailureSignature[];
-  hook: string; // strict JSON hook for frontend
+  hook: string;
   explanation: string;
 }
-
-// ── Signature definitions ──────────────────────────────
-
-const SIGNATURE_DEFS = [
-  {
-    type: 'size_escalation',
-    typeAr: 'زيادة الحجم بعد خسارة',
-    weight: 0.30,
-  },
-  {
-    type: 'same_setup_repeat',
-    typeAr: 'تكرار نفس الإعداد الخاسر',
-    weight: 0.25,
-  },
-  {
-    type: 'bad_killzone',
-    typeAr: 'نافذة نشاط خاسرة',
-    weight: 0.20,
-  },
-  {
-    type: 'low_grade_pattern',
-    typeAr: 'نمط درجات منخفضة',
-    weight: 0.15,
-  },
-  {
-    type: 'revenge_timing',
-    typeAr: 'توقيت انتقامي',
-    weight: 0.10,
-  },
-] as const;
 
 // ── Engine ────────────────────────────────────────────
 
 export function detectAHAMoment(input: AHAMomentInput): AHAMomentResult {
   const signatures: FailureSignature[] = [];
 
-  // ── Fetch historical losing trades ────────────────────
-  const pastLosses = db.raw
+  // ── Signature 1: Size escalation after loss ───────────
+  // Still needs raw decisions data for risk_json comparison
+  const recentLoss = db.raw
     .prepare(
-      `SELECT id, instrument, timeframe, type, killzone, grade, quality_score,
-              outcome_pnl, created_at, outcome_at, analysis_json
-       FROM decisions
-       WHERE user_id = ? AND outcome = 'loss'
-       ORDER BY created_at DESC
-       LIMIT 50`,
+      `SELECT d.risk_json, d.outcome_at
+       FROM decisions d
+       WHERE d.user_id = ? AND d.outcome = 'loss'
+       ORDER BY d.created_at DESC LIMIT 1`,
     )
-    .all(input.userId) as any[];
+    .get(input.userId) as { risk_json: string | null; outcome_at: string | null } | undefined;
 
-  const allPastTrades = db.raw
-    .prepare(
-      `SELECT id, instrument, timeframe, type, killzone, grade, outcome
-       FROM decisions
-       WHERE user_id = ?
-       ORDER BY created_at DESC
-       LIMIT 100`,
-    )
-    .all(input.userId) as any[];
+  signatures.push(detectSizeEscalation(input, recentLoss));
 
-  // ── Signature 1: Size escalation after loss ──────────
-  const sizeEscalation = detectSizeEscalation(input, pastLosses);
-  signatures.push(sizeEscalation);
+  // ── Signature 2: Same setup repeat (memory_fingerprints) ─
+  signatures.push(detectSameSetupRepeat(input));
 
-  // ── Signature 2: Same setup repeat ────────────────────
-  const sameSetup = detectSameSetupRepeat(input, pastLosses, allPastTrades);
-  signatures.push(sameSetup);
+  // ── Signature 3: Bad killzone (memory_fingerprints) ──────
+  signatures.push(detectBadKillzone(input));
 
-  // ── Signature 3: Bad killzone ─────────────────────────
-  const badKillzone = detectBadKillzone(input, pastLosses, allPastTrades);
-  signatures.push(badKillzone);
+  // ── Signature 4: Low grade pattern (memory_fingerprints) ─
+  signatures.push(detectLowGradePattern(input));
 
-  // ── Signature 4: Low grade pattern ────────────────────
-  const lowGrade = detectLowGradePattern(input, pastLosses);
-  signatures.push(lowGrade);
-
-  // ── Signature 5: Revenge timing ──────────────────────
-  const revengeTiming = detectRevengeTiming(input, pastLosses);
-  signatures.push(revengeTiming);
+  // ── Signature 5: Revenge timing (decisions) ───────────
+  signatures.push(detectRevengeTiming(input));
 
   // ── Compute aggregate similarity ──────────────────────
   const matchedSignatures = signatures.filter((s) => s.matched);
@@ -123,60 +74,64 @@ export function detectAHAMoment(input: AHAMomentInput): AHAMomentResult {
 
   if (matchedSignatures.length > 0) {
     const totalWeight = matchedSignatures.reduce((sum, s) => sum + s.weight, 0);
-    // Weighted average of loss rates, scaled to 0–100
     const weightedLossRate =
       matchedSignatures.reduce((sum, s) => sum + s.lossRate * s.weight, 0) / totalWeight;
     similarityPercent = Math.round(weightedLossRate * 100);
   }
 
-  // ── Build hook ────────────────────────────────────────
-  const hook = buildHook(similarityPercent, matchedSignatures, input);
+  // ── Boost similarity using failure_patterns hit count ─
+  const patternKey = `${input.instrument}:${input.timeframe}:${input.killzone ?? 'none'}:${input.confluenceGrade}`;
+  const fp = db.raw
+    .prepare(`SELECT hit_count FROM failure_patterns WHERE user_id = ? AND pattern_key = ?`)
+    .get(input.userId, patternKey) as { hit_count: number } | undefined;
 
-  // ── Build explanation ─────────────────────────────────
+  if (fp && fp.hit_count >= 3) {
+    // Up to +15 pts boost for heavily repeated failure patterns
+    const boost = Math.min(15, fp.hit_count * 2);
+    similarityPercent = Math.min(100, similarityPercent + boost);
+  }
+
+  const hook = buildHook(similarityPercent, matchedSignatures, input);
   const explanation = buildExplanation(similarityPercent, signatures, input);
 
-  return {
-    similarityPercent,
-    signatures,
-    hook,
-    explanation,
-  };
+  return { similarityPercent, signatures, hook, explanation };
 }
 
 // ── Signature Detectors ────────────────────────────────
 
 function detectSizeEscalation(
   input: AHAMomentInput,
-  pastLosses: any[],
+  recentLoss: { risk_json: string | null; outcome_at: string | null } | undefined,
 ): FailureSignature {
-  // Check: was the last trade a loss, and is current risk higher?
-  const lastLoss = pastLosses[0];
-  const hasRecentLoss = lastLoss != null;
-
-  // Parse risk from analysis_json if available
   let lastRiskAmount = 0;
-  if (lastLoss?.analysis_json) {
+  const hasRecentLoss = recentLoss != null;
+
+  if (recentLoss?.risk_json) {
     try {
-      const parsed = JSON.parse(lastLoss.analysis_json);
-      lastRiskAmount = parsed.riskAmount ?? parsed.stopLoss ?? 0;
-    } catch {
-      // ignore
-    }
+      lastRiskAmount = (JSON.parse(recentLoss.risk_json) as { riskAmount?: number }).riskAmount ?? 0;
+    } catch { /* ignore */ }
   }
 
   const currentRisk = input.riskAmount ?? 0;
   const isEscalating = hasRecentLoss && currentRisk > lastRiskAmount && lastRiskAmount > 0;
 
-  // Compute loss rate for size escalation pattern
-  const escalationTrades = pastLosses.filter((t, i) => {
-    if (i === 0) return false;
-    const prev = pastLosses[i - 1];
-    return prev?.outcome === 'loss';
-  }).length;
+  // Count escalation instances from memory_fingerprints
+  const escalationCount = (
+    db.raw
+      .prepare(
+        `SELECT COUNT(*) as c FROM memory_fingerprints
+         WHERE user_id = ? AND outcome = 'loss' AND risk_amount > 0`,
+      )
+      .get(input.userId) as { c: number }
+  ).c;
 
-  const lossRate = pastLosses.length > 0
-    ? Math.min(1, escalationTrades / Math.min(pastLosses.length, 10))
-    : 0;
+  const lossCount = (
+    db.raw
+      .prepare(`SELECT COUNT(*) as c FROM memory_fingerprints WHERE user_id = ? AND outcome = 'loss'`)
+      .get(input.userId) as { c: number }
+  ).c;
+
+  const lossRate = lossCount > 0 ? Math.min(1, escalationCount / lossCount) : 0;
 
   return {
     type: 'size_escalation',
@@ -186,31 +141,44 @@ function detectSizeEscalation(
     evidence: isEscalating
       ? `آخر خسارة بمخاطرة ${lastRiskAmount} — المخاطرة الحالية ${currentRisk} (زيادة)`
       : hasRecentLoss
-        ? `آخر صفقة خاسرة لكن المخاطرة لم تزد`
+        ? 'آخر صفقة خاسرة لكن المخاطرة لم تزد'
         : 'لا توجد خسارة سابقة للمقارنة',
-    pastOccurrences: escalationTrades,
+    pastOccurrences: escalationCount,
     lossRate,
   };
 }
 
-function detectSameSetupRepeat(
-  input: AHAMomentInput,
-  pastLosses: any[],
-  allPastTrades: any[],
-): FailureSignature {
-  // Check: same instrument + timeframe combo that lost before
-  const sameSetupLosses = pastLosses.filter(
-    (t) => t.instrument === input.instrument && t.timeframe === input.timeframe,
-  );
+function detectSameSetupRepeat(input: AHAMomentInput): FailureSignature {
+  // Query memory_fingerprints for same instrument + timeframe
+  const lossCount = (
+    db.raw
+      .prepare(
+        `SELECT COUNT(*) as c FROM memory_fingerprints
+         WHERE user_id = ? AND instrument = ? AND timeframe = ? AND outcome = 'loss'`,
+      )
+      .get(input.userId, input.instrument, input.timeframe) as { c: number }
+  ).c;
 
-  const sameSetupTotal = allPastTrades.filter(
-    (t) => t.instrument === input.instrument && t.timeframe === input.timeframe,
-  );
+  const totalCount = (
+    db.raw
+      .prepare(
+        `SELECT COUNT(*) as c FROM memory_fingerprints
+         WHERE user_id = ? AND instrument = ? AND timeframe = ?`,
+      )
+      .get(input.userId, input.instrument, input.timeframe) as { c: number }
+  ).c;
 
-  const matched = sameSetupLosses.length >= 2;
-  const lossRate = sameSetupTotal.length > 0
-    ? sameSetupLosses.length / sameSetupTotal.length
-    : 0;
+  // Check failure_patterns for this exact setup (instrument + timeframe + killzone + grade)
+  const patternKey = `${input.instrument}:${input.timeframe}:${input.killzone ?? 'none'}:${input.confluenceGrade}`;
+  const failurePattern = db.raw
+    .prepare(`SELECT hit_count FROM failure_patterns WHERE user_id = ? AND pattern_key = ?`)
+    .get(input.userId, patternKey) as { hit_count: number } | undefined;
+
+  const matched = lossCount >= 2;
+  const baseRate = totalCount > 0 ? lossCount / totalCount : 0;
+  // Pattern boost: if this exact pattern key has been recorded as a failure
+  const patternBoost = failurePattern ? Math.min(0.2, failurePattern.hit_count * 0.02) : 0;
+  const lossRate = Math.min(1, baseRate + patternBoost);
 
   return {
     type: 'same_setup_repeat',
@@ -218,20 +186,16 @@ function detectSameSetupRepeat(
     matched,
     weight: 0.25,
     evidence: matched
-      ? `${input.instrument} ${input.timeframe}: ${sameSetupLosses.length} خسائر من ${sameSetupTotal.length} محاولة`
-      : sameSetupLosses.length === 1
+      ? `${input.instrument} ${input.timeframe}: ${lossCount} خسائر من ${totalCount} محاولة${failurePattern ? ` (نمط مسجل: ${failurePattern.hit_count} مرة)` : ''}`
+      : lossCount === 1
         ? `${input.instrument} ${input.timeframe}: خسارة واحدة سابقة فقط`
         : `لا توجد خسائر سابقة على ${input.instrument} ${input.timeframe}`,
-    pastOccurrences: sameSetupLosses.length,
+    pastOccurrences: lossCount,
     lossRate,
   };
 }
 
-function detectBadKillzone(
-  input: AHAMomentInput,
-  pastLosses: any[],
-  allPastTrades: any[],
-): FailureSignature {
+function detectBadKillzone(input: AHAMomentInput): FailureSignature {
   if (!input.killzone) {
     return {
       type: 'bad_killzone',
@@ -244,18 +208,34 @@ function detectBadKillzone(
     };
   }
 
-  const zoneLosses = pastLosses.filter((t) => t.killzone === input.killzone);
-  const zoneTotal = allPastTrades.filter((t) => t.killzone === input.killzone);
+  // Query memory_fingerprints for killzone performance
+  const zoneLossCount = (
+    db.raw
+      .prepare(
+        `SELECT COUNT(*) as c FROM memory_fingerprints
+         WHERE user_id = ? AND killzone = ? AND outcome = 'loss'`,
+      )
+      .get(input.userId, input.killzone) as { c: number }
+  ).c;
 
-  const matched = zoneLosses.length >= 3 && zoneTotal.length >= 5;
-  const lossRate = zoneTotal.length > 0 ? zoneLosses.length / zoneTotal.length : 0;
+  const zoneTotalCount = (
+    db.raw
+      .prepare(
+        `SELECT COUNT(*) as c FROM memory_fingerprints
+         WHERE user_id = ? AND killzone = ?`,
+      )
+      .get(input.userId, input.killzone) as { c: number }
+  ).c;
+
+  const matched = zoneLossCount >= 3 && zoneTotalCount >= 5;
+  const lossRate = zoneTotalCount > 0 ? zoneLossCount / zoneTotalCount : 0;
 
   const killzoneLabels: Record<string, string> = {
-    asian: 'الآسيوية',
-    london: 'اللندنية',
-    nyAM: 'نيويورك صباحاً',
+    asian:   'الآسيوية',
+    london:  'اللندنية',
+    nyAM:    'نيويورك صباحاً',
     nyLunch: 'نيويورك غداء',
-    nyPM: 'نيويورك مساءً',
+    nyPM:    'نيويورك مساءً',
   };
 
   return {
@@ -264,29 +244,45 @@ function detectBadKillzone(
     matched,
     weight: 0.20,
     evidence: matched
-      ? `نافذة ${killzoneLabels[input.killzone] ?? input.killzone}: ${zoneLosses.length} خسائر من ${zoneTotal.length} صفقة`
-      : zoneTotal.length < 5
-        ? `نافذة ${killzoneLabels[input.killzone] ?? input.killzone}: بيانات غير كافية (${zoneTotal.length} صفقة)`
+      ? `نافذة ${killzoneLabels[input.killzone] ?? input.killzone}: ${zoneLossCount} خسائر من ${zoneTotalCount} صفقة`
+      : zoneTotalCount < 5
+        ? `نافذة ${killzoneLabels[input.killzone] ?? input.killzone}: بيانات غير كافية (${zoneTotalCount} صفقة)`
         : `نافذة ${killzoneLabels[input.killzone] ?? input.killzone}: نسبة خسائر مقبولة`,
-    pastOccurrences: zoneLosses.length,
+    pastOccurrences: zoneLossCount,
     lossRate,
   };
 }
 
-function detectLowGradePattern(
-  input: AHAMomentInput,
-  pastLosses: any[],
-): FailureSignature {
-  const recentLosses = pastLosses.slice(0, 10);
-  const lowGradeLosses = recentLosses.filter((t) => t.grade === 'C');
+function detectLowGradePattern(input: AHAMomentInput): FailureSignature {
+  // Count C-grade losses among the 10 most-recent losses from memory_fingerprints
+  const cGradeLossCount = (
+    db.raw
+      .prepare(
+        `SELECT COUNT(*) as c FROM (
+           SELECT grade FROM memory_fingerprints
+           WHERE user_id = ? AND outcome = 'loss'
+           ORDER BY created_at DESC LIMIT 10
+         ) WHERE grade = 'C'`,
+      )
+      .get(input.userId) as { c: number }
+  ).c;
+
+  const recentLossCount = (
+    db.raw
+      .prepare(
+        `SELECT COUNT(*) as c FROM (
+           SELECT id FROM memory_fingerprints
+           WHERE user_id = ? AND outcome = 'loss'
+           ORDER BY created_at DESC LIMIT 10
+         )`,
+      )
+      .get(input.userId) as { c: number }
+  ).c;
 
   const isCurrentLowGrade = input.confluenceGrade === 'C';
-  const hasLowGradeHistory = lowGradeLosses.length >= 3;
-
+  const hasLowGradeHistory = cGradeLossCount >= 3;
   const matched = isCurrentLowGrade && hasLowGradeHistory;
-  const lossRate = recentLosses.length > 0
-    ? lowGradeLosses.length / recentLosses.length
-    : 0;
+  const lossRate = recentLossCount > 0 ? cGradeLossCount / recentLossCount : 0;
 
   return {
     type: 'low_grade_pattern',
@@ -294,43 +290,41 @@ function detectLowGradePattern(
     matched,
     weight: 0.15,
     evidence: matched
-      ? `${lowGradeLosses.length} من آخر 10 خسائر بدرجة C — والصفقة الحالية أيضاً C`
+      ? `${cGradeLossCount} من آخر 10 خسائر بدرجة C — والصفقة الحالية أيضاً C`
       : isCurrentLowGrade
         ? 'الصفقة الحالية بدرجة C لكن التاريخ لا يظهر نمطاً'
         : 'درجة الصفقة الحالية مقبولة',
-    pastOccurrences: lowGradeLosses.length,
+    pastOccurrences: cGradeLossCount,
     lossRate,
   };
 }
 
-function detectRevengeTiming(
-  input: AHAMomentInput,
-  pastLosses: any[],
-): FailureSignature {
-  // Check: was there a loss in the last 30 minutes?
+function detectRevengeTiming(input: AHAMomentInput): FailureSignature {
   const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
-  const recentLosses = pastLosses.filter((t) => {
-    if (!t.outcome_at && !t.created_at) return false;
-    const time = t.outcome_at ?? t.created_at;
-    return time >= thirtyMinAgo;
-  });
+  const recentLossCount = (
+    db.raw
+      .prepare(
+        `SELECT COUNT(*) as c FROM decisions
+         WHERE user_id = ? AND outcome = 'loss'
+           AND (outcome_at >= ? OR created_at >= ?)`,
+      )
+      .get(input.userId, thirtyMinAgo, thirtyMinAgo) as { c: number }
+  ).c;
 
-  const matched = recentLosses.length > 0;
+  const matched = recentLossCount > 0;
 
-  // Count all revenge-pattern trades in history
-  const revengeTrades = pastLosses.filter((t, i) => {
-    if (i === 0) return false;
-    const prev = pastLosses[i - 1];
-    if (!prev?.outcome_at || !t.created_at) return false;
-    const diff =
-      new Date(t.created_at).getTime() - new Date(prev.outcome_at).getTime();
-    return diff < 30 * 60 * 1000;
-  }).length;
+  // Count total revenge instances from memory_fingerprints proxy
+  const totalRevengeCount = (
+    db.raw
+      .prepare(
+        `SELECT COUNT(*) as c FROM memory_fingerprints
+         WHERE user_id = ? AND outcome = 'loss'`,
+      )
+      .get(input.userId) as { c: number }
+  ).c;
 
-  const lossRate = pastLosses.length > 0
-    ? Math.min(1, revengeTrades / Math.min(pastLosses.length, 20))
-    : 0;
+  const lossRate = totalRevengeCount > 0 ? Math.min(1, recentLossCount / Math.max(totalRevengeCount, 20)) : 0;
 
   return {
     type: 'revenge_timing',
@@ -340,27 +334,30 @@ function detectRevengeTiming(
     evidence: matched
       ? `خسارة خلال آخر 30 دقيقة — دخول سريع بعد خسارة`
       : 'لا توجد خسارة حديثة — التوقيت طبيعي',
-    pastOccurrences: revengeTrades,
+    pastOccurrences: recentLossCount,
     lossRate,
   };
 }
 
-// ── Hook Builder ───────────────────────────────────────
+// ── Hook & Explanation Builders ────────────────────────
 
 function buildHook(
   similarityPercent: number,
   matchedSignatures: FailureSignature[],
-  input: AHAMomentInput,
+  _input: AHAMomentInput,
 ): string {
   if (similarityPercent === 0) {
-    return `هذا القرار لا يشبه أي نمط خاسر سابق — تابع بحذر.`;
+    return 'هذا القرار لا يشبه أي نمط خاسر سابق — تابع بحذر.';
   }
 
-  const sigDescriptions = matchedSignatures
-    .map((s) => s.typeAr)
-    .join('، ');
-
-  return `هذا القرار يشبه ${similarityPercent}% من صفقاتك الخاسرة السابقة. الأنماط المكتشفة: ${sigDescriptions}. ${similarityPercent >= 70 ? 'يُنصح بشدة بعدم الدخول.' : similarityPercent >= 40 ? 'يُنصح بالمراجعة قبل الدخول.' : 'تأكد من وعيك بهذه الأنماط.'}`;
+  const sigDescriptions = matchedSignatures.map((s) => s.typeAr).join('، ');
+  return `هذا القرار يشبه ${similarityPercent}% من صفقاتك الخاسرة السابقة. الأنماط المكتشفة: ${sigDescriptions}. ${
+    similarityPercent >= 70
+      ? 'يُنصح بشدة بعدم الدخول.'
+      : similarityPercent >= 40
+        ? 'يُنصح بالمراجعة قبل الدخول.'
+        : 'تأكد من وعيك بهذه الأنماط.'
+  }`;
 }
 
 function buildExplanation(
@@ -377,9 +374,7 @@ function buildExplanation(
 
   for (const sig of signatures) {
     const icon = sig.matched ? '🔴' : '🟢';
-    lines.push(
-      `${icon} ${sig.typeAr} (وزن ${(sig.weight * 100).toFixed(0)}%): ${sig.evidence}`,
-    );
+    lines.push(`${icon} ${sig.typeAr} (وزن ${(sig.weight * 100).toFixed(0)}%): ${sig.evidence}`);
     if (sig.matched) {
       lines.push(`   ↳ معدل الخسارة التاريخي: ${(sig.lossRate * 100).toFixed(0)}% (${sig.pastOccurrences} حالة)`);
     }

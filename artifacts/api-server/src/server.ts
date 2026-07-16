@@ -11,6 +11,8 @@ import { journalRoutes } from './modules/journal/journal.routes.js';
 import { psychologyRoutes } from './modules/psychology/psychology.routes.js';
 import { performanceRoutes } from './modules/performance/performance.routes.js';
 import { rulesRoutes } from './modules/rules/rules.routes.js';
+import { memoryRoutes } from './modules/memory/memory.routes.js';
+import { backfillFingerprints } from './modules/memory/memory.service.js';
 
 const app: Express = express();
 
@@ -32,6 +34,7 @@ app.use('/api/journal', journalRoutes);
 app.use('/api/psychology', psychologyRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/rules', rulesRoutes);
+app.use('/api/memory', memoryRoutes);
 
 // Error handler
 app.use(errorHandler);
@@ -40,6 +43,16 @@ app.use(errorHandler);
 function start(): void {
   db.init();
   console.log('[THEEB MIND] Database initialized');
+
+  // Backfill memory fingerprints for existing decisions (no-op if already done)
+  try {
+    const inserted = backfillFingerprints('user-1');
+    if (inserted > 0) {
+      console.log(`[THEEB MIND] Memory backfill: ${inserted} fingerprints created`);
+    }
+  } catch (e) {
+    console.warn('[THEEB MIND] Memory backfill skipped:', e);
+  }
 
   app.listen(env.PORT, () => {
     console.log(`[THEEB MIND] Server running on port ${env.PORT}`);

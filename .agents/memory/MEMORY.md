@@ -1,0 +1,1 @@
+- [Memory Engine architecture](memory-engine.md) — pattern key format, write path hooks, AHA v2 boost logic, backfill behavior
