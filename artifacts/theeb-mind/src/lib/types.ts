@@ -269,3 +269,35 @@ export interface MemoryContext {
   failurePattern: FailurePattern | null;
   patternKey: string;
 }
+
+// ── Unified Decision Quality Engine ───────────────────
+
+export interface UnifiedQualityBreakdown {
+  confluence:  { score: number; normalized: number; weight: number };
+  psychology:  { score: number; normalized: number; weight: number };
+  quality:     { score: number; normalized: number; weight: number };
+  safety:      { score: number; normalized: number; weight: number };
+  ahaPenalty:  number;
+}
+
+export interface UnifiedQualityResult {
+  composite_score: number;
+  grade: 'A+' | 'A' | 'B' | 'C';
+  confidence: number;
+  breakdown: UnifiedQualityBreakdown;
+  verdict: 'EXECUTE' | 'REVIEW' | 'REJECT';
+  flags: string[];
+  explanation: string;
+}
+
+export interface QualityEvaluation {
+  id: string;
+  user_id: string;
+  decision_id: string | null;
+  composite_score: number;
+  grade: 'A+' | 'A' | 'B' | 'C';
+  confidence: number;
+  breakdown_json: string;
+  flags_json: string;
+  created_at: string;
+}

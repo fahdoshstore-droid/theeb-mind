@@ -138,3 +138,20 @@ CREATE TABLE IF NOT EXISTS failure_patterns (
 );
 CREATE INDEX IF NOT EXISTS idx_failure_patterns_user ON failure_patterns(user_id);
 CREATE INDEX IF NOT EXISTS idx_failure_patterns_hits ON failure_patterns(user_id, hit_count DESC);
+
+CREATE TABLE IF NOT EXISTS quality_evaluations (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  decision_id TEXT,
+  composite_score INTEGER NOT NULL DEFAULT 0,
+  grade TEXT NOT NULL DEFAULT 'C' CHECK(grade IN ('A+', 'A', 'B', 'C')),
+  confidence REAL NOT NULL DEFAULT 0,
+  breakdown_json TEXT NOT NULL DEFAULT '{}',
+  flags_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (decision_id) REFERENCES decisions(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_quality_eval_user ON quality_evaluations(user_id);
+CREATE INDEX IF NOT EXISTS idx_quality_eval_decision ON quality_evaluations(decision_id);
+CREATE INDEX IF NOT EXISTS idx_quality_eval_created ON quality_evaluations(user_id, created_at DESC);

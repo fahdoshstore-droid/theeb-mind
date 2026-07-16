@@ -24,6 +24,16 @@ export const CONFIG = {
     alignment: 0.10,
   } as const,
 
+  // ── Unified Decision Quality Engine weights ────────────
+  // Confluence 30%, Psychology 25%, Quality 25%, Safety 15%
+  // AHA penalty applied on top (up to -20 pts)
+  QUALITY_WEIGHTS: {
+    confluence: 0.30,
+    psychology: 0.25,
+    quality:    0.25,
+    safety:     0.15,
+  } as const,
+
   VERIFY_THRESHOLDS: {
     credible: 75,
     suspicious: 40,

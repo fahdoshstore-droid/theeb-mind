@@ -13,6 +13,7 @@ import { performanceRoutes } from './modules/performance/performance.routes.js';
 import { rulesRoutes } from './modules/rules/rules.routes.js';
 import { memoryRoutes } from './modules/memory/memory.routes.js';
 import { backfillFingerprints } from './modules/memory/memory.service.js';
+import { qualityRoutes } from './modules/quality/quality.routes.js';
 
 const app: Express = express();
 
@@ -35,6 +36,7 @@ app.use('/api/psychology', psychologyRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/rules', rulesRoutes);
 app.use('/api/memory', memoryRoutes);
+app.use('/api/quality', qualityRoutes);
 
 // Error handler
 app.use(errorHandler);

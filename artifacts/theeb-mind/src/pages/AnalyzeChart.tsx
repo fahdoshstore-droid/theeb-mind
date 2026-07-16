@@ -332,24 +332,47 @@ export default function TheebMindGate() {
             <TrilRow label="كتلة الأوامر" en="ORDER BLOCK" pass={trilPass.orderBlock}/>
             <TrilRow label="إعادة التوازن" en="IMM. REBALANCE" pass={trilPass.immediateRebalance}/>
           </div>
-          {/* C4 — RISK SNAPSHOT */}
-          <div style={{padding:'12px',borderRadius:10,background:C.card2,border:'1px solid '+C.border}}>
-            <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.18em',marginBottom:10}}>RISK SNAPSHOT</div>
-            <div style={{display:'flex'}}>
-              <div style={{flex:1,textAlign:'center'}}>
-                <div style={{fontFamily:'JetBrains Mono',fontSize:18,fontWeight:800,color:riskAmount>500?C.red:C.t1}}>{'$'+riskAmount}</div>
-                <div style={{fontSize:9,color:C.t3,marginTop:2}}>المخاطرة</div>
+          {/* C4 — QUALITY BREAKDOWN */}
+          {(() => {
+            const trilFactors = [trilPass.trend, trilPass.raid, trilPass.imbalance, trilPass.location, trilPass.orderBlock, trilPass.immediateRebalance];
+            const confNorm   = Math.round((trilFactors.filter(Boolean).length / 6) * 100);
+            const psychNorm  = violations.length === 0 ? 100 : Math.max(20, 100 - violations.length * 20);
+            const rrrNorm    = Math.min(100, Math.round((rrr / 2.5) * 100));
+            const safetyNorm = riskAmount > 500 ? 35 : tradesTaken >= 2 ? 45 : 90;
+            const composite  = Math.round(confNorm * 0.30 + psychNorm * 0.25 + rrrNorm * 0.25 + safetyNorm * 0.15);
+            const barColor   = (v: number) => v >= 75 ? C.green : v >= 50 ? C.gold : C.red;
+            const rows: [string, string, number, number][] = [
+              ['التوافق',  'CONFLUENCE', confNorm,  30],
+              ['النفسية',  'PSYCHOLOGY', psychNorm, 25],
+              ['الجودة',   'QUALITY',    rrrNorm,   25],
+              ['الأمان',   'SAFETY',     safetyNorm,15],
+            ];
+            return (
+              <div style={{padding:'12px',borderRadius:10,background:C.card2,border:'1px solid '+C.border}}>
+                <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.18em',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span>QUALITY BREAKDOWN</span>
+                  <span style={{color: composite>=75?C.green:composite>=55?C.gold:C.red,fontWeight:800,fontSize:11}}>{composite}</span>
+                </div>
+                {rows.map(([ar, en, val, wt])=>(
+                  <div key={en} style={{marginBottom:7}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
+                      <span style={{fontSize:9,color:C.t2}}>{ar}</span>
+                      <span style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3}}>{wt}% &middot; <span style={{color:barColor(val)}}>{val}</span></span>
+                    </div>
+                    <div style={{height:4,background:C.border2,borderRadius:2,overflow:'hidden'}}>
+                      <div style={{height:'100%',width:val+'%',background:barColor(val),borderRadius:2,transition:'width .3s ease'}}/>
+                    </div>
+                  </div>
+                ))}
+                <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid '+C.border2,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3}}>RRR</span>
+                  <span style={{fontFamily:'JetBrains Mono',fontSize:11,fontWeight:800,color:rrr<2.5?C.red:C.t1}}>1:{rrr}</span>
+                  <span style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3}}>المخاطرة</span>
+                  <span style={{fontFamily:'JetBrains Mono',fontSize:11,fontWeight:800,color:riskAmount>500?C.red:C.t1}}>${riskAmount}</span>
+                </div>
               </div>
-              <div style={{flex:1,textAlign:'center'}}>
-                <div style={{fontFamily:'JetBrains Mono',fontSize:18,fontWeight:800,color:C.t1}}>1</div>
-                <div style={{fontSize:9,color:C.t3,marginTop:2}}>MNQ عقود</div>
-              </div>
-              <div style={{flex:1,textAlign:'center'}}>
-                <div style={{fontFamily:'JetBrains Mono',fontSize:18,fontWeight:800,color:rrr<2.5?C.red:C.t1}}>{'1:'+rrr}</div>
-                <div style={{fontSize:9,color:C.t3,marginTop:2}}>RRR</div>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
           {/* demo controls */}
           <div style={{padding:'10px 12px',borderRadius:10,background:C.card2,border:'1px solid '+C.border}}>
             <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.14em',marginBottom:8}}>قراءة الشارت</div>

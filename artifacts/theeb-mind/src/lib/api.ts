@@ -282,6 +282,30 @@ export async function getRuleConfig(): Promise<import('./types').RuleConfig[]> {
   return requestUnwrapped<import('./types').RuleConfig[]>('/rules/config');
 }
 
+// ── Unified Decision Quality Engine ───────────────────
+
+export async function evaluateQuality(
+  input: {
+    marketStructure: boolean; fairValueGap: boolean; orderBlock: boolean;
+    liquiditySweep: boolean; killzoneActive: boolean; immediateRebalance: boolean;
+    gatePercentage: number; gateVerdict: 'pass' | 'fail' | 'warning';
+    behavioralLock: boolean; psychPhase: string;
+    rrr: number; rrrPass: boolean; riskAmount?: number;
+    tradeCountToday: number; isPreMarket: boolean; consecutiveLosses: number; isNoTradeDay: boolean;
+    alignmentScore: number; ahaSimilarityPercent?: number;
+  },
+): Promise<import('./types').UnifiedQualityResult> {
+  return requestUnwrapped<import('./types').UnifiedQualityResult>('/quality/evaluate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getQualityHistory(userId: string, limit = 100): Promise<import('./types').QualityEvaluation[]> {
+  return requestUnwrapped<import('./types').QualityEvaluation[]>(`/quality/history/${userId}?limit=${limit}`);
+}
+
 // ── Memory Engine ─────────────────────────────────────
 
 export async function getFailurePatterns(userId: string, limit = 10): Promise<import('./types').FailurePattern[]> {

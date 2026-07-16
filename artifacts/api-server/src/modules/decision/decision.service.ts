@@ -16,6 +16,7 @@ import type { FallbackRequest } from '../../shared/validators.js';
 import type { ConfluenceInput } from '../scoring/confluence.engine.js';
 import type { QualityInput } from '../scoring/quality-score.js';
 import { createFingerprint } from '../memory/memory.service.js';
+import { computeUnifiedQuality } from '../quality/quality.engine.js';
 
 export interface AnalyzeInput {
   userId: string;
@@ -119,7 +120,30 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
     riskAmount: input.riskAmount,
   });
 
-  const coachingMessage = generateMessage(quality.grade, confluence.grade, input.instrument);
+  // ── Unified Quality Engine ────────────────────────────
+  const unifiedQuality = computeUnifiedQuality({
+    marketStructure:   visionResult.marketStructure,
+    fairValueGap:      visionResult.fairValueGap,
+    orderBlock:        visionResult.orderBlock,
+    liquiditySweep:    visionResult.liquiditySweep,
+    killzoneActive:    killzone.isActive,
+    immediateRebalance: visionResult.immediateRebalance,
+    gatePercentage:    70,
+    gateVerdict:       'warning',
+    behavioralLock:    false,
+    psychPhase:        'cautious',
+    rrr:               visionResult.rrr,
+    rrrPass,
+    riskAmount:        input.riskAmount,
+    tradeCountToday:   freq.tradeCountToday,
+    isPreMarket:       freq.isPreMarket,
+    consecutiveLosses: 0,
+    isNoTradeDay:      isDayBlocked(),
+    alignmentScore,
+    ahaSimilarityPercent: aha.similarityPercent,
+  });
+
+  const coachingMessage = generateMessage(unifiedQuality.grade, confluence.grade, input.instrument);
 
   const result: AnalysisResult = {
     decisionId,
@@ -131,9 +155,9 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
       confluenceGrade: confluence.grade,
       confluenceBreakdown: confluence.breakdown,
       confluenceExplanation: confluence.explanation,
-      qualityScore: quality.totalScore,
-      qualityGrade: quality.grade,
-      qualityExplanation: quality.explanation,
+      qualityScore: unifiedQuality.composite_score,
+      qualityGrade: unifiedQuality.grade,
+      qualityExplanation: unifiedQuality.explanation,
       rrr: visionResult.rrr,
       rrrPass,
     },
@@ -170,8 +194,16 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
       similarityPercent: aha.similarityPercent,
       hook: aha.hook,
     },
+    unifiedQuality: {
+      composite_score: unifiedQuality.composite_score,
+      grade:           unifiedQuality.grade,
+      verdict:         unifiedQuality.verdict,
+      breakdown:       unifiedQuality.breakdown,
+      flags:           unifiedQuality.flags,
+    },
   };
 
+  // Use unified composite score for the decisions table
   db.stmt('insertDecision').run(
     decisionId,
     input.userId,
@@ -179,17 +211,32 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
     null,
     input.timeframe,
     input.instrument,
-    JSON.stringify(visionResult),                                                    // analysis_json
-    JSON.stringify(confluence),                                                      // scoring_json
-    null,                                                                            // psychology_json
-    JSON.stringify({ rrr: visionResult.rrr, riskAmount: input.riskAmount ?? null }), // risk_json
-    JSON.stringify({ coachingMessage }),                                              // coaching_json
-    quality.totalScore,
-    quality.grade,
+    JSON.stringify(visionResult),
+    JSON.stringify(confluence),
+    null,
+    JSON.stringify({ rrr: visionResult.rrr, riskAmount: input.riskAmount ?? null }),
+    JSON.stringify({ coachingMessage }),
+    unifiedQuality.composite_score,   // ← unified composite score
+    unifiedQuality.grade,             // ← unified grade
     killzone.key,
     result.dayBlocked ? 1 : 0,
     0,
     1
+  );
+
+  // Persist unified quality evaluation
+  db.raw.prepare(
+    `INSERT INTO quality_evaluations (id, user_id, decision_id, composite_score, grade, confidence, breakdown_json, flags_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    uuidv4(),
+    input.userId,
+    decisionId,
+    unifiedQuality.composite_score,
+    unifiedQuality.grade,
+    unifiedQuality.confidence,
+    JSON.stringify(unifiedQuality.breakdown),
+    JSON.stringify(unifiedQuality.flags),
   );
 
   // ── Memory Engine: fingerprint this decision ──────────
@@ -199,8 +246,8 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
     instrument: input.instrument,
     timeframe: input.timeframe,
     killzone: killzone.key ?? null,
-    grade: quality.grade,
-    qualityScore: quality.totalScore,
+    grade: unifiedQuality.grade,
+    qualityScore: unifiedQuality.composite_score,
     riskAmount: input.riskAmount ?? 0,
   });
 
@@ -279,7 +326,30 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
     riskAmount: input.riskAmount,
   });
 
-  const coachingMessage = generateMessage(quality.grade, confluence.grade, input.instrument);
+  // ── Unified Quality Engine ────────────────────────────
+  const unifiedQuality = computeUnifiedQuality({
+    marketStructure:   input.marketStructure,
+    fairValueGap:      input.fairValueGap,
+    orderBlock:        input.orderBlock,
+    liquiditySweep:    input.liquiditySweep,
+    killzoneActive:    input.killzoneActive,
+    immediateRebalance: input.immediateRebalance,
+    gatePercentage:    70,
+    gateVerdict:       'warning',
+    behavioralLock:    false,
+    psychPhase:        'cautious',
+    rrr:               CONFIG.MIN_RRR,
+    rrrPass:           true,
+    riskAmount:        input.riskAmount,
+    tradeCountToday:   freq.tradeCountToday,
+    isPreMarket:       freq.isPreMarket,
+    consecutiveLosses: 0,
+    isNoTradeDay:      isDayBlocked(),
+    alignmentScore,
+    ahaSimilarityPercent: aha.similarityPercent,
+  });
+
+  const coachingMessage = generateMessage(unifiedQuality.grade, confluence.grade, input.instrument);
 
   const result: AnalysisResult = {
     decisionId,
@@ -291,9 +361,9 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
       confluenceGrade: confluence.grade,
       confluenceBreakdown: confluence.breakdown,
       confluenceExplanation: confluence.explanation,
-      qualityScore: quality.totalScore,
-      qualityGrade: quality.grade,
-      qualityExplanation: quality.explanation,
+      qualityScore: unifiedQuality.composite_score,
+      qualityGrade: unifiedQuality.grade,
+      qualityExplanation: unifiedQuality.explanation,
       rrr: CONFIG.MIN_RRR,
       rrrPass: true,
     },
@@ -330,8 +400,16 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
       similarityPercent: aha.similarityPercent,
       hook: aha.hook,
     },
+    unifiedQuality: {
+      composite_score: unifiedQuality.composite_score,
+      grade:           unifiedQuality.grade,
+      verdict:         unifiedQuality.verdict,
+      breakdown:       unifiedQuality.breakdown,
+      flags:           unifiedQuality.flags,
+    },
   };
 
+  // Use unified composite score for the decisions table
   db.stmt('insertDecision').run(
     decisionId,
     input.userId,
@@ -339,17 +417,32 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
     null,
     input.timeframe,
     input.instrument,
-    JSON.stringify({ manual: true, ...confluenceInput }),                             // analysis_json
-    JSON.stringify(confluence),                                                       // scoring_json
-    null,                                                                             // psychology_json
-    JSON.stringify({ rrr: CONFIG.MIN_RRR, riskAmount: input.riskAmount ?? null }),   // risk_json
-    JSON.stringify({ coachingMessage }),                                              // coaching_json
-    quality.totalScore,
-    quality.grade,
+    JSON.stringify({ manual: true, ...confluenceInput }),
+    JSON.stringify(confluence),
+    null,
+    JSON.stringify({ rrr: CONFIG.MIN_RRR, riskAmount: input.riskAmount ?? null }),
+    JSON.stringify({ coachingMessage }),
+    unifiedQuality.composite_score,   // ← unified composite score
+    unifiedQuality.grade,             // ← unified grade
     killzone.key,
     result.dayBlocked ? 1 : 0,
     0,
     1
+  );
+
+  // Persist unified quality evaluation (import uuidv4 already at top)
+  db.raw.prepare(
+    `INSERT INTO quality_evaluations (id, user_id, decision_id, composite_score, grade, confidence, breakdown_json, flags_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    uuidv4(),
+    input.userId,
+    decisionId,
+    unifiedQuality.composite_score,
+    unifiedQuality.grade,
+    unifiedQuality.confidence,
+    JSON.stringify(unifiedQuality.breakdown),
+    JSON.stringify(unifiedQuality.flags),
   );
 
   // ── Memory Engine: fingerprint this decision ──────────
@@ -359,8 +452,8 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
     instrument: input.instrument,
     timeframe: input.timeframe,
     killzone: killzone.key ?? null,
-    grade: quality.grade,
-    qualityScore: quality.totalScore,
+    grade: unifiedQuality.grade,
+    qualityScore: unifiedQuality.composite_score,
     riskAmount: input.riskAmount ?? 0,
   });
 

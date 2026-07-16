@@ -121,6 +121,19 @@ export interface AnalysisResult {
     similarityPercent: number;
     hook: string;
   };
+  unifiedQuality?: {
+    composite_score: number;
+    grade: Grade;
+    verdict: 'EXECUTE' | 'REVIEW' | 'REJECT';
+    breakdown: {
+      confluence:  { score: number; normalized: number; weight: number };
+      psychology:  { score: number; normalized: number; weight: number };
+      quality:     { score: number; normalized: number; weight: number };
+      safety:      { score: number; normalized: number; weight: number };
+      ahaPenalty:  number;
+    };
+    flags: string[];
+  };
 }
 
 export interface Decision {
