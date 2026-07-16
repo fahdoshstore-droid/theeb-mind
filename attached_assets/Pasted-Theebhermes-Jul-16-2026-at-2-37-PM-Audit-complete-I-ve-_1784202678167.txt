@@ -1,0 +1,128 @@
+Theebhermes, [Jul 16, 2026 at 2:37 PM]
+Audit complete. I've read every module, the full SQLite schema, all scoring engines, the frontend architecture, and the Decision Gate. Here is the complete architecture document.
+
+---
+
+THEEB MIND — Personal Decision Intelligence OS
+Architecture Design Document v2.0
+
+Role: Chief Architect
+Date: 2026-07-16
+Status: AWAITING APPROVAL — No code generated
+
+---
+
+DELIVERABLE 1: CURRENT STATE REPORT
+
+1.1 Codebase Inventory
+
+THEEB MIND/
+├── Backend (Express + SQLite + TypeScript)    ~3,200 LOC
+│   ├── config/        constants, killzones, env
+│   ├── db/            better-sqlite3 layer + schema
+│   ├── modules/
+│   │   ├── decision/  Claude Vision chart analysis + fallback
+│   │   ├── scoring/   6 engines (confluence, quality, safety, freq, AHA, journal-safety)
+│   │   ├── psychology/ gate questions + behavioral lock
+│   │   ├── verify/    content credibility (claims + manipulation)
+│   │   ├── journal/   decisions CRUD + analytics + patterns
+│   │   ├── coaching/  template-based messages
+│   │   └── audit/     event logging
+│   ├── middleware/    auth, rate-limit, validate, error-handler
+│   └── shared/        types, validators, formatters, result
+│
+├── Frontend (React + Vite + TypeScript)       ~2,500 LOC
+│   ├── pages/         Landing, AnalyzeChart, VerifyContent, Journal
+│   ├── components/    Layout, GuardBadge, KillzoneBadge
+│   └── lib/           api, adapters, types, demo-data
+│
+└── Database (SQLite)
+    └── 6 tables: users, decisions, decision_tags,
+        psychology_state, audit_events, verifications
+
+
+1.2 Existing Functionality — Detailed Map
+
+A. Decision Analysis Pipeline (Backend)
+
+decision.service.ts
+• What It Does: Orchestrates full analysis: vision → confluence → quality → safety → AHA → coaching → DB insert
+• Status: ✅ Working
+
+claude-vision.ts
+• What It Does: Sends chart screenshot to Claude Sonnet, extracts: marketStructure, FVG, OB, liquiditySweep, rebalance, RRR, entry/SL/TP
+• Status: ✅ Working
+
+fallback-questions.ts
+• What It Does: Manual analysis when no image — user answers boolean questions
+• Status: ✅ Working
+
+B. Scoring Engines (6 modules)
+
+confluence.engine
+• Purpose: ICT factor scoring
+• Input → Output: 6 booleans → score 0-7, grade A+/A/B/C
+• Status: ✅ Working
+
+quality-score
+• Purpose: Weighted composite score
+• Input → Output: confluence + gate + RRR + timing + alignment → 0-100
+• Status: ✅ Working
+
+safety-score
+• Purpose: 4-layer dynamic average
+• Input → Output: confluence + psychology + risk + behavior → 0-100
+• Status: ✅ Working
+
+trade-frequency
+• Purpose: Overtrading detection
+• Input → Output: userId → count today, session, penalties
+• Status: ✅ Working
+
+aha-moment
+• Purpose: Historical failure pattern matching
+• Input → Output: current setup vs past losses → similarity %
+• Status: ✅ Working
+
+journal-safety-score
+• Purpose: Standalone journal-based safety
+• Input → Output: emotional text + trade count + contract + risk → 0-100
+• Status: ✅ Working (unused by frontend)
+
+C. Psychology Module
+
+gate-questions.ts
+• What It Does: 10 Arabic questions across 5 phases (pre_trade, entry, risk, trade_mgmt, post_trade)
+• Status: ✅ Working
+
+psychology.service
+• What It Does: Evaluates answers, calculates percentage, detects blockers, behavioral lock
+• Status: ✅ Working
+
+Behavioral lock
+• What It Does: Auto-locks trading after 2 consecutive losses or on no-trade days
+• Status: ✅ Working
+
+D. Content Verification (Verify)
+
+verify.service
+• What It Does: Extract claims via Claude → check → manipulation patterns → verdict
+• Status: ✅ Working
+
+check.ts
+• What It Does: Scores claims against suspicious/credible word lists
+• Status: ✅ Working
+
+patterns.ts
+• What It Does: 10 Arabic manipulation patterns (pump-dump, false breakout, etc.)
+• Status: ✅ Working
+
+E. Journal & Analytics
+
+journal.service
+• What It Does: List decisions, record outcome (win/loss/breakeven)
+• Status: ✅ Working
+
+analytics.ts
+• What It Does: Win rate, avg confluence, best killzone, grade distribution, pattern detection
+• Status: ✅ Working
