@@ -12,6 +12,8 @@ import {
   setWeeklyBias,
   getMacroNarrative,
   setMacroNarrative,
+  getCotData,
+  type CotRow,
 } from '../lib/api';
 import type { MarketSnapshot, EconomicEvent, WeeklyBias, MacroNarrative } from '../lib/types';
 
@@ -31,14 +33,7 @@ const C = {
   t3: '#3A4F68',
 } as const;
 
-// ── COT static seed data (institutional positioning) ─────────────────────────
-const COT_DATA = [
-  { instrument: 'GOLD',  netLong: 182_450, change: +12_300, bias: 'bullish'  as const },
-  { instrument: 'NAS',   netLong:  94_200, change:  -3_100, bias: 'bullish'  as const },
-  { instrument: 'DXY',   netLong: -21_800, change:  -5_400, bias: 'bearish'  as const },
-  { instrument: 'EUR',   netLong:  35_000, change:  +8_200, bias: 'bullish'  as const },
-  { instrument: 'GBP',   netLong:  -4_100, change:  +1_100, bias: 'neutral'  as const },
-];
+// COT_DATA is now fetched live from CFTC via /api/market/cot
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -113,6 +108,8 @@ export default function MarketIntelligence() {
   const [biasSaving, setBiasSaving] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cotRows, setCotRows] = useState<CotRow[]>([]);
+  const [cotLoading, setCotLoading] = useState(true);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadData = async () => {
@@ -137,8 +134,22 @@ export default function MarketIntelligence() {
     }
   };
 
+  // COT fetch is independent — slower (CFTC download), runs separately
+  const loadCot = async () => {
+    setCotLoading(true);
+    try {
+      const rows = await getCotData();
+      setCotRows(rows);
+    } catch {
+      // silently keep empty — fallback shown below
+    } finally {
+      setCotLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadCot();
     return () => { if (savedTimerRef.current) clearTimeout(savedTimerRef.current); };
   }, []);
 
@@ -235,40 +246,62 @@ export default function MarketIntelligence() {
       {/* ── 2. COT POSITIONING ──────────────────────────────────────────────── */}
       <section style={{ marginBottom: 24 }}>
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '18px 20px' }}>
-          <p style={{ fontSize: 11, color: C.t3, letterSpacing: '.12em', marginBottom: 14 }}>بيانات COT — مراكز المؤسسات (أسبوع)</p>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ color: C.t3, fontSize: 11, textAlign: 'right' }}>
-                <th style={{ paddingBottom: 8, fontWeight: 400 }}>الأداة</th>
-                <th style={{ paddingBottom: 8, fontWeight: 400 }}>صافي المراكز</th>
-                <th style={{ paddingBottom: 8, fontWeight: 400 }}>التغيير الأسبوعي</th>
-                <th style={{ paddingBottom: 8, fontWeight: 400 }}>التحيز</th>
-              </tr>
-            </thead>
-            <tbody>
-              {COT_DATA.map(row => {
-                const col = directionColor(row.bias);
-                return (
-                  <tr key={row.instrument} style={{ borderTop: `1px solid ${C.border2}` }}>
-                    <td style={{ padding: '10px 0', fontFamily: 'JetBrains Mono', fontSize: 12, color: C.t1, fontWeight: 700 }}>
-                      {row.instrument}
-                    </td>
-                    <td style={{ padding: '10px 0', color: row.netLong >= 0 ? C.green : C.red, fontFamily: 'JetBrains Mono' }}>
-                      {row.netLong >= 0 ? '+' : ''}{formatNumber(row.netLong)}
-                    </td>
-                    <td style={{ padding: '10px 0', color: row.change >= 0 ? C.green : C.red, fontFamily: 'JetBrains Mono' }}>
-                      {row.change >= 0 ? '+' : ''}{formatNumber(row.change)}
-                    </td>
-                    <td style={{ padding: '10px 0', color: col, fontWeight: 700 }}>
-                      {directionAr(row.bias)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p style={{ fontSize: 10, color: C.t3, marginTop: 10 }}>
-            * بيانات COT تقريبية لأغراض التدريب — تُحدَّث يدوياً
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <p style={{ fontSize: 11, color: C.t3, letterSpacing: '.12em', margin: 0 }}>بيانات COT — مراكز المؤسسات (أسبوع)</p>
+            {!cotLoading && cotRows.length > 0 && cotRows[0].reportDate !== 'fallback' && (
+              <span style={{ fontSize: 10, color: C.gold, fontFamily: 'JetBrains Mono' }}>
+                ✓ CFTC {cotRows[0].reportDate}
+              </span>
+            )}
+            {!cotLoading && cotRows.length > 0 && cotRows[0].reportDate === 'fallback' && (
+              <span style={{ fontSize: 10, color: C.amber }}>⚠ بيانات احتياطية</span>
+            )}
+          </div>
+
+          {cotLoading ? (
+            <div style={{ color: C.t3, fontSize: 12, textAlign: 'center', padding: '16px 0' }}>
+              جاري تحميل بيانات CFTC...
+            </div>
+          ) : cotRows.length === 0 ? (
+            <div style={{ color: C.t3, fontSize: 12, textAlign: 'center', padding: '16px 0' }}>
+              تعذّر تحميل بيانات COT
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ color: C.t3, fontSize: 11, textAlign: 'right' }}>
+                  <th style={{ paddingBottom: 8, fontWeight: 400 }}>الأداة</th>
+                  <th style={{ paddingBottom: 8, fontWeight: 400 }}>صافي المراكز</th>
+                  <th style={{ paddingBottom: 8, fontWeight: 400 }}>التغيير الأسبوعي</th>
+                  <th style={{ paddingBottom: 8, fontWeight: 400 }}>التحيز</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cotRows.map(row => {
+                  const col = directionColor(row.bias);
+                  return (
+                    <tr key={row.instrument} style={{ borderTop: `1px solid ${C.border2}` }}>
+                      <td style={{ padding: '10px 0', fontFamily: 'JetBrains Mono', fontSize: 12, color: C.t1, fontWeight: 700 }}>
+                        {row.instrument}
+                      </td>
+                      <td style={{ padding: '10px 0', color: row.netLong >= 0 ? C.green : C.red, fontFamily: 'JetBrains Mono' }}>
+                        {row.netLong >= 0 ? '+' : ''}{formatNumber(row.netLong)}
+                      </td>
+                      <td style={{ padding: '10px 0', color: row.change >= 0 ? C.green : C.red, fontFamily: 'JetBrains Mono' }}>
+                        {row.change >= 0 ? '+' : ''}{formatNumber(row.change)}
+                      </td>
+                      <td style={{ padding: '10px 0', color: col, fontWeight: 700 }}>
+                        {directionAr(row.bias)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          <p style={{ fontSize: 10, color: C.t3, marginTop: 10, margin: '10px 0 0' }}>
+            * مصدر البيانات: CFTC — تقرير الالتزامات بالعقود الآجلة، يُحدَّث كل جمعة
           </p>
         </div>
       </section>

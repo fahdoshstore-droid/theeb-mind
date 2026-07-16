@@ -395,5 +395,19 @@ export async function setMacroNarrative(userId: string, narrativeText: string): 
   });
 }
 
+// ── COT Data (real CFTC) ───────────────────────────────────
+
+export interface CotRow {
+  instrument: string;
+  netLong: number;
+  change: number;
+  bias: 'bullish' | 'bearish' | 'neutral';
+  reportDate: string;
+}
+
+export async function getCotData(): Promise<CotRow[]> {
+  return requestUnwrapped<CotRow[]>('/market/cot');
+}
+
 // ── Re-export demo data for sample text ──
 export { DEMO_MISLEADING_TEXT } from './demo-data';

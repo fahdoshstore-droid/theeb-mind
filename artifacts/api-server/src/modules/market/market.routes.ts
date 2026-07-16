@@ -1,4 +1,5 @@
 import { Router, type Router as ExpressRouter } from 'express';
+import { getCotData } from './cot.service.js';
 import {
   seedMarketDataIfEmpty,
   getLatestSnapshots,
@@ -37,6 +38,17 @@ function mapBias(r: any) {
 function mapNarrative(r: any) {
   return r ? { id: r.id, userId: r.user_id, narrativeText: r.narrative_text, weekKey: r.week_key, createdAt: r.created_at } : null;
 }
+
+// ── GET /api/market/cot ───────────────────────
+marketRoutes.get('/cot', async (_req, res) => {
+  try {
+    const data = await getCotData();
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[market] cot error:', err);
+    return res.status(500).json({ success: false, error: { message: 'فشل جلب بيانات COT' } });
+  }
+});
 
 // ── GET /api/market/snapshots ─────────────────
 marketRoutes.get('/snapshots', (_req, res) => {
