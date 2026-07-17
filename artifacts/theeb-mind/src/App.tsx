@@ -23,8 +23,9 @@ export default function App() {
     <>
       <ScrollToTop />
       <Routes>
-        {/* Landing page — no sidebar, cinematic */}
-        <Route path="/" element={<Landing />} />
+        {/* Root → Decision Center */}
+        <Route path="/" element={<Navigate to="/analyze" replace />} />
+        <Route path="/landing" element={<Landing />} />
         {/* App pages — with sidebar layout */}
         <Route path="/analyze" element={<AnalyzeChart />} />
         <Route path="/verify" element={<Layout><VerifyContent /></Layout>} />

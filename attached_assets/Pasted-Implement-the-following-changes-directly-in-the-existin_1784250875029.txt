@@ -1,0 +1,143 @@
+Implement the following changes directly in the existing THEEB MIND codebase.
+
+DO NOT create plans.
+DO NOT create audits.
+DO NOT create architecture documents.
+DO NOT explain.
+DO NOT ask questions.
+
+Use the existing codebase only.
+
+==================================================
+GOAL
+==================================================
+
+Make THEEB MIND revolve around a single primary experience:
+
+⚡ مركز القرار (/analyze)
+
+No new features.
+No new modules.
+No backend changes.
+
+==================================================
+CHANGES
+==================================================
+
+1. Make /analyze the default home
+
+App.tsx
+
+Redirect:
+
+/ → /analyze
+
+using Navigate from react-router-dom.
+
+==================================================
+
+2. Navigation hierarchy
+
+Layout.tsx
+
+Reorganize navigation:
+
+PRIMARY
+⚡ مركز القرار (/analyze)
+
+SECONDARY
+السياق الكلي (/market)
+السجل والأداء (/journal)
+أنماط الفشل (/intelligence)
+
+UTILITY
+التحقق (/verify)
+
+Visually emphasize مركز القرار.
+
+==================================================
+
+3. Analyze page
+
+AnalyzeChart.tsx
+
+Add market-context chip in top bar.
+
+If macro narrative exists:
+
+السياق: مُحدَّث ✓
+
+Link to /market.
+
+If none exists:
+render nothing.
+
+==================================================
+
+4. Journal rename
+
+Journal.tsx
+
+Title:
+
+السجل والأداء
+
+Subtitle:
+
+قراراتك · نتائجك · أنماطك
+
+==================================================
+
+5. Performance empty states
+
+Performance.tsx
+
+Equity empty state:
+
+سجّل نتيجة أول صفقة من مركز القرار لترى منحنى الإنصاف هنا
+
+Quality empty state:
+
+أكمل تحليلاً من مركز القرار لترى تطور جودة قراراتك
+
+==================================================
+
+6. Analyze layout
+
+Move:
+
+- TRIL controls
+- RRR controls
+- trade count controls
+
+into the RIGHT panel.
+
+Place them above:
+
+THEEB COACH
+
+THEEB CONSTITUTION
+
+Keep all existing functionality.
+
+==================================================
+
+AFTER COMPLETION
+==================================================
+
+Run:
+
+pnpm typecheck
+
+pnpm build
+
+Fix all errors.
+
+Return:
+
+1. Changed files
+2. Build result
+3. Typecheck result
+4. Short summary
+
+Implement now.
