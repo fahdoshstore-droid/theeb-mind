@@ -1,0 +1,42 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide01Title.tsx",
+    "title": "عقلية الذيب — Theeb Mind",
+    "description": "Title slide — wolf hero, main headline and tagline",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide02Problem.tsx",
+    "title": "المشكلة",
+    "description": "Problem slide — three cards with 85% stat, unknown failure, zero tools",
+    "speakerNotes": ""
+  },
+  {
+    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide03Solution.tsx",
+    "title": "الحل",
+    "description": "Solution slide — three feature pillars with AI chart visual",
+    "speakerNotes": ""
+  },
+  {
+    "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide04HowItWorks.tsx",
+    "title": "كيف تعمل",
+    "description": "How it works — three step cards: Analyze, Journal, Improve",
+    "speakerNotes": ""
+  },
+  {
+    "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide05Vision.tsx",
+    "title": "الرؤية",
+    "description": "Closing vision slide with live demo URL",
+    "speakerNotes": ""
+  }
+]

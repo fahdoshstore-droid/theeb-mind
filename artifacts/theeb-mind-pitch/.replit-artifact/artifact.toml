@@ -1,0 +1,27 @@
+kind = "slides"
+previewPath = "/theeb-mind-pitch/"
+title = "Theeb Mind — Hackathon Pitch"
+version = "1.0.0"
+id = "artifacts/theeb-mind-pitch"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/theeb-mind-pitch/" ]
+localPort = 18233
+
+[services.development]
+run = "pnpm --filter @workspace/theeb-mind-pitch run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/theeb-mind-pitch", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/theeb-mind-pitch/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18233"
+BASE_PATH = "/theeb-mind-pitch/"
