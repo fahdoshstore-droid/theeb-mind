@@ -21,11 +21,8 @@ export default function App() {
     <>
       <ScrollToTop />
       <Routes>
-        {/* Root → Decision Center */}
-        <Route path="/" element={<Navigate to="/analyze" replace />} />
-
-        {/* Vault Gate — no Layout shell */}
-        <Route path="/landing" element={<Landing />} />
+        {/* Root → Landing page */}
+        <Route path="/" element={<Landing />} />
 
         {/* App stations — inside Command Center layout */}
         <Route path="/analyze"      element={<Layout><AnalyzeChart /></Layout>} />
