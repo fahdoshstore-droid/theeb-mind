@@ -26,10 +26,10 @@ const GATE_QS = [
     options:[{label:'نعم، محدد ومكتوب'},{label:'عندي منطقة تقريبية'},{label:'لا، أشوف السوق وأقرر'}]},
 ];
 const C = {
-  bg:'#050508', card:'#0a0c14', card2:'#0f111a', bg3:'#030305',
-  green:'#10b981', gold:'#d4a843', red:'#ef4444', amber:'#f59e0b',
-  t1:'#e8eaf0', t2:'#8a8fa3', t3:'#4a4f64',
-  border:'rgba(212,168,67,0.08)', border2:'rgba(255,255,255,0.05)',
+  bg:'#0f0e0c', card:'#181614', card2:'#211e1a', bg3:'#0b0a09',
+  green:'#2bb57e', gold:'#c9924a', red:'#ef4444', amber:'#f59e0b',
+  t1:'#ede8e3', t2:'#9a9086', t3:'#5a5045',
+  border:'rgba(201,146,74,0.10)', border2:'rgba(255,255,255,0.07)',
 } as const;
 
 // ── types ──
@@ -138,6 +138,14 @@ export default function TheebMindGate() {
   const [rrr,setRrr]=useState(2.5);
   const [dailyPnl]=useState(245);
   const [consecLosses,setConsecLosses]=useState(0);
+
+  // Zone / level notes
+  const [zoneTag,setZoneTag]=useState<string[]>([]);
+  const [zonePrice,setZonePrice]=useState('');
+  const [zoneNote,setZoneNote]=useState('');
+  const [savedZones,setSavedZones]=useState<Array<{id:number;tags:string[];price:string;note:string;time:string}>>(()=>{
+    try{return JSON.parse(localStorage.getItem('theeb-zones')||'[]');}catch{return[];}
+  });
 
   const [orderBlock,setOrderBlock]=useState(false);
   const [immediateRebalance,setImmediateRebalance]=useState(false);
@@ -438,21 +446,117 @@ export default function TheebMindGate() {
           <div style={{fontSize:8.5,color:C.t3,textAlign:'center',marginTop:'auto',lineHeight:1.6}}>تحليل تعليمي — ليس نصيحة مالية</div>
         </div>
 
-        {/* CENTER — C1 EDUCATIONAL CHART */}
+        {/* CENTER — C1 CHART + ZONE NOTES */}
         <div className="tm-center" style={{background:C.bg3,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-          <div style={{height:36,background:'rgba(8,11,18,.9)',borderBottom:'1px solid '+C.border,display:'flex',alignItems:'center',padding:'0 12px',gap:6,flexShrink:0}}>
+
+          {/* ── Chart toolbar ── */}
+          <div style={{height:36,background:C.card+'ee',borderBottom:'1px solid '+C.border,display:'flex',alignItems:'center',padding:'0 12px',gap:6,flexShrink:0}}>
             {([['NQ100','OANDA:NAS100USD'],['GOLD','OANDA:XAUUSD'],['EUR/USD','FX:EURUSD']] as [string,string][]).map(([l,s])=>(
-              <button key={s} onClick={()=>setSymbol(s)} style={{padding:'3px 9px',borderRadius:5,fontSize:10,fontFamily:'JetBrains Mono',fontWeight:700,background:symbol===s?C.gold+'1f':'rgba(255,255,255,.03)',color:symbol===s?C.gold:C.t3}}>{l}</button>
+              <button key={s} onClick={()=>setSymbol(s)} style={{padding:'3px 9px',borderRadius:5,fontSize:10,fontFamily:'JetBrains Mono',fontWeight:700,background:symbol===s?C.gold+'25':'rgba(255,255,255,.03)',color:symbol===s?C.gold:C.t3}}>{l}</button>
             ))}
             <div style={{width:1,height:16,background:C.border}}/>
             {['5','15','60','D'].map(iv=>(
-              <button key={iv} onClick={()=>setIvl(iv)} style={{padding:'3px 8px',borderRadius:4,fontSize:10,fontFamily:'JetBrains Mono',background:ivl===iv?C.green+'18':'transparent',color:ivl===iv?C.green:C.t3}}>{iv==='D'?'1D':iv==='60'?'1h':iv+'m'}</button>
+              <button key={iv} onClick={()=>setIvl(iv)} style={{padding:'3px 8px',borderRadius:4,fontSize:10,fontFamily:'JetBrains Mono',background:ivl===iv?C.green+'20':'transparent',color:ivl===iv?C.green:C.t3}}>{iv==='D'?'1D':iv==='60'?'1h':iv+'m'}</button>
             ))}
             <div style={{marginRight:'auto',fontFamily:'JetBrains Mono',fontSize:9,color:C.t3}}>Entry · Stop · Target · Liquidity · OB · FVG · MSS</div>
           </div>
-          <div className="tm-chart-wrap" style={{flex:1,overflow:'hidden'}}>
-            <iframe src={'https://www.tradingview.com/widgetembed/?frameElementId=tv&symbol='+encodeURIComponent(symbol)+'&interval='+ivl+'&theme=dark&style=1&locale=ar&toolbar_bg=020409&hide_side_toolbar=0&allow_symbol_change=1&save_image=0'} width="100%" height="100%" style={{display:'block',border:'none'}} title="Educational Chart"/>
+
+          {/* ── TradingView chart ── */}
+          <div className="tm-chart-wrap" style={{flex:1,minHeight:0,overflow:'hidden'}}>
+            <iframe
+              src={'https://www.tradingview.com/widgetembed/?frameElementId=tv&symbol='+encodeURIComponent(symbol)+'&interval='+ivl+'&theme=dark&style=1&locale=ar&toolbar_bg=0b0a09&hide_side_toolbar=0&allow_symbol_change=1&save_image=0'}
+              width="100%" height="100%" style={{display:'block',border:'none'}} title="Educational Chart"
+            />
           </div>
+
+          {/* ══════════════════════════════════════════════
+              ZONE NOTES — scratch pad for levels / POIs
+              ══════════════════════════════════════════════ */}
+          <div style={{height:210,borderTop:'1px solid '+C.border,background:C.card,display:'flex',flexDirection:'column',overflow:'hidden',flexShrink:0}}>
+
+            {/* Notes header */}
+            <div style={{height:30,background:C.card2,borderBottom:'1px solid '+C.border2,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 12px',flexShrink:0}}>
+              <span style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.gold,letterSpacing:'.18em'}}>ZONE NOTES · ملاحظات المناطق</span>
+              <button
+                onClick={()=>{
+                  if(!zoneNote.trim()&&!zonePrice.trim()&&zoneTag.length===0)return;
+                  const entry={id:Date.now(),tags:[...zoneTag],price:zonePrice,note:zoneNote,time:new Date().toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})};
+                  const updated=[entry,...savedZones].slice(0,30);
+                  setSavedZones(updated);
+                  localStorage.setItem('theeb-zones',JSON.stringify(updated));
+                  setZoneNote('');setZonePrice('');setZoneTag([]);
+                }}
+                style={{padding:'3px 11px',borderRadius:5,background:C.green+'1a',border:'1px solid '+C.green+'44',color:C.green,fontSize:9,fontFamily:'JetBrains Mono',fontWeight:700,cursor:'pointer'}}
+              >+ احفظ</button>
+            </div>
+
+            {/* Notes body */}
+            <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+
+              {/* Input panel */}
+              <div style={{width:224,borderLeft:'1px solid '+C.border2,padding:'8px 10px',display:'flex',flexDirection:'column',gap:6,flexShrink:0}}>
+
+                {/* Quick tag chips */}
+                <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                  {['دعم','مقاومة','FVG','OB','سيولة','POI','MSS','فجوة'].map(tag=>(
+                    <button key={tag} onClick={()=>setZoneTag(prev=>prev.includes(tag)?prev.filter(t=>t!==tag):[...prev,tag])}
+                      style={{padding:'2px 7px',borderRadius:4,fontSize:9,fontFamily:'JetBrains Mono',fontWeight:700,cursor:'pointer',
+                        background:zoneTag.includes(tag)?C.gold+'22':'transparent',
+                        border:'1px solid '+(zoneTag.includes(tag)?C.gold+'55':C.border2),
+                        color:zoneTag.includes(tag)?C.gold:C.t3,
+                        transition:'all .15s ease',
+                      }}>{tag}</button>
+                  ))}
+                </div>
+
+                {/* Price input */}
+                <input
+                  value={zonePrice} onChange={e=>setZonePrice(e.target.value)}
+                  placeholder="السعر / اللفل  e.g. 28,900"
+                  style={{padding:'5px 9px',borderRadius:6,background:C.bg3,border:'1px solid '+C.border2,color:C.t1,fontSize:11,fontFamily:'JetBrains Mono',width:'100%',outline:'none'}}
+                />
+
+                {/* Notes textarea */}
+                <textarea
+                  value={zoneNote} onChange={e=>setZoneNote(e.target.value)}
+                  placeholder="ملاحظتك عن المنطقة أو اللفل..."
+                  style={{flex:1,padding:'6px 9px',borderRadius:6,background:C.bg3,border:'1px solid '+C.border2,color:C.t1,fontSize:11,fontFamily:"'Cairo',sans-serif",resize:'none',lineHeight:1.65,outline:'none',minHeight:0}}
+                />
+              </div>
+
+              {/* Saved notes list */}
+              <div style={{flex:1,overflow:'auto',padding:'6px 10px',display:'flex',flexDirection:'column',gap:5}}>
+                {savedZones.length===0?(
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:6,opacity:.45}}>
+                    <span style={{fontSize:18,lineHeight:1}}>📍</span>
+                    <span style={{fontSize:10,color:C.t3,fontFamily:"'Cairo',sans-serif",textAlign:'center'}}>لا توجد ملاحظات بعد<br/>سجّل أول منطقة من الشارت</span>
+                  </div>
+                ):savedZones.map(z=>(
+                  <div key={z.id} style={{padding:'7px 9px',borderRadius:7,background:C.card2,border:'1px solid '+C.border2,display:'flex',flexDirection:'column',gap:4,flexShrink:0,transition:'border-color .2s'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
+                      <div style={{display:'flex',gap:4,flexWrap:'wrap',flex:1}}>
+                        {z.tags.map(t=>(
+                          <span key={t} style={{fontSize:8,color:C.gold,fontFamily:'JetBrains Mono',fontWeight:700,background:C.gold+'18',padding:'1px 5px',borderRadius:3}}>{t}</span>
+                        ))}
+                        {z.price&&<span style={{fontSize:8,color:C.green,fontFamily:'JetBrains Mono',fontWeight:700,background:C.green+'14',padding:'1px 5px',borderRadius:3}}>{z.price}</span>}
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                        <span style={{fontSize:8,color:C.t3,fontFamily:'JetBrains Mono'}}>{z.time}</span>
+                        <button onClick={()=>{const u=savedZones.filter(s=>s.id!==z.id);setSavedZones(u);localStorage.setItem('theeb-zones',JSON.stringify(u));}}
+                          style={{fontSize:9,color:C.t3,cursor:'pointer',background:'none',border:'none',padding:'0 2px',lineHeight:1}}
+                          onMouseEnter={e=>(e.currentTarget.style.color=C.red)}
+                          onMouseLeave={e=>(e.currentTarget.style.color=C.t3)}
+                        >✕</button>
+                      </div>
+                    </div>
+                    {z.note&&<div style={{fontSize:11,color:C.t2,lineHeight:1.65,fontFamily:"'Cairo',sans-serif"}}>{z.note}</div>}
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          </div>
+
         </div>
 
         {/* RIGHT — C5 CONTROLS + THEEB COACH */}
