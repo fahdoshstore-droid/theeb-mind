@@ -351,6 +351,10 @@ export async function getMarketSnapshots(): Promise<import('./types').MarketSnap
   return requestUnwrapped<import('./types').MarketSnapshot[]>('/market/snapshots');
 }
 
+export async function getLiveMarket(): Promise<import('./types').LiveTick[]> {
+  return requestUnwrapped<import('./types').LiveTick[]>('/market/live');
+}
+
 export async function updateMarketSnapshot(payload: {
   instrument: string; metric: string; value: number;
   direction: 'bullish' | 'bearish' | 'neutral'; note?: string;

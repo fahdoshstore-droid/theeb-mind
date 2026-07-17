@@ -390,6 +390,17 @@ export interface MarketSnapshot {
   createdAt: string;
 }
 
+/** Live price tick from free public APIs (Binance + ECB via backend) */
+export interface LiveTick {
+  symbol: string;
+  labelAr: string;
+  price: number;
+  changePct: number | null;
+  direction: 'bullish' | 'bearish' | 'neutral';
+  source: 'Binance' | 'ECB' | 'CoinGecko';
+  updatedAt: string;
+}
+
 export interface EconomicEvent {
   id: string;
   title: string;

@@ -13,9 +13,10 @@ import {
   getMacroNarrative,
   setMacroNarrative,
   getCotData,
+  getLiveMarket,
   type CotRow,
 } from '../lib/api';
-import type { MarketSnapshot, EconomicEvent, WeeklyBias, MacroNarrative } from '../lib/types';
+import type { MarketSnapshot, EconomicEvent, WeeklyBias, MacroNarrative, LiveTick } from '../lib/types';
 
 const USER_ID = 'user-1';
 
@@ -56,6 +57,12 @@ function impactAr(impact: 'high' | 'medium' | 'low') {
 function formatNumber(n: number) {
   if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + 'K';
   return n.toString();
+}
+
+function formatPrice(p: number) {
+  if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (p >= 100) return p.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return p.toLocaleString('en-US', { maximumFractionDigits: 4 });
 }
 
 function isToday(dateStr: string) {
@@ -110,6 +117,8 @@ export default function MarketIntelligence() {
   const [error, setError] = useState<string | null>(null);
   const [cotRows, setCotRows] = useState<CotRow[]>([]);
   const [cotLoading, setCotLoading] = useState(true);
+  const [liveTicks, setLiveTicks] = useState<LiveTick[]>([]);
+  const [liveError, setLiveError] = useState(false);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadData = async () => {
@@ -147,11 +156,31 @@ export default function MarketIntelligence() {
     }
   };
 
+  // Live prices — free public APIs, refreshed every 60s
+  const loadLive = async () => {
+    try {
+      const ticks = await getLiveMarket();
+      setLiveTicks(ticks);
+      setLiveError(false);
+    } catch {
+      setLiveError(true);
+    }
+  };
+
   useEffect(() => {
     loadData();
     loadCot();
-    return () => { if (savedTimerRef.current) clearTimeout(savedTimerRef.current); };
+    loadLive();
+    const liveTimer = setInterval(loadLive, 60_000);
+    return () => {
+      clearInterval(liveTimer);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
   }, []);
+
+  // Live strip is degraded when the fetch failed or some symbols are missing
+  const EXPECTED_LIVE_SYMBOLS = 4;
+  const liveDegraded = liveError || (liveTicks.length > 0 && liveTicks.length < EXPECTED_LIVE_SYMBOLS);
 
   // ── Macro snapshots: separate DXY/VIX/US10Y from others
   const macroGauges = snapshots.filter(s => ['DXY', 'VIX', 'US10Y'].includes(s.instrument));
@@ -223,6 +252,48 @@ export default function MarketIntelligence() {
         <h1 style={{ fontSize: 26, fontWeight: 800, color: C.t1, margin: 0 }}>ذكاء السوق</h1>
         <p style={{ fontSize: 13, color: C.t2, marginTop: 4 }}>السياق الكلي — DXY · VIX · US10Y · التقويم الاقتصادي · التحيز الأسبوعي</p>
       </div>
+
+      {/* ── 0. LIVE PRICES — free public APIs (Binance + ECB) ───────────────── */}
+      {(liveTicks.length > 0 || liveError) && (
+        <section style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: liveDegraded ? C.amber : C.green, boxShadow: `0 0 6px ${liveDegraded ? C.amber : C.green}`, display: 'inline-block' }} />
+            <p style={{ fontSize: 11, color: C.t3, letterSpacing: '.12em', margin: 0 }}>أسعار مباشرة — مصادر مجانية عامة</p>
+            {liveDegraded && liveTicks.length > 0 && (
+              <span style={{ fontSize: 10, color: C.amber }}>بعض المصادر غير متاحة مؤقتاً</span>
+            )}
+          </div>
+          {liveTicks.length === 0 ? (
+            <div style={{ fontSize: 12, color: C.t3, border: `1px dashed ${C.border2}`, borderRadius: 10, padding: '10px 14px' }}>
+              تعذر جلب الأسعار الحية — ستُعاد المحاولة تلقائياً
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+              {liveTicks.map(t => (
+                <div key={t.symbol} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, fontWeight: 700, color: C.t1 }}>{t.symbol}</span>
+                    <span style={{ fontSize: 10, color: C.t3 }}>{t.labelAr}</span>
+                  </div>
+                  <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 18, fontWeight: 700, color: C.gold, marginTop: 6 }}>
+                    {formatPrice(t.price)}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                    {t.changePct !== null ? (
+                      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 600, color: directionColor(t.direction) }}>
+                        {t.changePct > 0 ? '+' : ''}{t.changePct.toFixed(2)}%
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 10, color: C.t3 }}>سعر مرجعي يومي</span>
+                    )}
+                    <span style={{ fontSize: 9, color: C.t3, letterSpacing: '.08em' }}>{t.source}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── 1. MACRO GAUGES ─────────────────────────────────────────────────── */}
       <section style={{ marginBottom: 24 }}>

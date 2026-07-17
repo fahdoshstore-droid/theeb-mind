@@ -1,1 +1,3 @@
 - [Memory Engine architecture](memory-engine.md) — pattern key format, write path hooks, AHA v2 boost logic, backfill behavior
+- [RTL layout pitfalls](rtl-layout.md) — flex order flips under dir="rtl"; pin sides with explicit left/right absolute positioning, verify visually
+- [Live market data & seeds](live-market-data.md) — keyless price sources (Binance/CoinGecko/ECB); static DB seeds drift vs live prices, sync seeds in code

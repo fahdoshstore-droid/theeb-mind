@@ -88,7 +88,7 @@ export function seedMarketDataIfEmpty(): void {
       [randomUUID(), 'DXY',   'index',  104.62, 'neutral',  'Dollar Index — consolidation near 104.5–105 resistance'],
       [randomUUID(), 'VIX',   'index',   13.4,  'neutral',  'Volatility — low regime, below 15 threshold'],
       [randomUUID(), 'US10Y', 'yield',    4.23, 'bearish',  'US 10-Year yield — mild pullback from 4.35'],
-      [randomUUID(), 'GOLD',  'spot',  2380.0,  'bullish',  'Gold — bullish bias above key 2350 support'],
+      [randomUUID(), 'GOLD',  'spot',  3985.0,  'bullish',  'Gold — bullish bias above key 3900 support'],
       [randomUUID(), 'NAS',   'future', 19640.0,'bullish',  'Nasdaq Futures — uptrend intact above 19200'],
     ] as Array<[string, string, string, number, string, string]>);
   }

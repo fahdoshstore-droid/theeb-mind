@@ -1,5 +1,6 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import { getCotData } from './cot.service.js';
+import { getLiveMarket } from './live.service.js';
 import {
   seedMarketDataIfEmpty,
   getLatestSnapshots,
@@ -47,6 +48,18 @@ marketRoutes.get('/cot', async (_req, res) => {
   } catch (err) {
     console.error('[market] cot error:', err);
     return res.status(500).json({ success: false, error: { message: 'فشل جلب بيانات COT' } });
+  }
+});
+
+// ── GET /api/market/live ──────────────────────
+// Live prices from free public APIs (Binance + ECB) — 60s server cache
+marketRoutes.get('/live', async (_req, res) => {
+  try {
+    const data = await getLiveMarket();
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[market] live error:', err);
+    return res.status(502).json({ success: false, error: { message: 'فشل جلب الأسعار الحية — تحقق من الاتصال بالإنترنت' } });
   }
 });
 
