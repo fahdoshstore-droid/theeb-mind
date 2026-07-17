@@ -24,9 +24,12 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(rateLimit);
 
-// Health check (no auth required)
+// Health checks (no auth required) — /api/healthz is the deployment startup probe
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
+});
+app.get('/api/healthz', (_req, res) => {
+  res.json({ status: 'ok' });
 });
 
 // API routes (auth required)
