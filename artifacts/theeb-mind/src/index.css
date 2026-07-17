@@ -2,70 +2,70 @@
 
 /* ═══════════════════════════════════════
    THEEB MIND — Spatial Command Center
-   Void × Gold × Emerald Design System
+   Warm Dusk × Amber × Jade Design System
    ═══════════════════════════════════════ */
 
 /* ── Tailwind color tokens ── */
 @theme {
-  --color-void:           #050508;
-  --color-void-light:     #0a0c14;
-  --color-void-lighter:   #0f111a;
-  --color-cream:          #e8eaf0;
-  --color-gold:           #d4a843;
-  --color-gold-bright:    #e8c45a;
-  --color-gold-dim:       #b8922f;
-  --color-emerald:        #10b981;
-  --color-emerald-bright: #059669;
+  --color-void:           #0f0e0c;
+  --color-void-light:     #181614;
+  --color-void-lighter:   #211e1a;
+  --color-cream:          #ede8e3;
+  --color-gold:           #c9924a;
+  --color-gold-bright:    #dca863;
+  --color-gold-dim:       #a8732e;
+  --color-emerald:        #2bb57e;
+  --color-emerald-bright: #1a9465;
   --color-warning:        #ef4444;
-  --color-navy:           #0a0c14;
-  --color-gold-light:     rgba(212,168,67,0.12);
-  --color-emerald-light:  rgba(16,185,129,0.12);
+  --color-navy:           #181614;
+  --color-gold-light:     rgba(201,146,74,0.12);
+  --color-emerald-light:  rgba(43,181,126,0.12);
   --color-warning-light:  rgba(239,68,68,0.12);
 }
 
 /* ── Design System CSS Variables ── */
 :root {
-  /* Backgrounds */
-  --void:              #050508;
-  --void-deep:         #030305;
-  --void-surface:      #0a0c14;
-  --void-raised:       #0f111a;
-  --void-hover:        #161928;
-  --void-glass:        rgba(10,12,20,0.72);
-  --void-glass-raised: rgba(15,17,26,0.85);
+  /* Backgrounds — warm charcoal ladder (8%+ brightness step between each) */
+  --void:              #0f0e0c;
+  --void-deep:         #0b0a09;
+  --void-surface:      #181614;
+  --void-raised:       #211e1a;
+  --void-hover:        #2a2520;
+  --void-glass:        rgba(24,22,20,0.76);
+  --void-glass-raised: rgba(33,30,26,0.88);
 
-  /* Gold */
-  --gold:              #d4a843;
-  --gold-dim:          #b8922f;
-  --gold-bright:       #e8c45a;
-  --gold-glow:         rgba(212,168,67,0.22);
-  --gold-glow-strong:  rgba(212,168,67,0.45);
-  --gold-subtle:       rgba(212,168,67,0.08);
+  /* Amber (was Gold) */
+  --gold:              #c9924a;
+  --gold-dim:          #a8732e;
+  --gold-bright:       #dca863;
+  --gold-glow:         rgba(201,146,74,0.22);
+  --gold-glow-strong:  rgba(201,146,74,0.45);
+  --gold-subtle:       rgba(201,146,74,0.09);
 
-  /* Emerald */
-  --emerald:           #10b981;
-  --emerald-dim:       #059669;
-  --emerald-glow:      rgba(16,185,129,0.25);
+  /* Jade (was Emerald) */
+  --emerald:           #2bb57e;
+  --emerald-dim:       #1a9465;
+  --emerald-glow:      rgba(43,181,126,0.26);
 
   /* Borders */
-  --border:            rgba(212,168,67,0.08);
-  --border-medium:     rgba(212,168,67,0.15);
-  --border-strong:     rgba(212,168,67,0.3);
+  --border:            rgba(201,146,74,0.10);
+  --border-medium:     rgba(201,146,74,0.18);
+  --border-strong:     rgba(201,146,74,0.34);
 
-  /* Text */
-  --text:              #e8eaf0;
-  --text-secondary:    #8a8fa3;
-  --text-muted:        #4a4f64;
+  /* Text — warm tones */
+  --text:              #ede8e3;
+  --text-secondary:    #9a9086;
+  --text-muted:        #5a5045;
 
   /* Status */
-  --green:             #10b981;
-  --green-bg:          rgba(16,185,129,0.12);
+  --green:             #2bb57e;
+  --green-bg:          rgba(43,181,126,0.12);
   --red:               #ef4444;
   --red-bg:            rgba(239,68,68,0.12);
   --yellow:            #f59e0b;
   --yellow-bg:         rgba(245,158,11,0.12);
-  --blue:              #3b82f6;
-  --blue-bg:           rgba(59,130,246,0.12);
+  --blue:              #60a5fa;
+  --blue-bg:           rgba(96,165,250,0.12);
 
   /* Layout */
   --rail-width:        56px;
@@ -125,7 +125,7 @@ body {
    ───────────────────────────────────── */
 .btn-primary {
   background: linear-gradient(135deg, var(--gold), var(--gold-dim));
-  color: var(--void);
+  color: #fff;
   font-weight: 700;
   padding: 0.625rem 1.5rem;
   border-radius: var(--radius);
@@ -244,11 +244,11 @@ body {
    MISC HELPERS
    ───────────────────────────────────── */
 .cta-gold-glow {
-  background: radial-gradient(ellipse at center, rgba(212,168,67,0.04) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(201,146,74,0.05) 0%, transparent 70%);
 }
 
 .wolf-glow {
-  filter: drop-shadow(0 0 12px rgba(212,168,67,0.3));
+  filter: drop-shadow(0 0 12px rgba(201,146,74,0.3));
 }
 
 /* scroll-hint chevron bounce */

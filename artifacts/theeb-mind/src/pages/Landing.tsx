@@ -18,6 +18,7 @@ const MODULES = [
     color: 'var(--gold)',
     glow: 'var(--gold-glow)',
     bg: 'var(--gold-subtle)',
+    badge: 'ابدأ من هنا',
   },
   {
     icon: Globe,
@@ -324,10 +325,10 @@ export default function Landing() {
                     background: 'var(--void-surface)',
                     border: `1px solid var(--border)`,
                     borderRadius: 'var(--radius)',
-                    padding: '28px 24px',
+                    padding: '32px 28px',
                     textAlign: 'right',
                     cursor: 'pointer',
-                    display: 'flex', flexDirection: 'column', gap: '14px',
+                    display: 'flex', flexDirection: 'column', gap: '16px',
                     transition: 'border-color 0.2s, background 0.2s, transform 0.15s',
                     fontFamily: 'var(--font-body)',
                   }}
@@ -342,18 +343,36 @@ export default function Landing() {
                     e.currentTarget.style.transform = '';
                   }}
                 >
-                  {/* Icon */}
-                  <div style={{
-                    width: '44px', height: '44px', borderRadius: '12px',
-                    background: mod.bg, border: `1px solid ${mod.color}33`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Icon size={20} color={mod.color} />
+                  {/* Icon row + badge */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{
+                      width: '44px', height: '44px', borderRadius: '12px',
+                      background: mod.bg, border: `1px solid ${mod.color}33`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <Icon size={20} color={mod.color} />
+                    </div>
+                    {'badge' in mod && mod.badge && (
+                      <span style={{
+                        background: mod.bg,
+                        color: mod.color,
+                        border: `1px solid ${mod.color}55`,
+                        borderRadius: '100px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '3px 10px',
+                        letterSpacing: '0.3px',
+                        fontFamily: 'var(--font-body)',
+                      }}>
+                        {mod.badge}
+                      </span>
+                    )}
                   </div>
 
                   {/* Text */}
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
                       <h3 style={{ fontFamily: 'var(--font-arabic)', fontSize: '18px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
                         {mod.label}
                       </h3>
@@ -361,7 +380,7 @@ export default function Landing() {
                         {mod.en}
                       </span>
                     </div>
-                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.75, margin: 0 }}>
+                    <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.85, margin: 0 }}>
                       {mod.desc}
                     </p>
                   </div>

@@ -120,11 +120,12 @@ function HudBar({ stationName }: { stationName: string }) {
 
 // ── Nav item ──────────────────────────────────────────────────────────────────
 function NavItem({
-  to, icon: Icon, label, expanded, primary, utility,
+  to, icon: Icon, label, micro, expanded, primary, utility,
 }: {
   to: string;
   icon: ComponentType<{ size?: number }>;
   label: string;
+  micro: string;
   expanded: boolean;
   primary?: boolean;
   utility?: boolean;
@@ -133,15 +134,16 @@ function NavItem({
     <NavLink
       to={to}
       style={({ isActive }) => ({
-        width: expanded ? 'calc(100% - 16px)' : '42px',
-        height: '42px',
+        width: expanded ? 'calc(100% - 16px)' : '44px',
+        height: expanded ? '42px' : '50px',
         borderRadius: '10px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: expanded ? 'flex-end' : 'center',
-        gap: '9px',
-        padding: expanded ? '0 14px' : '0',
-        margin: '2px 8px',
+        flexDirection: expanded ? 'row' : 'column',
+        gap: expanded ? '9px' : '3px',
+        padding: expanded ? '0 14px' : '6px 0',
+        margin: '2px 6px',
         cursor: 'pointer',
         textDecoration: 'none',
         transition: 'all 0.18s ease',
@@ -170,6 +172,19 @@ function NavItem({
             </span>
           )}
           <Icon size={primary ? 18 : 16} />
+          {!expanded && (
+            <span style={{
+              fontSize: '8px',
+              fontFamily: 'var(--font-body)',
+              fontWeight: 600,
+              letterSpacing: '0.2px',
+              lineHeight: 1,
+              opacity: 0.75,
+              whiteSpace: 'nowrap',
+            }}>
+              {micro}
+            </span>
+          )}
         </>
       )}
     </NavLink>
@@ -190,13 +205,13 @@ function Divider({ expanded }: { expanded: boolean }) {
 }
 
 // ── Navigation items ──────────────────────────────────────────────────────────
-const NAV_PRIMARY   = [{ to: '/analyze',      icon: BarChart3,   label: 'مركز القرار'  }];
+const NAV_PRIMARY   = [{ to: '/analyze',      icon: BarChart3,   label: 'مركز القرار',  micro: 'قرار'  }];
 const NAV_SECONDARY = [
-  { to: '/market',       icon: Globe,       label: 'السياق الكلي'  },
-  { to: '/journal',      icon: BookOpen,    label: 'السجل والأداء' },
-  { to: '/intelligence', icon: Zap,         label: 'أنماط الفشل'  },
+  { to: '/market',       icon: Globe,       label: 'السياق الكلي',  micro: 'سوق'   },
+  { to: '/journal',      icon: BookOpen,    label: 'السجل والأداء', micro: 'سجل'   },
+  { to: '/intelligence', icon: Zap,         label: 'أنماط الفشل',  micro: 'أنماط' },
 ];
-const NAV_UTILITY   = [{ to: '/verify',       icon: ShieldCheck, label: 'التحقق'       }];
+const NAV_UTILITY   = [{ to: '/verify',       icon: ShieldCheck, label: 'التحقق',       micro: 'تحقق'  }];
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 export default function Layout({ children }: { children: ReactNode }) {
@@ -272,15 +287,15 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Primary station */}
-        {NAV_PRIMARY.map(({ to, icon, label }) => (
-          <NavItem key={to} to={to} icon={icon} label={label} expanded={expanded} primary />
+        {NAV_PRIMARY.map(({ to, icon, label, micro }) => (
+          <NavItem key={to} to={to} icon={icon} label={label} micro={micro} expanded={expanded} primary />
         ))}
 
         <Divider expanded={expanded} />
 
         {/* Secondary stations */}
-        {NAV_SECONDARY.map(({ to, icon, label }) => (
-          <NavItem key={to} to={to} icon={icon} label={label} expanded={expanded} />
+        {NAV_SECONDARY.map(({ to, icon, label, micro }) => (
+          <NavItem key={to} to={to} icon={icon} label={label} micro={micro} expanded={expanded} />
         ))}
 
         {/* Spacer */}
@@ -289,8 +304,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         <Divider expanded={expanded} />
 
         {/* Utility station */}
-        {NAV_UTILITY.map(({ to, icon, label }) => (
-          <NavItem key={to} to={to} icon={icon} label={label} expanded={expanded} utility />
+        {NAV_UTILITY.map(({ to, icon, label, micro }) => (
+          <NavItem key={to} to={to} icon={icon} label={label} micro={micro} expanded={expanded} utility />
         ))}
 
         {/* Expand / collapse toggle */}
