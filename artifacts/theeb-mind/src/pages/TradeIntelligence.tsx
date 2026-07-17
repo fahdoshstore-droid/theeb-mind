@@ -13,21 +13,21 @@ const USER_ID = 'user-1';
 // ── Grade colour helpers ─────────────────────────────────
 
 function gradeColor(grade: string): string {
-  if (grade === 'A+' || grade === 'A') return '#1E8FFF';
-  if (grade === 'B') return '#c9a84c';
-  return '#FF3B5C';
+  if (grade === 'A+' || grade === 'A') return '#10b981';
+  if (grade === 'B') return '#d4a843';
+  return '#ef4444';
 }
 
 function riskColor(level: 'high' | 'medium' | 'low'): string {
-  return level === 'high' ? '#FF3B5C' : level === 'medium' ? '#c9a84c' : '#1E8FFF';
+  return level === 'high' ? '#ef4444' : level === 'medium' ? '#d4a843' : '#10b981';
 }
 
 function riskBg(level: 'high' | 'medium' | 'low'): string {
-  return level === 'high' ? 'rgba(229,62,62,.10)' : level === 'medium' ? 'rgba(201,168,76,.10)' : 'rgba(62,207,142,.10)';
+  return level === 'high' ? 'rgba(239,68,68,.10)' : level === 'medium' ? 'rgba(212,168,67,.10)' : 'rgba(16,185,129,.10)';
 }
 
 function riskBorder(level: 'high' | 'medium' | 'low'): string {
-  return level === 'high' ? 'rgba(229,62,62,.30)' : level === 'medium' ? 'rgba(201,168,76,.30)' : 'rgba(62,207,142,.30)';
+  return level === 'high' ? 'rgba(239,68,68,.30)' : level === 'medium' ? 'rgba(212,168,67,.30)' : 'rgba(16,185,129,.30)';
 }
 
 // ── Quality Trend SVG Bars ───────────────────────────────

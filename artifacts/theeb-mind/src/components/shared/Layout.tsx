@@ -1,181 +1,346 @@
-import { useState, ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
-import {
-  BarChart3,
-  ShieldCheck,
-  Brain,
-  Menu,
-  X,
-  Zap,
-  Globe,
-} from 'lucide-react';
+import { useState, useEffect, type ReactNode, type ComponentType } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { BarChart3, ShieldCheck, Zap, Globe, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { USE_DEMO_MODE } from '../../lib/api';
 
-const PRIMARY_NAV = [
-  { to: '/analyze', icon: BarChart3, label: 'مركز القرار' },
-];
-const SECONDARY_NAV = [
-  { to: '/market', icon: Globe, label: 'السياق الكلي' },
-  { to: '/journal', icon: Brain, label: 'السجل والأداء' },
-  { to: '/intelligence', icon: Zap, label: 'أنماط الفشل' },
-];
-const UTILITY_NAV = [
-  { to: '/verify', icon: ShieldCheck, label: 'التحقق' },
-];
+// ── Route → station name ──────────────────────────────────────────────────────
+const STATION_NAMES: Record<string, string> = {
+  '/analyze':      'مركز القرار',
+  '/market':       'السياق الكلي',
+  '/journal':      'السجل والأداء',
+  '/performance':  'السجل والأداء',
+  '/intelligence': 'أنماط الفشل',
+  '/verify':       'التحقق',
+};
 
-const DISCLAIMER =
-  'هذه المنصة تقدم تحليلاً تعليمياً وتقييماً لجودة القرار المالي. لا تشكل نصيحة مالية أو توصية بالشراء أو البيع. جميع قرارات التداول يتخذها المستخدم بنفسه وعلى مسؤوليته الخاصة.';
+// ── Killzone helper ───────────────────────────────────────────────────────────
+function getKillzone(): { nameAr: string; active: boolean } {
+  const now = new Date();
+  const t = now.getUTCHours() * 60 + now.getUTCMinutes();
+  if (t >= 60  && t < 240)  return { nameAr: 'الآسيوية',   active: true  };
+  if (t >= 480 && t < 660)  return { nameAr: 'اللندنية',   active: true  };
+  if (t >= 780 && t < 960)  return { nameAr: 'نيويورك ص',  active: true  };
+  if (t >= 960 && t < 1080) return { nameAr: 'نيويورك غ',  active: false };
+  if (t >= 1080&& t < 1260) return { nameAr: 'نيويورك م',  active: true  };
+  return { nameAr: 'خارج النافذة', active: false };
+}
 
-export default function Layout({ children }: { children: ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+// ── HUD Bar ───────────────────────────────────────────────────────────────────
+function HudBar({ stationName }: { stationName: string }) {
+  const [time, setTime] = useState(() => new Date());
+  const [kz, setKz] = useState(getKillzone);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTime(new Date());
+      setKz(getKillzone());
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const timeStr = time.toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
 
   return (
-    <div className="flex min-h-screen" dir="rtl">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden transition-opacity"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <div style={{
+      position: 'absolute', top: 0, left: 0, right: 0,
+      height: '44px',
+      background: 'linear-gradient(to bottom, rgba(5,5,8,0.92) 0%, rgba(5,5,8,0.0) 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 20px',
+      zIndex: 50,
+      pointerEvents: 'none',
+    }}>
+      {/* Station name — left in LTR context (appears on right in RTL layout) */}
+      <span style={{
+        color: 'var(--gold)', fontSize: '11px', fontWeight: 700,
+        letterSpacing: '2px', textTransform: 'uppercase',
+        fontFamily: 'var(--font-body)',
+      }}>
+        {stationName}
+      </span>
 
-      {/* Sidebar — on the right in RTL */}
+      {/* Right cluster */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto' }}>
+        {/* Killzone */}
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <span style={{
+            width: '6px', height: '6px', borderRadius: '50%',
+            background: kz.active ? 'var(--emerald)' : 'var(--gold)',
+            boxShadow: kz.active
+              ? '0 0 6px var(--emerald)'
+              : '0 0 6px var(--gold)',
+            animation: kz.active ? 'pulse-hud 2s infinite' : 'none',
+            display: 'inline-block', flexShrink: 0,
+          }} />
+          <span style={{
+            color: kz.active ? 'var(--emerald)' : 'var(--gold)',
+            fontSize: '10px', fontFamily: 'var(--font-body)', letterSpacing: '0.3px',
+          }}>
+            {kz.nameAr}
+          </span>
+        </span>
+
+        <span style={{ color: 'var(--border-strong)', fontSize: '10px' }}>|</span>
+
+        {/* LIVE badge */}
+        <span style={{
+          background: 'var(--green-bg)', color: 'var(--emerald)',
+          fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px',
+          padding: '2px 7px', borderRadius: '100px',
+          border: '1px solid var(--emerald)',
+        }}>
+          LIVE
+        </span>
+
+        {/* Clock */}
+        <span style={{
+          color: 'var(--text-muted)', fontSize: '10px',
+          fontFamily: 'var(--font-mono)',
+        }}>
+          {timeStr}
+        </span>
+
+        {/* Demo badge */}
+        {USE_DEMO_MODE && (
+          <span style={{
+            background: 'rgba(212,168,67,0.12)', color: 'var(--gold)',
+            fontSize: '9px', fontWeight: 700, letterSpacing: '1px',
+            padding: '2px 7px', borderRadius: '100px',
+            border: '1px solid var(--border-medium)',
+          }}>
+            DEMO
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Nav item ──────────────────────────────────────────────────────────────────
+function NavItem({
+  to, icon: Icon, label, expanded, primary, utility,
+}: {
+  to: string;
+  icon: ComponentType<{ size?: number }>;
+  label: string;
+  expanded: boolean;
+  primary?: boolean;
+  utility?: boolean;
+}) {
+  return (
+    <NavLink
+      to={to}
+      style={({ isActive }) => ({
+        width: expanded ? 'calc(100% - 16px)' : '42px',
+        height: '42px',
+        borderRadius: '10px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: expanded ? 'flex-end' : 'center',
+        gap: '9px',
+        padding: expanded ? '0 14px' : '0',
+        margin: '2px 8px',
+        cursor: 'pointer',
+        textDecoration: 'none',
+        transition: 'all 0.18s ease',
+        background: isActive ? 'var(--gold-subtle)' : 'transparent',
+        color: isActive
+          ? 'var(--gold)'
+          : utility
+          ? 'var(--text-muted)'
+          : 'var(--text-secondary)',
+        borderLeft: isActive ? '3px solid var(--gold)' : '3px solid transparent',
+        boxShadow: isActive ? 'inset 0 0 12px var(--gold-glow)' : 'none',
+        fontSize: primary ? '12px' : '11px',
+        fontWeight: primary ? 700 : 500,
+      })}
+    >
+      {({ isActive: _ia }) => (
+        <>
+          {expanded && (
+            <span style={{
+              whiteSpace: 'nowrap',
+              fontFamily: 'var(--font-body)',
+              letterSpacing: '0.3px',
+              overflow: 'hidden',
+            }}>
+              {label}
+            </span>
+          )}
+          <Icon size={primary ? 18 : 16} />
+        </>
+      )}
+    </NavLink>
+  );
+}
+
+// ── Primary nav separator ─────────────────────────────────────────────────────
+function Divider({ expanded }: { expanded: boolean }) {
+  return (
+    <div style={{
+      width: expanded ? 'calc(100% - 28px)' : '28px',
+      height: '1px',
+      background: 'var(--border)',
+      margin: '6px auto',
+      transition: 'width 0.25s ease',
+    }} />
+  );
+}
+
+// ── Navigation items ──────────────────────────────────────────────────────────
+const NAV_PRIMARY   = [{ to: '/analyze',      icon: BarChart3,   label: 'مركز القرار'  }];
+const NAV_SECONDARY = [
+  { to: '/market',       icon: Globe,       label: 'السياق الكلي'  },
+  { to: '/journal',      icon: BookOpen,    label: 'السجل والأداء' },
+  { to: '/intelligence', icon: Zap,         label: 'أنماط الفشل'  },
+];
+const NAV_UTILITY   = [{ to: '/verify',       icon: ShieldCheck, label: 'التحقق'       }];
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+export default function Layout({ children }: { children: ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  const location = useLocation();
+  const stationName = STATION_NAMES[location.pathname] ?? 'THEEB MIND';
+
+  return (
+    <div
+      dir="rtl"
+      style={{
+        display: 'flex',
+        height: '100dvh',
+        background: 'var(--void)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* ── Station Rail ── */}
       <aside
-        className={`w-64 bg-void text-cream flex flex-col shrink-0 fixed lg:static inset-y-0 right-0 z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
-        }`}
+        style={{
+          width: expanded ? 'var(--rail-expanded)' : 'var(--rail-width)',
+          flexShrink: 0,
+          background: 'var(--void)',
+          borderLeft: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: expanded ? 'flex-end' : 'center',
+          padding: '12px 0',
+          transition: 'width 0.25s cubic-bezier(0.16,1,0.3,1)',
+          zIndex: 60,
+          overflowX: 'hidden',
+        }}
       >
         {/* Logo */}
-        <div className="px-6 py-6 border-b border-white/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <svg width="28" height="28" viewBox="0 0 48 48" fill="none" className="opacity-60">
-                <path d="M24 6L14 22L8 38H18L24 28L30 38H40L34 22L24 6Z" stroke="#c9a84c" strokeWidth="1.5" fill="none" />
-                <circle cx="19" cy="20" r="2" fill="#c9a84c" opacity="0.6" />
-                <circle cx="29" cy="20" r="2" fill="#c9a84c" opacity="0.6" />
-              </svg>
-              <h1
-                className="text-xl font-bold tracking-wide text-gold"
-                style={{ fontFamily: '"Tajawal", sans-serif' }}
-              >
-                DHEEB MINDSET
-              </h1>
-            </div>
-            {/* Close button for mobile */}
-            <button
-              className="lg:hidden p-1 rounded hover:bg-white/10"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-xs text-cream/40">ذكاء القرار المالي</p>
-            {USE_DEMO_MODE && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gold/20 text-gold border border-gold/30">
-                عرض تجريبي
-              </span>
-            )}
-          </div>
+        <div style={{
+          padding: expanded ? '6px 14px' : '6px',
+          marginBottom: '16px',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: expanded ? 'flex-end' : 'center',
+        }}>
+          <img
+            src="/wolf-hero.png"
+            alt="DHEEB"
+            style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '8px', opacity: 0.85 }}
+            onError={(e) => {
+              const t = e.currentTarget as HTMLImageElement;
+              t.style.display = 'none';
+              const wrap = t.parentElement;
+              if (wrap) {
+                const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                s.setAttribute('width', '32'); s.setAttribute('height', '32');
+                s.setAttribute('viewBox', '0 0 48 48'); s.setAttribute('fill', 'none');
+                s.innerHTML = `<path d="M24 6L14 22L8 38H18L24 28L30 38H40L34 22L24 6Z" stroke="#d4a843" stroke-width="1.5" fill="none"/><circle cx="19" cy="20" r="2" fill="#d4a843" opacity="0.7"/><circle cx="29" cy="20" r="2" fill="#d4a843" opacity="0.7"/>`;
+                wrap.insertBefore(s, t.nextSibling);
+              }
+            }}
+          />
+          {expanded && (
+            <span style={{
+              marginRight: '10px',
+              color: 'var(--gold)',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '2px',
+              fontFamily: 'var(--font-mono)',
+              whiteSpace: 'nowrap',
+            }}>
+              DHEEB
+            </span>
+          )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-          {/* PRIMARY */}
-          {PRIMARY_NAV.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-colors duration-200 ${
-                  isActive
-                    ? 'bg-gold/25 text-gold border border-gold/30'
-                    : 'text-gold/80 hover:bg-gold/10 hover:text-gold border border-transparent'
-                }`
-              }
-            >
-              <Icon size={20} />
-              <span className="text-sm">⚡ {label}</span>
-            </NavLink>
-          ))}
+        {/* Primary station */}
+        {NAV_PRIMARY.map(({ to, icon, label }) => (
+          <NavItem key={to} to={to} icon={icon} label={label} expanded={expanded} primary />
+        ))}
 
-          {/* Divider */}
-          <div className="my-2 border-t border-white/8" />
+        <Divider expanded={expanded} />
 
-          {/* SECONDARY */}
-          {SECONDARY_NAV.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                  isActive
-                    ? 'bg-gold/20 text-gold'
-                    : 'text-cream/70 hover:bg-white/10 hover:text-cream'
-                }`
-              }
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
+        {/* Secondary stations */}
+        {NAV_SECONDARY.map(({ to, icon, label }) => (
+          <NavItem key={to} to={to} icon={icon} label={label} expanded={expanded} />
+        ))}
 
-          {/* Spacer */}
-          <div className="flex-1" />
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
 
-          {/* UTILITY */}
-          {UTILITY_NAV.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors duration-200 ${
-                  isActive
-                    ? 'bg-white/10 text-cream/70'
-                    : 'text-cream/35 hover:bg-white/5 hover:text-cream/55'
-                }`
-              }
-            >
-              <Icon size={15} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
-        </nav>
+        <Divider expanded={expanded} />
 
-        {/* Disclaimer */}
-        <div className="px-4 py-3 border-t border-white/10">
-          <p className="text-[9px] leading-relaxed text-cream/25 text-justify">
-            {DISCLAIMER}
-          </p>
-        </div>
+        {/* Utility station */}
+        {NAV_UTILITY.map(({ to, icon, label }) => (
+          <NavItem key={to} to={to} icon={icon} label={label} expanded={expanded} utility />
+        ))}
+
+        {/* Expand / collapse toggle */}
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          title={expanded ? 'طي القائمة' : 'توسيع القائمة'}
+          style={{
+            marginTop: '10px',
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            background: 'var(--void-raised)',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: 'var(--text-muted)',
+            transition: 'border-color 0.2s, color 0.2s',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-medium)';
+            (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)';
+            (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)';
+          }}
+        >
+          {expanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+        </button>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto bg-void-lighter">
-        {/* Mobile header */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-void-light border-b border-white/5">
-          <div className="flex items-center gap-2">
-            <svg width="24" height="24" viewBox="0 0 48 48" fill="none" className="opacity-60">
-              <path d="M24 6L14 22L8 38H18L24 28L30 38H40L34 22L24 6Z" stroke="#c9a84c" strokeWidth="1.5" fill="none" />
-            </svg>
-            <h1 className="text-lg font-bold text-gold">DHEEB MINDSET</h1>
-            {USE_DEMO_MODE && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gold/20 text-gold border border-gold/30">
-                عرض تجريبي
-              </span>
-            )}
-          </div>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-white/10 text-cream"
-          >
-            <Menu size={22} />
-          </button>
-        </div>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 page-enter">
+      {/* ── Main Stage ── */}
+      <main
+        style={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          background: 'var(--void)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Floating HUD overlay */}
+        <HudBar stationName={stationName} />
+
+        {/* Content area — scrollable, below HUD */}
+        <div style={{ flex: 1, overflow: 'auto', paddingTop: '44px', display: 'flex', flexDirection: 'column' }}>
           {children}
         </div>
       </main>

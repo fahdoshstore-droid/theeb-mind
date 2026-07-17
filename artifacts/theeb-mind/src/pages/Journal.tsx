@@ -49,7 +49,7 @@ function Sparkline({ data, width = 200, height = 60 }: { data: number[]; width?:
       <polyline
         points={points.join(' ')}
         fill="none"
-        stroke="#c9a84c"
+        stroke="#d4a843"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"

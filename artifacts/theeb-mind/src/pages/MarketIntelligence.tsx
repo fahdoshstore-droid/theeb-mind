@@ -20,17 +20,17 @@ import type { MarketSnapshot, EconomicEvent, WeeklyBias, MacroNarrative } from '
 const USER_ID = 'user-1';
 
 const C = {
-  bg: '#020B18',
-  card: '#071628',
-  border: 'rgba(0,214,143,0.08)',
+  bg: '#050508',
+  card: '#0a0c14',
+  border: 'rgba(212,168,67,0.08)',
   border2: 'rgba(255,255,255,0.05)',
-  gold: '#C9A84C',
-  green: '#1E8FFF',
-  red: '#FF3B5C',
-  amber: '#FBBF24',
-  t1: '#E8F0F8',
-  t2: '#7A90A8',
-  t3: '#3A4F68',
+  gold: '#d4a843',
+  green: '#10b981',
+  red: '#ef4444',
+  amber: '#f59e0b',
+  t1: '#e8eaf0',
+  t2: '#8a8fa3',
+  t3: '#4a4f64',
 } as const;
 
 // COT_DATA is now fetched live from CFTC via /api/market/cot

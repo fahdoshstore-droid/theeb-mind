@@ -12,9 +12,7 @@ import MarketIntelligence from './pages/MarketIntelligence';
 // Scroll to top on route change
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return null;
 }
 
@@ -25,14 +23,17 @@ export default function App() {
       <Routes>
         {/* Root → Decision Center */}
         <Route path="/" element={<Navigate to="/analyze" replace />} />
+
+        {/* Vault Gate — no Layout shell */}
         <Route path="/landing" element={<Landing />} />
-        {/* App pages — with sidebar layout */}
-        <Route path="/analyze" element={<AnalyzeChart />} />
-        <Route path="/verify" element={<Layout><VerifyContent /></Layout>} />
-        <Route path="/journal" element={<Layout><Journal /></Layout>} />
-        <Route path="/performance" element={<Layout><Performance /></Layout>} />
+
+        {/* App stations — inside Command Center layout */}
+        <Route path="/analyze"      element={<Layout><AnalyzeChart /></Layout>} />
+        <Route path="/verify"       element={<Layout><VerifyContent /></Layout>} />
+        <Route path="/journal"      element={<Layout><Journal /></Layout>} />
+        <Route path="/performance"  element={<Layout><Performance /></Layout>} />
         <Route path="/intelligence" element={<Layout><TradeIntelligence /></Layout>} />
-        <Route path="/market" element={<Layout><MarketIntelligence /></Layout>} />
+        <Route path="/market"       element={<Layout><MarketIntelligence /></Layout>} />
       </Routes>
     </>
   );

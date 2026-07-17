@@ -26,10 +26,10 @@ const GATE_QS = [
     options:[{label:'نعم، محدد ومكتوب'},{label:'عندي منطقة تقريبية'},{label:'لا، أشوف السوق وأقرر'}]},
 ];
 const C = {
-  bg:'#020B18', card:'#071628', card2:'#0B1E35', bg3:'#010810',
-  green:'#1E8FFF', gold:'#C9A84C', red:'#FF3B5C', amber:'#FBBF24',
-  t1:'#E8F0F8', t2:'#7A90A8', t3:'#3A4F68',
-  border:'rgba(30,143,255,0.10)', border2:'rgba(255,255,255,0.05)',
+  bg:'#050508', card:'#0a0c14', card2:'#0f111a', bg3:'#030305',
+  green:'#10b981', gold:'#d4a843', red:'#ef4444', amber:'#f59e0b',
+  t1:'#e8eaf0', t2:'#8a8fa3', t3:'#4a4f64',
+  border:'rgba(212,168,67,0.08)', border2:'rgba(255,255,255,0.05)',
 } as const;
 
 // ── types ──
@@ -244,7 +244,7 @@ export default function TheebMindGate() {
   const coach = getCoach(verdict, trilPass, violations);
 
   return(
-    <div className="tm-root" style={{height:'100vh',display:'flex',flexDirection:'column',background:C.bg,color:C.t1,fontFamily:"'Tajawal',sans-serif",direction:'rtl',overflow:'hidden',position:'relative'}}>
+    <div className="tm-root" style={{height:'100%',minHeight:0,display:'flex',flexDirection:'column',background:C.bg,color:C.t1,fontFamily:"'Cairo',sans-serif",direction:'rtl',overflow:'hidden',position:'relative'}}>
       {/* ── Psychology STOP gate overlay ── */}
       {gateChecked && psychVerdict==='STOP' && !showGateForm && (
         <div style={{position:'absolute',inset:0,zIndex:200,background:'rgba(4,6,10,0.97)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:20,padding:24,textAlign:'center'}}>

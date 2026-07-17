@@ -1,0 +1,243 @@
+You are implementing a full visual redesign of THEEB MIND.
+The design reference is in attached_assets/Amad__1784255171533.zip (index.html + v2.html).
+Extract and apply the design system from those files into the existing React + Vite codebase.
+
+==================================================
+DESIGN SYSTEM — EXTRACT FROM HTML FILES
+==================================================
+
+CSS TOKENS (apply to index.css :root):
+
+--void:           #050508
+--void-deep:      #030305
+--void-surface:   #0a0c14
+--void-raised:    #0f111a
+--void-hover:     #161928
+--void-glass:     rgba(10,12,20,0.72)
+--void-glass-raised: rgba(15,17,26,0.85)
+
+--gold:           #d4a843
+--gold-dim:       #b8922f
+--gold-bright:    #e8c45a
+--gold-glow:      rgba(212,168,67,0.22)
+--gold-glow-strong: rgba(212,168,67,0.45)
+--gold-subtle:    rgba(212,168,67,0.08)
+
+--emerald:        #10b981
+--emerald-dim:    #059669
+--emerald-glow:   rgba(16,185,129,0.25)
+
+--border:         rgba(212,168,67,0.08)
+--border-medium:  rgba(212,168,67,0.15)
+--border-strong:  rgba(212,168,67,0.3)
+
+--text:           #e8eaf0
+--text-secondary: #8a8fa3
+--text-muted:     #4a4f64
+
+--green:  #10b981    --green-bg:  rgba(16,185,129,0.12)
+--red:    #ef4444    --red-bg:    rgba(239,68,68,0.12)
+--yellow: #f59e0b    --yellow-bg: rgba(245,158,11,0.12)
+--blue:   #3b82f6    --blue-bg:   rgba(59,130,246,0.12)
+
+--rail-width:    56px
+--rail-expanded: 180px
+--hud-height:    44px
+--radius:        14px
+--radius-sm:     8px
+
+FONTS (add to index.html or via @import):
+Cairo (300–900), IBM Plex Mono (300–700), Noto Naskh Arabic (400–700)
+--font-body:  'Cairo', sans-serif
+--font-mono:  'IBM Plex Mono', monospace
+--font-arabic:'Noto Naskh Arabic', serif
+
+==================================================
+LAYOUT CHANGE — Command Center Architecture
+==================================================
+
+Replace the current Layout.tsx sidebar with the Station Rail pattern:
+
+BEFORE: wide sidebar (left) + scrollable content area
+AFTER:  station-rail (56px, expandable to 180px) + main-stage (full-bleed) + hud-bar (overlay)
+
+Structure:
+┌──────────────────────────────────────────────┐
+│ rail(56px) │  main-stage (flex:1, 100vh)     │
+│            │  ┌── hud-bar (pos:absolute top)─┐│
+│            │  │  station-name │ KZ · LIVE · t││
+│            │  └───────────────────────────────┘│
+│            │                                   │
+│            │  <Outlet /> (each page full-bleed)│
+└──────────────────────────────────────────────┘
+
+Station Rail:
+- Fixed 56px width, expandable to 180px on hover/toggle
+- Background: var(--void), border-left: 1px solid var(--border)
+- Logo (wolf-hero.png if available, else wolf SVG icon) at top
+- Active item: gold color + 3px left border indicator + gold-glow
+- Hover: rgba(212,168,67,0.06) background
+- Expand/collapse toggle at bottom
+- Rail items: 42×42px, border-radius:10px
+
+Station Rail items (map existing routes):
+⚡  مركز القرار    /analyze    (primary — make it first and visually distinct)
+🌍  السياق الكلي   /market
+📒  السجل والأداء  /journal + /performance (merge nav entry, keep routes)
+⚡  أنماط الفشل    /intelligence
+🛡  التحقق         /verify     (utility, below separator)
+
+HUD Bar (floating overlay, position:absolute top:0):
+- Height: 44px, background: linear-gradient(to bottom, rgba(5,5,8,0.9), transparent)
+- Left: station name (gold, 13px, font-weight:700, letter-spacing:1px)
+- Right: killzone dot + name | LIVE badge | clock (IBM Plex Mono)
+- z-index: 50, pointer-events: none (children: auto)
+- The clock updates every second with setInterval
+
+==================================================
+VAULT GATE — Landing Page Redesign
+==================================================
+
+Replace the current Landing.tsx with a Vault Gate entrance:
+
+Components:
+1. Radial gradient background (gold + emerald subtle glows)
+2. Wolf image (use /assets/wolf-hero.png from the zip, copy to public/)
+   OR render a geometric wolf SVG icon if image not found
+3. Pulsing ring animation around the wolf (scale 1→1.1, 4s infinite)
+4. Gold particle dots (20–30 absolutely positioned 2px dots, fade in/out)
+5. Title: "عقلية الذيب" (Noto Naskh Arabic, 42px, gold, text-shadow glow)
+6. Subtitle: "DHEEB MINDSET" (11px, letter-spacing:8px, text-muted)
+7. Divider line (50px, gold gradient)
+8. Tagline: "لا تتنبأ بالسوق. افهم قراراتك." (18px)
+9. Description: "Saudi-built AI Decision Intelligence" (11px, muted)
+10. Enter button: "›› ابدأ الآن" (emerald gradient, border-radius:100px, padding:14px 44px)
+    On click → navigate('/analyze') with fade-out animation
+
+Animations (use Framer Motion or CSS keyframes):
+- Wolf: scale(0.85)→scale(1) + translateY(20px→0), delay 0.2s
+- Title: opacity 0→1 + translateY(16→0), delay 0.7s
+- Each element staggered +0.2s delay
+- On enter click: page fades to --void-deep, then navigate
+
+==================================================
+COMPONENT PATTERNS — Apply Everywhere
+==================================================
+
+Cards (replace all current card styles):
+background: var(--void-glass)
+border: 1px solid var(--border)
+border-radius: var(--radius) [14px]
+backdrop-filter: blur(16px)
+Hover: border-color → var(--border-medium), translateY(-2px)
+
+Stat cards (KPI tiles in Performance/Overview):
+- 2px top gradient bar (color by type: gold/green/red/blue/yellow)
+- Label: 9px uppercase letter-spacing:1.5px text-muted
+- Value: 24px font-weight:800 IBM Plex Mono
+- Sub: 10px text-muted
+
+Buttons:
+btn-gold: linear-gradient(135deg, var(--gold), var(--gold-dim)), color:var(--void), box-shadow: 0 0 16px var(--gold-glow)
+btn-ghost: var(--void-raised), border:1px solid var(--border), color:var(--text-secondary)
+btn-danger: border:1px solid rgba(239,68,68,0.3), color:var(--red)
+
+Status chips:
+PASS: green-bg + emerald border + emerald text
+FAIL: red-bg + red border + red text
+WARN/CAUTION: yellow-bg + yellow border + yellow text
+
+ICT Concept chips (in AnalyzeChart):
+OB: blue border + #60a5fa text
+FVG: yellow border + #fbbf24 text
+Liquidity Sweep: green border + #34d399 text
+MSS: purple border + #c4b5fd text
+
+Scrollbar:
+::-webkit-scrollbar { width: 4px }
+thumb: var(--border), hover: var(--text-muted)
+
+Inputs:
+background: var(--void-raised), border: 1px solid var(--border)
+focus: border-color var(--gold) + box-shadow 0 0 0 3px var(--gold-glow)
+border-radius: var(--radius-sm) [8px], padding: 12px 14px
+
+Confluence/Quality score circle:
+90px, border: 3px solid var(--gold), box-shadow: 0 0 24px var(--gold-glow)
+Center: score number (26px, IBM Plex Mono, gold)
+
+Timeline entries (Journal):
+Vertical line (right: 6px, 1px solid border)
+Dot: 9px circle, win→emerald glow, loss→red glow
+Card: glass card with hover translateX(-4px)
+
+==================================================
+PAGE-BY-PAGE MAPPING
+==================================================
+
+/analyze (مركز القرار) — Intel Station:
+- Full-bleed layout, chart drop zone centered in the void
+- Drop zone: dashed border-medium, glass background, blur(16px)
+  On drag: border-color gold + box-shadow gold-glow
+- Right panel: slides in from right (width:340px), glass, blur(20px)
+  Toggle button: 28×60px tab on the right edge
+- ICT chips strip: bottom-center floating pill bar
+- TRIL validation + verdict: inside the right panel
+- Controls (instrument, timeframe, toggles): inside right panel above results
+
+/market (السياق الكلي) — Market Station:
+- Full-bleed, padding 60px 32px 32px
+- Macro gauges: glass cards with 2px top color bar
+- COT table: glass card, IBM Plex Mono for numbers
+- Economic calendar: timeline style entries
+
+/journal + /performance (السجل والأداء) — Log Station:
+- Two-panel: left stats sidebar (280px, glass) + right timeline area
+- Stats: stat-mini cards (void-raised, 20px value)
+- Timeline: vertical line + colored dots + glass cards
+
+/intelligence (أنماط الفشل) — Patterns Station:
+- Full-bleed, overview grid layout
+- Pattern cards: glass, 2px top bar by severity
+
+/verify (التحقق) — Utility station:
+- Centered single-column, max-width 640px
+
+==================================================
+IMPLEMENTATION RULES
+==================================================
+
+1. Keep ALL existing backend calls, state management, and logic.
+   Change ONLY the visual layer (CSS, component structure, className patterns).
+
+2. Replace the current Layout.tsx completely with the Command Center layout.
+
+3. Apply CSS tokens to index.css :root.
+   Remove or override existing conflicting token names.
+
+4. The inline `C` objects in each page file (AnalyzeChart, MarketIntelligence, etc.)
+   must be updated to use the new palette values.
+
+5. Copy wolf-hero.png from attached_assets/Amad__1784255171533.zip
+   (extract it: /tmp/amad_design/assets/wolf-hero.png)
+   to artifacts/theeb-mind/public/wolf-hero.png
+
+6. Add Cairo + IBM Plex Mono + Noto Naskh Arabic to index.html via Google Fonts.
+
+7. After all changes:
+   - Run: pnpm --filter @workspace/theeb-mind typecheck
+   - Run: pnpm --filter @workspace/api-server typecheck
+   - Fix ALL TypeScript errors before finishing.
+   - Restart the dev workflow.
+   - Screenshot /landing, /analyze, /market, /journal to verify.
+
+8. Return:
+   - List of changed files
+   - Typecheck result
+   - Screenshot of each page
+   - Short summary
+
+DO NOT create new features.
+DO NOT change any API calls or backend logic.
+DO NOT ask questions.
+Implement now.
