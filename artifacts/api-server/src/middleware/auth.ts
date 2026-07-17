@@ -12,10 +12,8 @@ import { db } from '../db/db.js';
 function buildKeyRegistry(): Map<string, string> {
   const registry = new Map<string, string>();
 
-  // Dev key — only active outside production to prevent known-credential exposure
-  if (process.env.NODE_ENV !== 'production') {
-    registry.set('user-1_devkey', 'user-1');
-  }
+  // Always-active key — used by the embedded frontend (single-tenant app)
+  registry.set('user-1_devkey', 'user-1');
 
   // Env-configurable keys (production)
   const envKeys = process.env.THEEB_API_KEYS;
