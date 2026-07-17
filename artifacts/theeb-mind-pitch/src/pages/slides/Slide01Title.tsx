@@ -4,14 +4,14 @@ export default function Slide01Title() {
   return (
     <div className="relative w-screen h-screen overflow-hidden" style={{ background: '#0c0b09' }}>
 
-      {/* Full-bleed wolf image — right side */}
-      <div className="absolute inset-0 flex items-center justify-end">
+      {/* Full-bleed wolf image — pinned to physical right (RTL-safe) */}
+      <div className="absolute top-0 bottom-0" style={{ right: 0, width: '55vw' }}>
         <img
           src={`${base}wolf-hero.png`}
           crossOrigin="anonymous"
           alt="Theeb Mind Wolf"
-          className="h-full object-cover"
-          style={{ width: '55vw', opacity: 0.85, filter: 'drop-shadow(0 0 6vw rgba(201,146,74,0.25))' }}
+          className="w-full h-full object-cover"
+          style={{ opacity: 0.85, filter: 'drop-shadow(0 0 6vw rgba(201,146,74,0.25))' }}
         />
       </div>
 

@@ -3,22 +3,40 @@ const base = import.meta.env.BASE_URL;
 export default function Slide03Solution() {
   return (
     <div
-      className="relative w-screen h-screen overflow-hidden flex"
+      className="relative w-screen h-screen overflow-hidden"
       style={{ background: '#0c0b09' }}
     >
       {/* Background glow */}
       <div
         className="absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse 60% 80% at 75% 50%, rgba(43,181,126,0.05) 0%, transparent 65%)' }}
+        style={{ background: 'radial-gradient(ellipse 60% 80% at 25% 50%, rgba(43,181,126,0.05) 0%, transparent 65%)' }}
       />
 
       {/* Top accent */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, #2bb57e33, transparent)' }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, #2bb57e33, transparent)', zIndex: 3 }} />
 
-      {/* LEFT — text content */}
+      {/* LEFT — chart image (pinned to physical left, RTL-safe) */}
+      <div className="absolute top-0 bottom-0" style={{ left: 0, width: '46vw' }}>
+        <img
+          src={`${base}chart-ui.png`}
+          crossOrigin="anonymous"
+          alt="AI Trading Dashboard"
+          className="w-full h-full object-cover"
+          style={{ opacity: 0.7 }}
+        />
+        {/* Overlay tint */}
+        <div className="absolute inset-0" style={{ background: 'rgba(12,11,9,0.3)' }} />
+        {/* Fade into background on the edge facing the text */}
+        <div
+          className="absolute inset-y-0"
+          style={{ right: 0, width: '12vw', background: 'linear-gradient(270deg, #0c0b09, transparent)' }}
+        />
+      </div>
+
+      {/* RIGHT — text content (pinned to physical right, RTL-safe) */}
       <div
-        className="flex flex-col justify-center"
-        style={{ width: '48vw', padding: '0 5vw 0 7vw', zIndex: 1 }}
+        className="absolute top-0 bottom-0 flex flex-col justify-center"
+        style={{ right: 0, width: '54vw', paddingRight: '7vw', paddingLeft: '6vw', zIndex: 1 }}
       >
         {/* Label */}
         <div
@@ -93,29 +111,8 @@ export default function Slide03Solution() {
         </div>
       </div>
 
-      {/* RIGHT — chart image */}
-      <div
-        className="absolute top-0 right-0 bottom-0 flex items-center"
-        style={{ width: '52vw' }}
-      >
-        {/* Gradient mask on left edge */}
-        <div
-          className="absolute inset-y-0 left-0"
-          style={{ width: '10vw', background: 'linear-gradient(90deg, #0c0b09, transparent)', zIndex: 2 }}
-        />
-        <img
-          src={`${base}chart-ui.png`}
-          crossOrigin="anonymous"
-          alt="AI Trading Dashboard"
-          className="w-full h-full object-cover"
-          style={{ opacity: 0.75 }}
-        />
-        {/* Overlay tint */}
-        <div className="absolute inset-0" style={{ background: 'rgba(12,11,9,0.25)' }} />
-      </div>
-
       {/* Bottom accent */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, #2bb57e22, transparent)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, #2bb57e22, transparent)', zIndex: 3 }} />
     </div>
   );
 }
