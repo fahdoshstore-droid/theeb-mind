@@ -3,70 +3,72 @@
 Dashboard واحد لـ **NQ / MNQ**:
 
 ```
-COT + Seasonality + VIX  →  MARKET CONTEXT
-15m Structure + 5m Entry →  MARKET STRUCTURE
-Trend · Raid · Imbalance · Location → TRIL
-News (filter only) · Risk (deterministic) · Trading State
-                     ↓
-              DECISION ENGINE
-                     ↓
-        LONG  ·  SHORT  ·  NO TRADE   (+ Bias · Confidence · Why)
+COT + Seasonality + VIX            → MARKET CONTEXT   (context)
+NQ (or NAS100 proxy) 15m + 5m      → MARKET STRUCTURE (ICT / SMC)
+Trend · Raid · Imbalance · Location → TRIL            (setup)
+NQ vs S&P 500                       → SMT             (confluence only)
+News (filter) · Risk (permission) · Trading State · Data Freshness
+                         ↓
+                  DECISION ENGINE (deterministic)
+                         ↓
+   LONG · SHORT · NO TRADE  + Bias · Confidence Score · Why · Data Source · Freshness
 ```
 
-The system outputs a **Trade Candidate** only. No broker, no order execution: you decide.
-Confidence = how well the current evidence agrees (0–95). It is **not** a probability of profit.
+The output is a **Trade Candidate** only. No broker and no order execution: you decide.
+**Confidence Score** (0–95) measures how well the current evidence agrees. It is **not** a win probability.
 
 ## Run
 
 ```bash
 pnpm install --filter @workspace/theeb-dashboard
-cp artifacts/theeb-dashboard/.env.example artifacts/theeb-dashboard/.env   # optional
+cp artifacts/theeb-dashboard/.env.example artifacts/theeb-dashboard/.env   # set TradingView MCP + optional AI key
 pnpm --filter @workspace/theeb-dashboard start        # http://localhost:5173
 ```
 
-- `?demo=long|short|news|tril|caution` (or the **DEMO** button) loads **simulated** scenarios. A striped banner shows while demo mode is on.
-- Without network access, every source shows **DATA UNAVAILABLE** and the decision is **NO TRADE**.
+- **LIVE** (default): server data only. A failed source shows **DATA UNAVAILABLE** and is never replaced by demo data or shown as NEUTRAL.
+- **DEMO** (button, or `?demo=<scenario>`): 13 simulated scenarios under a permanent striped banner. Demo and live data are kept in separate slots.
 
-## Files
+## Data sources
 
-| Path | Role |
-|---|---|
-| `public/index.html` | The single dashboard (UI only, no secrets) |
-| `public/engine.js` | Deterministic decision engine: context, structure (ICT/SMC), TRIL, news filter, risk, trading state, confidence, decision. Shared by the browser and the tests |
-| `public/demo.js` | DEMO / SIMULATED scenarios (synthetic, flagged `simulated: true`) |
-| `server.mjs` | Static server + read-only data API + AI proxy |
-| `lib/sources.mjs` | Data adapters (cache; on failure `ok:false`, never fallback numbers) |
-| `lib/chart-reader.mjs` | Optional AI chart reading (key stays on the server) |
+| Input | Primary | Fallback (labelled in the UI) |
+|---|---|---|
+| COT (Large Spec long/short/net, weekly Δ, COT Index 6M/36M, commercials, small traders) | MarketBulls `cot-report-nasdaq-100` | CFTC Legacy COT (E-mini Nasdaq-100) |
+| Seasonality (10Y / 5Y / 2Y, current month/day, avg change, bias) | MarketBulls `seasonal-tendencies-nasdaq-100` | Yahoo `^NDX` monthly returns |
+| NQ / NAS100 / S&P 500 bars (15m + 5m) | **TradingView MCP** | Yahoo (always marked DELAYED) |
+| VIX | TradingView MCP | Yahoo `^VIX` |
+| Economic calendar | ForexFactory weekly export | none (shown as DATA UNAVAILABLE) |
 
-## Data sources (free, no API key)
+The MarketBulls adapter parses the page's tables and embedded chart series and validates every field. If the format is not recognised, it throws and the fallback is used, labelled as such.
 
-| Input | Source |
-|---|---|
-| COT: Large Spec (non-commercial) net, weekly Δ, 3Y COT Index | CFTC Public Reporting, Legacy futures, E-mini Nasdaq-100 (`209742`) |
-| Seasonality: current month 10Y / 5Y / 2Y | Yahoo Finance `^NDX` monthly closes |
-| VIX | Yahoo Finance `^VIX` |
-| NQ 15m / 5m bars (delayed) | Yahoo Finance `NQ=F` (used for both NQ and MNQ) |
-| Economic calendar | ForexFactory weekly export (USD events) |
+### Freshness and source selection
+`FRESH` (last bar ≤ 2 min late) · `DELAYED` (≤ 20 min, or a delayed feed) · `STALE` (shown, never used) · `UNAVAILABLE`.
+
+1. NQ is FRESH → use NQ.
+2. NQ is delayed, stale or unavailable, and NAS100 is FRESH → **NAS100 PROXY**. It is labelled everywhere, and levels are marked as NAS100 prices.
+3. Otherwise, use the best DELAYED series and lower confidence.
+4. Neither is usable → **NO TRADE**.
+
+15m and 5m always come from the same series. A stale 5m is dropped, with a visible note.
 
 ## Agents (2)
 
-1. **THEEB Market Analyst**: deterministic analysis → `{context, structure, tril, bias, confidence, reason}`.
-   Optional AI layer: reads an uploaded chart screenshot and returns a structured TRIL reading. It runs only when `ANTHROPIC_API_KEY` is set on the server, and the reading is applied to TRIL only after you click *Apply*.
-2. **THEEB News Agent**: `{status: LOW|CAUTION|HIGH IMPACT, event, impact, time_to_event, trading_restriction}`. It never gives a direction.
+1. **THEEB Market Analyst**: deterministic analysis →
+   `{context, structure, tril, smt, bias, confidence, dataSource, freshness, reason}`.
+   Optional AI layer: reads a chart screenshot and returns a structured TRIL reading. It runs only when `ANTHROPIC_API_KEY` is set on the server, and the reading is applied to TRIL only when you click *Apply*.
+2. **THEEB News Agent**: `{status: CLEAR|CAUTION|HIGH IMPACT|UNAVAILABLE, event, impact, timeToEvent, tradingRestriction}`. It never gives a direction.
 
-## Rules (from the existing project)
+## Decision rules
 
-Max 2 trades/day · risk 1% / max $500 · min RRR 1:2.5 · daily loss $600 · stop after 2 consecutive losses.
-Contract specs: NQ $20/pt, MNQ $2/pt. Kill zones (New York time): London 02:00–05:00, NY AM 07:00–10:00, NY PM 13:30–16:00.
+NO TRADE when any core gate fails: `DATA UNAVAILABLE` · `TRADING STATE: NOT READY` · `NEWS HIGH IMPACT` (30 min before → 15 min after) · `STRUCTURE UNCLEAR` · `CONTEXT UNCLEAR / CONFLICT` · `TRIL FAIL / UNCLEAR` · `RISK FAIL`.
 
-### Decision rules
-- NO TRADE if any core gate fails: `DATA UNAVAILABLE`, `TRADING STATE: NOT READY`, `NEWS HIGH IMPACT` (30 min before → 15 min after a high-impact USD event), `STRUCTURE UNCLEAR`, `CONTEXT UNCLEAR / CONFLICT`, `TRIL FAIL / UNCLEAR`, `RISK FAIL`.
-- Context = COT (weight 2) + Seasonality (weight 1). VIX only changes confidence, never the direction.
-- News CAUTION keeps the candidate, adds a warning, and lowers confidence by 10.
+- Context = COT (weight 2) + Seasonality (weight 1). VIX only lowers confidence.
+- SMT: one index takes a recent high/low and the other does not. It moves confidence by +4 to +10 or −8 and never creates or blocks a trade.
+- Confidence is N/A when price data or context is missing. Deductions: DELAYED −5, NAS100 proxy −5, news CAUTION −10, VIX HIGH −10, partial context −5.
+- Rules: 2 trades/day · 1% / max $500 · min RRR 1:2.5 · daily loss $600 · stop after 2 consecutive losses · NQ $20/pt, MNQ $2/pt.
 
 ## Tests
 
 ```bash
-pnpm --filter @workspace/theeb-dashboard test       # engine + parsers + server (node:test)
-PLAYWRIGHT_MODULE=$(npm root -g)/playwright pnpm --filter @workspace/theeb-dashboard test:e2e   # browser
+pnpm --filter @workspace/theeb-dashboard test       # engine, adapters, real stdio MCP round-trip, server, security
+PLAYWRIGHT_MODULE=$(npm root -g)/playwright pnpm --filter @workspace/theeb-dashboard test:e2e   # browser: all scenarios + LIVE via MCP
 ```

@@ -1,94 +1,96 @@
 // ═══════════════════════════════════════════════════════════════
 // THEEB MIND — Market data service (server-side only)
-// Every source returns { ok, data, source, asOf, error }.
-// On failure: ok=false, data=null → the UI shows DATA UNAVAILABLE.
-// No fallback numbers are ever substituted.
+//
+//   COT / Seasonality : MarketBulls (primary) → CFTC / Yahoo (fallback, labelled)
+//   Live market bars  : TradingView MCP (primary) → Yahoo (fallback, always DELAYED)
+//   VIX               : TradingView MCP → Yahoo
+//   News              : ForexFactory weekly calendar
+//
+// Nothing here invents a number: a failed source returns
+// status DATA_UNAVAILABLE with the errors of every provider tried.
 // ═══════════════════════════════════════════════════════════════
+import { MB_URLS, parseMarketBullsCOT, parseMarketBullsSeasonality, toCOTSchema, toSeasonalitySchema } from './marketbulls.mjs';
+import { tvConfigured, fetchTradingViewBars, TV_SYMBOLS } from './tradingview-mcp.mjs';
 
 const UA = 'Mozilla/5.0 (THEEB MIND dashboard)';
 const TIMEOUT_MS = 12_000;
 
 export const SOURCES = {
-    // CFTC Public Reporting (Socrata) — Legacy Futures-Only report, no API key
-    cot: 'https://publicreporting.cftc.gov/resource/6dca-aqww.json',
-    // Yahoo Finance chart API (delayed quotes), no API key
+    cftc: 'https://publicreporting.cftc.gov/resource/6dca-aqww.json',
     yahoo: 'https://query1.finance.yahoo.com/v8/finance/chart/',
-    // ForexFactory weekly calendar export (faireconomy mirror), no API key
     calendar: 'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
 };
+export const NQ_CFTC_CODE = '209742'; // E-mini Nasdaq-100
+const YAHOO_SYMBOLS = { NQ: 'NQ=F', NAS100: '^NDX', SPX: 'ES=F', VIX: '^VIX' };
 
-// E-mini Nasdaq-100 (CME) — CFTC contract market code
-export const NQ_CFTC_CODE = '209742';
-
+// ── test hooks ───────────────────────────────────────────────
 let fetchImpl = (...a) => fetch(...a);
-/** Test hook: replace the network layer. */
+let tvImpl = fetchTradingViewBars;
+let tvEnabled = () => tvConfigured();
 export function setFetch(fn) { fetchImpl = fn; }
+export function setTradingView(fn, enabled = true) { tvImpl = fn; tvEnabled = () => enabled; }
 
-async function getJSON(url) {
-    const res = await fetchImpl(url, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+async function request(url, accept) {
+    const res = await fetchImpl(url, { headers: { 'User-Agent': UA, Accept: accept }, signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(url).host}`);
-    return res.json();
+    return res;
 }
+const getJSON = async (url) => (await request(url, 'application/json')).json();
+const getText = async (url) => (await request(url, 'text/html')).text();
+const errMsg = (e) => String(e && e.message ? e.message : e).slice(0, 200);
 
-// ── tiny TTL cache with single-flight ────────────────────────
+// ── TTL cache with single-flight; failures are not cached ─────
 const cache = new Map();
 export function clearCache() { cache.clear(); }
-async function cached(key, ttlMs, loader) {
+async function cached(key, ttlMs, loader, isOk) {
     const hit = cache.get(key);
-    const now = Date.now();
-    if (hit && hit.value && now - hit.at < ttlMs) return hit.value;
+    if (hit && hit.value && Date.now() - hit.at < ttlMs) return hit.value;
     if (hit && hit.pending) return hit.pending;
-    const pending = loader().then(
-        (value) => { cache.set(key, { at: Date.now(), value: value.ok ? value : null }); return value; },
-        (err) => { cache.delete(key); throw err; },
-    );
+    const pending = loader().then((value) => {
+        cache.set(key, isOk(value) ? { at: Date.now(), value } : {});
+        return value;
+    }, (err) => { cache.delete(key); throw err; });
     cache.set(key, Object.assign({}, hit, { pending }));
     return pending;
 }
 
-const fail = (source, err) => ({ ok: false, data: null, source, asOf: null, error: String(err && err.message ? err.message : err) });
-
 // ═══════════════════════════════════════════════════════════
-// COT — Large Speculators (non-commercial) net, weekly Δ, COT Index (3y)
+// COT
 // ═══════════════════════════════════════════════════════════
-export function parseCOT(rows) {
-    if (!Array.isArray(rows) || rows.length === 0) throw new Error('COT: empty response');
-    const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
-    const pts = rows.map((r) => ({
+export function parseCFTC(rows) {
+    if (!Array.isArray(rows) || !rows.length) throw new Error('CFTC: empty response');
+    const n = (v) => { const x = Number(v); return Number.isFinite(x) ? x : NaN; };
+    const out = rows.map((r) => ({
         date: String(r.report_date_as_yyyy_mm_dd || '').slice(0, 10),
-        long: num(r.noncomm_positions_long_all),
-        short: num(r.noncomm_positions_short_all),
-        chLong: num(r.change_in_noncomm_long_all),
-        chShort: num(r.change_in_noncomm_short_all),
-        market: r.market_and_exchange_names,
-    })).filter((p) => p.date && p.long !== null && p.short !== null)
-        .sort((a, b) => (a.date < b.date ? 1 : -1)); // newest first
-    if (!pts.length) throw new Error('COT: no usable rows');
-    const latest = pts[0];
-    const net = latest.long - latest.short;
-    let change = latest.chLong !== null && latest.chShort !== null ? latest.chLong - latest.chShort : null;
-    if (change === null && pts[1]) change = net - (pts[1].long - pts[1].short);
-    const nets = pts.slice(0, 156).map((p) => p.long - p.short);
-    let index = null;
-    if (nets.length >= 26) {
-        const min = Math.min(...nets), max = Math.max(...nets);
-        index = max > min ? ((net - min) / (max - min)) * 100 : null;
-    }
-    return { net, change, index: index === null ? null : Math.round(index * 10) / 10, reportDate: latest.date, weeks: nets.length, market: latest.market };
+        lsLong: n(r.noncomm_positions_long_all), lsShort: n(r.noncomm_positions_short_all), lsNet: NaN,
+        lsChange: n(r.change_in_noncomm_long_all) - n(r.change_in_noncomm_short_all),
+        cLong: n(r.comm_positions_long_all), cShort: n(r.comm_positions_short_all), cNet: NaN,
+        sLong: n(r.nonrept_positions_long_all), sShort: n(r.nonrept_positions_short_all), sNet: NaN,
+        idx6: NaN, idx36: NaN, idx: NaN,
+    })).filter((r) => r.date && Number.isFinite(r.lsLong) && Number.isFinite(r.lsShort))
+        .sort((a, b) => (a.date < b.date ? 1 : -1));
+    if (!out.length) throw new Error('CFTC: no usable rows');
+    return out;
 }
 
 export function getCOT() {
     return cached('cot', 6 * 3600_000, async () => {
+        const errors = [];
+        try {
+            return toCOTSchema(parseMarketBullsCOT(await getText(MB_URLS.cot)), 'MarketBulls');
+        } catch (e) { errors.push('MarketBulls: ' + errMsg(e)); }
         try {
             const q = new URLSearchParams({ cftc_contract_market_code: NQ_CFTC_CODE, $order: 'report_date_as_yyyy_mm_dd DESC', $limit: '156' });
-            const data = parseCOT(await getJSON(`${SOURCES.cot}?${q}`));
-            return { ok: true, data, source: 'CFTC Legacy COT (Non-Commercial)', asOf: data.reportDate, error: null };
-        } catch (e) { return fail('CFTC', e); }
-    });
+            const s = toCOTSchema(parseCFTC(await getJSON(`${SOURCES.cftc}?${q}`)), 'CFTC Legacy COT (fallback — MarketBulls unavailable)');
+            s.fallbackReason = errors[0];
+            return s;
+        } catch (e) { errors.push('CFTC: ' + errMsg(e)); }
+        return { status: 'DATA_UNAVAILABLE', source: null, fetchedAt: new Date().toISOString(), errors };
+    }, (v) => v.status === 'OK');
 }
 
 // ═══════════════════════════════════════════════════════════
-// Yahoo chart helpers — bars, VIX, monthly seasonality
+// Yahoo helpers (fallback provider)
 // ═══════════════════════════════════════════════════════════
 export function parseYahooBars(json) {
     const r = json && json.chart && json.chart.result && json.chart.result[0];
@@ -97,81 +99,126 @@ export function parseYahooBars(json) {
     const q = (r.indicators && r.indicators.quote && r.indicators.quote[0]) || {};
     const bars = [];
     for (let i = 0; i < ts.length; i++) {
-        const o = q.open && q.open[i], h = q.high && q.high[i], l = q.low && q.low[i], c = q.close && q.close[i];
-        if ([o, h, l, c].every((v) => typeof v === 'number' && Number.isFinite(v))) bars.push({ t: ts[i] * 1000, o, h, l, c });
+        const o = q.open && q.open[i], h = q.high && q.high[i], l = q.low && q.low[i], c = q.close && q.close[i], v = q.volume && q.volume[i];
+        if ([o, h, l, c].every((x) => typeof x === 'number' && Number.isFinite(x))) {
+            const b = { t: ts[i] * 1000, o, h, l, c };
+            if (typeof v === 'number' && Number.isFinite(v)) b.v = v;
+            bars.push(b);
+        }
     }
     return { bars, meta: r.meta || {} };
 }
 
-const TF = { '15m': { interval: '15m', range: '5d', ttl: 60_000 }, '5m': { interval: '5m', range: '2d', ttl: 60_000 } };
-
-export function getBars(tf) {
-    const spec = TF[tf];
-    if (!spec) return Promise.resolve(fail('Yahoo', 'unsupported timeframe'));
-    return cached('bars:' + tf, spec.ttl, async () => {
-        try {
-            const { bars, meta } = parseYahooBars(await getJSON(`${SOURCES.yahoo}NQ%3DF?interval=${spec.interval}&range=${spec.range}&includePrePost=true`));
-            if (bars.length < 30) throw new Error('not enough bars (' + bars.length + ')');
-            const last = bars[bars.length - 1].t;
-            return { ok: true, data: { bars, symbol: 'NQ=F', interval: spec.interval, delayed: true, exchangeTz: meta.exchangeTimezoneName || null }, source: 'Yahoo Finance NQ=F (delayed)', asOf: new Date(last).toISOString(), error: null };
-        } catch (e) { return fail('Yahoo', e); }
-    });
-}
-
-export function getVIX() {
-    return cached('vix', 5 * 60_000, async () => {
-        try {
-            const { bars, meta } = parseYahooBars(await getJSON(`${SOURCES.yahoo}%5EVIX?interval=1d&range=1mo`));
-            const value = typeof meta.regularMarketPrice === 'number' ? meta.regularMarketPrice : bars.length ? bars[bars.length - 1].c : null;
-            if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('VIX: no value');
-            const prev = bars.length > 1 ? bars[bars.length - 2].c : null;
-            return { ok: true, data: { value, prevClose: prev }, source: 'Yahoo Finance ^VIX', asOf: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : null, error: null };
-        } catch (e) { return fail('Yahoo', e); }
-    });
-}
-
-/** Seasonality of the current calendar month from monthly closes (10Y / 5Y / 2Y, completed years only). */
+/** Monthly-close seasonality for the current month (fallback when MarketBulls is unavailable). */
 export function computeSeasonality(bars, now) {
     const d = new Date(now);
     const month = d.getUTCMonth(), year = d.getUTCFullYear();
-    const closes = new Map(); // 'YYYY-M' → close
+    const closes = new Map();
     for (const b of bars) {
-        // Yahoo monthly bars are stamped at the start of the month in exchange time — shift 2 days into the month
-        const tt = new Date(b.t + 2 * 86400000);
+        const tt = new Date(b.t + 2 * 86400000); // monthly bars are stamped on the 1st in exchange time
         closes.set(tt.getUTCFullYear() + '-' + tt.getUTCMonth(), b.c);
     }
     const yearly = [];
     for (let y = year - 1; y >= year - 10; y--) {
         const cur = closes.get(y + '-' + month);
-        const prevKey = month === 0 ? (y - 1) + '-11' : y + '-' + (month - 1);
-        const prev = closes.get(prevKey);
-        if (typeof cur === 'number' && typeof prev === 'number' && prev > 0) yearly.push({ year: y, ret: (cur / prev - 1) * 100 });
+        const prev = closes.get(month === 0 ? (y - 1) + '-11' : y + '-' + (month - 1));
+        if (typeof cur === 'number' && typeof prev === 'number' && prev > 0) yearly.push((cur / prev - 1) * 100);
     }
-    const win = (n) => {
+    const win = (n, minN) => {
         const s = yearly.slice(0, n);
-        if (s.length < Math.min(n, 2)) return null;
-        const avg = s.reduce((a, x) => a + x.ret, 0) / s.length;
-        return { avg: Math.round(avg * 100) / 100, winRate: s.filter((x) => x.ret > 0).length / s.length, n: s.length };
+        if (s.length < minN) return null;
+        const avg = s.reduce((a, x) => a + x, 0) / s.length;
+        const winRate = s.filter((x) => x > 0).length / s.length;
+        const seasonalBias = avg > 0 && winRate >= 0.6 ? 'BULLISH' : avg < 0 && winRate <= 0.4 ? 'BEARISH' : 'NEUTRAL';
+        return { averageChange: Math.round(avg * 100) / 100, winRate, n: s.length, seasonalBias, basis: 'monthly return' };
     };
-    return {
-        month: d.toLocaleString('en-US', { month: 'long', timeZone: 'UTC' }),
-        y10: yearly.length >= 8 ? win(10) : null,
-        y5: yearly.length >= 5 ? win(5) : null,
-        y2: yearly.length >= 2 ? win(2) : null,
-        years: yearly,
-    };
+    return { y10: win(10, 8), y5: win(5, 5), y2: win(2, 2) };
 }
 
 export function getSeasonality(now = Date.now()) {
     return cached('seasonality', 12 * 3600_000, async () => {
+        const errors = [];
+        try {
+            return toSeasonalitySchema(parseMarketBullsSeasonality(await getText(MB_URLS.seasonality), now), 'MarketBulls', now);
+        } catch (e) { errors.push('MarketBulls: ' + errMsg(e)); }
         try {
             const { bars } = parseYahooBars(await getJSON(`${SOURCES.yahoo}%5ENDX?interval=1mo&range=15y`));
             if (bars.length < 30) throw new Error('not enough monthly history');
-            const data = computeSeasonality(bars, now);
-            if (!data.y10 && !data.y5) throw new Error('insufficient years');
-            return { ok: true, data, source: 'Yahoo Finance ^NDX monthly', asOf: new Date(bars[bars.length - 1].t).toISOString(), error: null };
-        } catch (e) { return fail('Yahoo', e); }
-    });
+            const s = toSeasonalitySchema(computeSeasonality(bars, now), 'Yahoo ^NDX monthly (fallback — MarketBulls unavailable)', now);
+            if (s.status !== 'OK') throw new Error('insufficient years');
+            s.fallbackReason = errors[0];
+            return s;
+        } catch (e) { errors.push('Yahoo: ' + errMsg(e)); }
+        return { status: 'DATA_UNAVAILABLE', source: null, fetchedAt: new Date().toISOString(), errors };
+    }, (v) => v.status === 'OK');
+}
+
+// ═══════════════════════════════════════════════════════════
+// Market bars — NQ / NAS100 / SPX, 15m + 5m
+// ═══════════════════════════════════════════════════════════
+const YF = { '15m': { interval: '15m', range: '5d' }, '5m': { interval: '5m', range: '2d' } };
+
+async function yahooBars(key, tf) {
+    const spec = YF[tf];
+    const { bars } = parseYahooBars(await getJSON(`${SOURCES.yahoo}${encodeURIComponent(YAHOO_SYMBOLS[key])}?interval=${spec.interval}&range=${spec.range}&includePrePost=true`));
+    if (bars.length < 30) throw new Error('not enough bars (' + bars.length + ')');
+    return { bars, symbol: YAHOO_SYMBOLS[key], provider: 'Yahoo Finance', delayed: true };
+}
+
+async function tvBars(key, tf) {
+    const r = await tvImpl(key, tf, { count: 200 });
+    if (r.bars.length < 30) throw new Error('not enough bars (' + r.bars.length + ')');
+    return { bars: r.bars, symbol: r.symbol, provider: 'TradingView MCP', delayed: !!r.delayed };
+}
+
+/** One series (both timeframes from the SAME provider, so fresh and stale data are never mixed). */
+export async function getSeries(key) {
+    return cached('series:' + key, 30_000, async () => {
+        const errors = [];
+        const providers = [];
+        if (tvEnabled()) providers.push(['TradingView MCP', tvBars]);
+        providers.push(['Yahoo', yahooBars]);
+        for (const [name, fn] of providers) {
+            const [r15, r5] = await Promise.allSettled([fn(key, '15m'), fn(key, '5m')]);
+            if (r15.status === 'fulfilled') {
+                const base = r15.value;
+                return {
+                    key, status: 'OK', provider: base.provider, symbol: base.symbol, delayed: base.delayed,
+                    bars15: base.bars,
+                    bars5: r5.status === 'fulfilled' ? r5.value.bars : null,
+                    error5: r5.status === 'rejected' ? errMsg(r5.reason) : null,
+                    errors, fetchedAt: new Date().toISOString(),
+                };
+            }
+            errors.push(name + ': ' + errMsg(r15.reason));
+        }
+        return { key, status: 'DATA_UNAVAILABLE', provider: null, symbol: TV_SYMBOLS[key] || key, bars15: null, bars5: null, errors, fetchedAt: new Date().toISOString() };
+    }, (v) => v.status === 'OK');
+}
+
+export async function getMarket() {
+    const [NQ, NAS100, SPX] = await Promise.all(['NQ', 'NAS100', 'SPX'].map(getSeries));
+    return { series: { NQ, NAS100, SPX }, primaryProvider: tvEnabled() ? 'TradingView MCP' : 'Yahoo Finance (delayed fallback — TradingView MCP not configured)', fetchedAt: new Date().toISOString() };
+}
+
+export function getVIX() {
+    return cached('vix', 5 * 60_000, async () => {
+        const errors = [];
+        if (tvEnabled()) {
+            try {
+                const r = await tvImpl('VIX', '1d', { count: 5 });
+                const last = r.bars[r.bars.length - 1];
+                return { status: 'OK', value: last.c, asOf: new Date(last.t).toISOString(), source: 'TradingView MCP ' + r.symbol, fetchedAt: new Date().toISOString() };
+            } catch (e) { errors.push('TradingView MCP: ' + errMsg(e)); }
+        }
+        try {
+            const { bars, meta } = parseYahooBars(await getJSON(`${SOURCES.yahoo}%5EVIX?interval=1d&range=1mo`));
+            const value = typeof meta.regularMarketPrice === 'number' ? meta.regularMarketPrice : bars.length ? bars[bars.length - 1].c : null;
+            if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('VIX: no value');
+            return { status: 'OK', value, asOf: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : null, source: 'Yahoo Finance ^VIX' + (errors.length ? ' (fallback)' : ''), fetchedAt: new Date().toISOString() };
+        } catch (e) { errors.push('Yahoo: ' + errMsg(e)); }
+        return { status: 'DATA_UNAVAILABLE', value: null, source: null, errors, fetchedAt: new Date().toISOString() };
+    }, (v) => v.status === 'OK');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -188,7 +235,9 @@ export function getNews() {
     return cached('news', 15 * 60_000, async () => {
         try {
             const events = parseCalendar(await getJSON(SOURCES.calendar));
-            return { ok: true, data: { events }, source: 'ForexFactory weekly calendar', asOf: new Date().toISOString(), error: null };
-        } catch (e) { return fail('Calendar', e); }
-    });
+            return { status: 'OK', events, source: 'ForexFactory weekly calendar', fetchedAt: new Date().toISOString() };
+        } catch (e) {
+            return { status: 'DATA_UNAVAILABLE', events: null, source: null, errors: ['Calendar: ' + errMsg(e)], fetchedAt: new Date().toISOString() };
+        }
+    }, (v) => v.status === 'OK');
 }

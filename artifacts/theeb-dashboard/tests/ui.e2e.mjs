@@ -8,6 +8,7 @@ import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import * as S from '../lib/sources.mjs';
+import * as TV from '../lib/tradingview-mcp.mjs';
 import { createServer } from '../server.mjs';
 
 const require = createRequire(import.meta.url);
@@ -17,6 +18,7 @@ const shots = process.env.SHOTS_DIR || path.join(here, '..', '.shots');
 await mkdir(shots, { recursive: true });
 
 S.setFetch(async () => { throw new Error('upstream unreachable (test)'); });
+S.setTradingView(async () => { throw new Error('TradingView MCP not configured'); }, false);
 const server = createServer();
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = 'http://127.0.0.1:' + server.address().port;
@@ -46,35 +48,49 @@ await check('live mode, upstream down → NO TRADE / DATA UNAVAILABLE, no JS err
     assert.equal(await text(page, '#d-word'), 'NO TRADE');
     assert.match(await text(page, '#d-why'), /DATA UNAVAILABLE/);
     assert.match(await text(page, '#mode-text'), /DATA UNAVAILABLE/);
+    assert.match(await text(page, '#src-text'), /UNAVAILABLE/);
+    assert.equal(await text(page, '#d-src'), 'UNAVAILABLE');
+    assert.match(await text(page, '#smt-state'), /UNCLEAR/);
     assert.equal(await text(page, '#d-conf'), 'N/A');
     assert.match(await text(page, '#cot-net'), /DATA UNAVAILABLE/);
     assert.match(await text(page, '#news-status'), /DATA UNAVAILABLE/);
     assert.match(await text(page, '#ag1-status'), /ERROR/);
     assert.match(await text(page, '#ag2-status'), /ERROR/);
-    assert.ok(!(await page.locator('body').innerText()).includes('LIVE (DELAYED)'), 'must not claim LIVE');
+    assert.ok(!/\bNEUTRAL\b/.test(await text(page, '#ctx-overall')), 'UNAVAILABLE must never be shown as NEUTRAL');
+    assert.ok(!(await page.locator('body').innerText()).includes('SIMULATED'), 'LIVE must not show simulated data');
     assert.equal(await page.locator('.demo-banner').isVisible(), false);
     await page.screenshot({ path: path.join(shots, 'live-unavailable.png'), fullPage: true });
     assert.deepEqual(errors, []);
     await ctx.close();
 });
 
-// 2) Demo scenarios
-const expectations = { long: 'LONG', short: 'SHORT', news: 'NO TRADE', tril: 'NO TRADE', caution: 'LONG' };
-for (const [key, word] of Object.entries(expectations)) {
+// 2) Demo scenarios (one per required test case)
+const expectations = {
+    long: ['LONG', { '#smt-state': /BULLISH CONFLUENCE/, '#news-status': /CLEAR/, '#tril-overall': /PASS · READY/, '#d-fresh': /FRESH/ }],
+    short: ['SHORT', { '#smt-state': /BEARISH CONFLUENCE/ }],
+    news_high: ['NO TRADE', { '#d-why': /NEWS HIGH IMPACT/, '#news-status': /HIGH IMPACT/, '#news-restrict': /YES/ }],
+    tril_fail: ['NO TRADE', { '#d-why': /TRIL FAIL/, '#tril-overall': /NOT READY/ }],
+    risk_fail: ['NO TRADE', { '#d-why': /RISK FAIL/, '#risk-status': /FAIL/ }],
+    cot_off: ['LONG', { '#cot-bias': /DATA UNAVAILABLE/, '#ctx-overall': /PARTIAL/ }],
+    seas_off: ['LONG', { '#seas-bias': /DATA UNAVAILABLE/ }],
+    vix_off: ['LONG', { '#vix-state': /DATA UNAVAILABLE/ }],
+    nq_delayed: ['LONG', { '#d-fresh': /DELAYED/, '#d-warnings': /DELAYED DATA/, '#src-text': /NQ · DELAYED/ }],
+    nas_proxy: ['LONG', { '#d-src': /NAS100 PROXY/, '#src-text': /NAS100 PROXY/, '#lv-basis': /NAS100 PROXY prices/ }],
+    no_data: ['NO TRADE', { '#d-why': /DATA UNAVAILABLE/, '#d-conf': /N\/A/, '#st-src': /NONE/ }],
+    smt_none: ['LONG', { '#smt-state': /NONE/ }],
+    smt_unclear: ['LONG', { '#smt-state': /UNCLEAR/, '#smt-15': /S&P 500 data UNAVAILABLE/ }],
+};
+for (const [key, [word, sels]] of Object.entries(expectations)) {
     await check(`demo "${key}" → ${word}`, async () => {
         const { page, ctx, errors } = await open('/?demo=' + key);
         await page.waitForFunction((w) => document.getElementById('d-word').textContent === w, word, { timeout: 10000 });
         assert.equal(await page.locator('.demo-banner').isVisible(), true, 'DEMO banner must be visible');
         assert.match(await text(page, '#mode-text'), /DEMO \/ SIMULATED/);
-        if (key === 'news') { assert.match(await text(page, '#d-why'), /NEWS HIGH IMPACT/); assert.match(await text(page, '#news-status'), /HIGH IMPACT/); }
-        if (key === 'tril') assert.match(await text(page, '#d-why'), /TRIL FAIL/);
-        if (key === 'caution') assert.match(await text(page, '#d-warnings'), /News caution/);
-        if (word !== 'NO TRADE') {
-            assert.match(await text(page, '#d-plan'), /ENTRY/);
-            assert.match(await text(page, '#risk-status'), /PASS/);
-            assert.match(await text(page, '#tril-overall'), /PASS/);
-        }
-        await page.screenshot({ path: path.join(shots, 'demo-' + key + '.png'), fullPage: true });
+        assert.match(await text(page, '#d-conf-label'), /CONFIDENCE SCORE/);
+        assert.ok(!/probab/i.test(await page.locator('#hero').innerText()), 'no win-probability wording');
+        for (const [sel, re] of Object.entries(sels)) assert.match(await text(page, sel), re, sel);
+        if (word !== 'NO TRADE') assert.match(await text(page, '#d-plan'), /ENTRY/);
+        if (['long', 'nas_proxy', 'no_data', 'news_high'].includes(key)) await page.screenshot({ path: path.join(shots, 'demo-' + key + '.png'), fullPage: true });
         assert.deepEqual(errors, []);
         await ctx.close();
     });
@@ -133,7 +149,7 @@ await check('interactions: TRIL override, risk edit, NQ switch, trading state, s
 
 // 4) Mobile layout: no horizontal scroll
 await check('mobile 390px: no horizontal overflow', async () => {
-    const { page, ctx, errors } = await open('/?demo=news', { width: 390, height: 844 });
+    const { page, ctx, errors } = await open('/?demo=news_high', { width: 390, height: 844 });
     await page.waitForFunction(() => document.getElementById('d-word').textContent === 'NO TRADE');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.ok(overflow <= 0, 'horizontal overflow ' + overflow + 'px');
@@ -179,7 +195,29 @@ await check('exit demo → live mode again', async () => {
     await ctx.close();
 });
 
+// 7) LIVE through a real TradingView MCP connection (local mock server over stdio)
+await check('LIVE via TradingView MCP → NQ FRESH from MCP, other sources honestly UNAVAILABLE', async () => {
+    process.env.TRADINGVIEW_MCP_COMMAND = process.execPath;
+    process.env.TRADINGVIEW_MCP_ARGS = JSON.stringify([path.join(here, 'fixtures', 'mock-tv-mcp.mjs')]);
+    S.setTradingView(TV.fetchTradingViewBars, true);
+    S.clearCache();
+    const { page, ctx, errors } = await open('/');
+    await page.waitForFunction(() => /^NQ · FRESH/.test(document.getElementById('src-text').textContent), null, { timeout: 20000 });
+    assert.match(await text(page, '#st-src'), /CME_MINI:NQ1! · TradingView MCP/);
+    assert.match(await text(page, '#st-cands'), /NQ FRESH · NAS100 FRESH/);
+    assert.match(await text(page, '#mode-text'), /LIVE · PARTIAL/);
+    assert.match(await text(page, '#cot-bias'), /DATA UNAVAILABLE/);
+    assert.match(await text(page, '#vix-val'), /^1\d\.\d\d$/); // VIX from MCP
+    assert.match(await text(page, '#smt-pair'), /CME_MINI:ES1!/);
+    assert.equal(await text(page, '#d-word'), 'NO TRADE'); // context missing → no candidate
+    await page.screenshot({ path: path.join(shots, 'live-mcp.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+    await ctx.close();
+    await TV.resetTradingViewClient();
+});
+
 await browser.close();
+server.closeAllConnections();
 server.close();
 for (const [s, n] of results) console.log(s.padEnd(5), n);
 const failed = results.filter((r) => r[0] === 'FAIL').length;

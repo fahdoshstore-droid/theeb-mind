@@ -65,7 +65,7 @@
         .demo-banner { display: none; position: sticky; top: 0; z-index: 49; padding: 8px 20px; font-size: 12px; font-weight: 800; letter-spacing: .5px;
             color: #1a1203; background: repeating-linear-gradient(135deg, #f59e0b 0 14px, #fbbf24 14px 28px); align-items: center; gap: 12px; flex-wrap: wrap; }
         body.demo .demo-banner { display: flex; }
-        .demo-banner select { max-width: 100%; min-width: 0; background: #1a1203; color: #fbbf24; border: 0; border-radius: 6px; padding: 4px 8px; font-weight: 700; font-size: 12px; }
+        .demo-banner select { direction: ltr; max-width: 100%; min-width: 0; background: #1a1203; color: #fbbf24; border: 0; border-radius: 6px; padding: 4px 8px; font-weight: 700; font-size: 12px; }
         .demo-banner button { background: #1a1203; color: #fbbf24; border: 0; border-radius: 6px; padding: 4px 10px; font-weight: 700; cursor: pointer; font-size: 12px; }
 
         main { max-width: 1440px; margin: 0 auto; padding: 18px 20px 40px; }
@@ -91,7 +91,7 @@
         .conf-bar { height: 5px; border-radius: 100px; background: var(--raised); overflow: hidden; margin-top: 4px; width: 140px; }
         .conf-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); width: 0; transition: width .5s; }
         .hero-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-        .gates { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+        .gates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
         .gate { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; min-width: 0; }
         .gate .g-name { font-size: 10px; color: var(--text-3); font-weight: 800; letter-spacing: 1.2px; direction: ltr; text-align: right; }
         .gate .g-val { font-family: var(--mono); font-size: 12px; font-weight: 700; margin-top: 2px; direction: ltr; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -169,7 +169,7 @@
         .reason-list li { font-size: 12px; color: #fca5a5; direction: ltr; text-align: right; }
         .reason-list li::before { content: '• '; }
 
-        .agents { grid-column: 1 / -1; }
+        .agents { grid-column: span 2; }
         .agents-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
         .agent { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px; min-width: 0; }
         .agent-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
@@ -192,12 +192,12 @@
 
         @media (max-width: 1180px) {
             .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .gates { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
         @media (max-width: 760px) {
             .header { padding: 10px 16px; }
             main { padding: 14px 16px 32px; }
             .grid, .agents-grid { grid-template-columns: 1fr; }
+            .agents { grid-column: auto; }
             .hero { grid-template-columns: 1fr; padding: 16px; }
             .verdict { border-inline-end: 0; padding-inline-end: 0; border-bottom: 1px solid var(--border); padding-bottom: 14px; }
             .verdict-word { font-size: 40px; }
@@ -224,6 +224,7 @@
                 <button type="button" data-inst="MNQ" aria-pressed="true">MNQ</button>
             </div>
             <span class="chip" id="session-chip"><span class="dot" id="session-dot"></span><span id="session-text">—</span></span>
+            <span class="chip" id="src-chip" title="Market data source and freshness"><span class="dot" id="src-dot"></span><span id="src-text">DATA —</span></span>
             <span class="chip" id="mode-chip"><span class="dot" id="mode-dot"></span><span id="mode-text">LOADING</span></span>
             <span class="clock"><span id="clock-ast">--:--</span> AST<span class="et"> · <span id="clock-et">--:--</span> ET</span></span>
             <button class="icon-btn" id="btn-refresh" type="button" title="Refresh data">⟳</button>
@@ -247,9 +248,13 @@
                 <div class="verdict-tag" id="d-tag">جاري تحميل البيانات…</div>
                 <div class="kv-row">
                     <div class="kv"><span>BIAS</span><span id="d-bias">—</span></div>
-                    <div class="kv"><span id="d-conf-label">CONFIDENCE</span><span id="d-conf">N/A</span>
-                        <div class="conf-bar" title="Evidence-alignment score from the inputs below — not a probability of profit"><div class="conf-fill" id="d-conf-fill"></div></div>
+                    <div class="kv"><span id="d-conf-label">CONFIDENCE SCORE</span><span id="d-conf">N/A</span>
+                        <div class="conf-bar" title="Evidence-alignment score (0–95) — not a win probability"><div class="conf-fill" id="d-conf-fill"></div></div>
                     </div>
+                </div>
+                <div class="kv-row">
+                    <div class="kv"><span>DATA SOURCE</span><span id="d-src">—</span></div>
+                    <div class="kv"><span>FRESHNESS</span><span id="d-fresh">—</span></div>
                 </div>
             </div>
             <div class="hero-body">
@@ -257,7 +262,7 @@
                 <div class="why" id="d-why">—</div>
                 <div class="reasons" id="d-warnings"></div>
                 <div class="plan" id="d-plan"></div>
-                <div class="disclaimer">Trade Candidate فقط — لا يوجد تنفيذ تلقائي. القرار والتنفيذ لك. الثقة = درجة توافق الأدلة الحالية، وليست احتمال ربح.</div>
+                <div class="disclaimer">Trade Candidate فقط — لا يوجد تنفيذ تلقائي. القرار والتنفيذ لك. Confidence Score = درجة توافق الأدلة الحالية، وليست احتمال نجاح الصفقة.</div>
             </div>
         </section>
 
@@ -269,15 +274,17 @@
                     <span class="pill s-na" id="ctx-overall">—</span>
                 </div>
                 <div class="block">
-                    <div class="block-h"><span class="block-t">COT · LARGE SPEC</span><span class="pill s-na" id="cot-bias">—</span></div>
+                    <div class="block-h"><span class="block-t">COT · LARGE SPECULATORS</span><span class="pill s-na" id="cot-bias">—</span></div>
+                    <div class="row"><span class="k">Long / Short</span><span class="v" id="cot-ls">—</span></div>
                     <div class="row"><span class="k">Net Position</span><span class="v" id="cot-net">—</span></div>
                     <div class="row"><span class="k">Weekly Change</span><span class="v" id="cot-chg">—</span></div>
-                    <div class="row"><span class="k">COT Index (3Y)</span><span class="v" id="cot-idx">—</span></div>
+                    <div class="row"><span class="k">COT Index 6M · 36M</span><span class="v" id="cot-idx">—</span></div>
+                    <div class="row"><span class="k">Commercials · Small (net)</span><span class="v" id="cot-others">—</span></div>
                     <div class="src" id="cot-src">—</div>
                 </div>
                 <div class="block">
                     <div class="block-h"><span class="block-t">SEASONALITY · <span id="seas-month">—</span></span><span class="pill s-na" id="seas-bias">—</span></div>
-                    <table class="seas-table"><thead><tr><th></th><th>Avg</th><th>Up years</th><th>Bias</th></tr></thead><tbody id="seas-body"></tbody></table>
+                    <table class="seas-table"><thead><tr><th></th><th>Avg change</th><th>Basis</th><th>Bias</th></tr></thead><tbody id="seas-body"></tbody></table>
                     <div class="src" id="seas-src">—</div>
                 </div>
                 <div class="block">
@@ -293,7 +300,12 @@
                     <div class="card-t">MARKET STRUCTURE<small><span id="st-inst">MNQ</span> · ICT / SMC</small></div>
                     <span class="pill s-na" id="st-overall">—</span>
                 </div>
-                <div class="row"><span class="k">Last price</span><span class="v" id="st-price">—</span></div>
+                <div class="block">
+                    <div class="block-h"><span class="block-t">DATA SOURCE</span><span class="pill s-na" id="st-fresh">—</span></div>
+                    <div class="row"><span class="k">Using</span><span class="v" id="st-src">—</span></div>
+                    <div class="row"><span class="k">NQ · NAS100</span><span class="v" id="st-cands">—</span></div>
+                    <div class="row"><span class="k">Last price</span><span class="v" id="st-price">—</span></div>
+                </div>
                 <div class="block">
                     <div class="block-h"><span class="block-t">15m</span><span class="src" id="st-15-asof" style="margin:0"></span></div>
                     <div class="row"><span class="k">Trend</span><span class="v" id="st-trend">—</span></div>
@@ -302,10 +314,11 @@
                     <div class="row"><span class="k">Last raid</span><span class="v" id="st-raid">—</span></div>
                 </div>
                 <div class="block">
-                    <div class="block-h"><span class="block-t">5m</span></div>
+                    <div class="block-h"><span class="block-t">5m</span><span class="src" id="st-5-asof" style="margin:0"></span></div>
                     <div class="row"><span class="k">Entry state</span><span class="v" id="st-entry">—</span></div>
                     <div class="row"><span class="k">Confirmation</span><span class="v" id="st-confirm">—</span></div>
-                    <div class="row"><span class="k">Entry FVG</span><span class="v" id="st-fvg">—</span></div>
+                    <div class="row"><span class="k">FVG / Imbalance</span><span class="v" id="st-fvg">—</span></div>
+                    <div class="row"><span class="k">Entry location</span><span class="v" id="st-loc">—</span></div>
                 </div>
                 <div class="field" style="margin-top:8px">
                     <label for="st-override">15m STRUCTURE (override)</label>
@@ -316,7 +329,6 @@
                         <option value="NEUTRAL">NEUTRAL / RANGE</option>
                     </select>
                 </div>
-                <div class="src" id="st-src">—</div>
             </section>
 
             <!-- ═════════ TRIL ═════════ -->
@@ -327,6 +339,19 @@
                 </div>
                 <div id="tril-rows"></div>
                 <div class="hint">يستنتج النظام كل عنصر تلقائياً من بيانات السعر. اضغط على الحالة لتعديلها يدوياً إذا قرأت الشارت بنفسك (AUTO → PASS → FAIL → UNCLEAR).</div>
+            </section>
+
+            <!-- ═════════ SMT ═════════ -->
+            <section class="card" id="card-smt">
+                <div class="card-h">
+                    <div class="card-t">SMT<small>NQ vs S&amp;P 500 — Confluence فقط</small></div>
+                    <span class="pill s-na" id="smt-state">—</span>
+                </div>
+                <div class="row"><span class="k">Compared</span><span class="v" id="smt-pair">—</span></div>
+                <div class="row"><span class="k">15m (context)</span><span class="v" id="smt-15">—</span></div>
+                <div class="row"><span class="k">5m (confirmation)</span><span class="v" id="smt-5">—</span></div>
+                <div class="row"><span class="k">Effect</span><span class="v" id="smt-effect">—</span></div>
+                <div class="hint">SMT لا يصدر LONG أو SHORT وحده — يرفع أو يخفض Confidence فقط. المقارنة: هل أخذ أحد المؤشرين قمة/قاع لم يؤكده الآخر.</div>
             </section>
 
             <!-- ═════════ NEWS ═════════ -->
@@ -342,6 +367,7 @@
                 <div class="row"><span class="k">Next important event</span><span class="v" id="news-event">—</span></div>
                 <div class="row"><span class="k">Time</span><span class="v" id="news-time">—</span></div>
                 <div class="row"><span class="k">Impact</span><span class="v" id="news-impact">—</span></div>
+                <div class="row"><span class="k">Trading restriction</span><span class="v" id="news-restrict">—</span></div>
                 <div style="margin-top:8px" id="news-list"></div>
                 <div class="hint">HIGH IMPACT = حجب من 30 دقيقة قبل الخبر حتى 15 دقيقة بعده. CAUTION = خبر قوي خلال ساعتين أو خبر متوسط قريب.</div>
             </section>
@@ -399,7 +425,7 @@
                 <div class="agents-grid">
                     <div class="agent">
                         <div class="agent-h">
-                            <div><div class="agent-name">THEEB Market Analyst</div><div class="agent-role">COT · Seasonality · VIX · Structure · TRIL · Bias · Confidence</div></div>
+                            <div><div class="agent-name">THEEB Market Analyst</div><div class="agent-role">COT · Seasonality · VIX · Structure · TRIL · SMT · Bias · Confidence</div></div>
                             <span class="chip"><span class="dot" id="ag1-dot"></span><span id="ag1-status">—</span></span>
                         </div>
                         <pre class="json" id="ag1-json">—</pre>
@@ -460,6 +486,8 @@
         const fmtP = (v) => (isNum(v) ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—');
         const fmtUsd = (v) => (isNum(v) ? (v < 0 ? '−$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US') : '—');
         const fmtInt = (v) => (isNum(v) ? (v > 0 ? '+' : '') + Math.round(v).toLocaleString('en-US') : '—');
+        const fmtPct = (v) => (isNum(v) ? (v > 0 ? '+' : '') + v.toFixed(2) + '%' : '—');
+        const UNAV = 'UNAVAILABLE';
 
         // ── storage (wrapped: may be unavailable) ──
         const store = {
@@ -468,18 +496,21 @@
             del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } },
         };
 
-        // ── state ──
+        // ── state: LIVE and DEMO data never share a slot ──
+        const EMPTY = () => ({ cot: null, seasonality: null, vix: null, market: null, news: null });
         const params = new URLSearchParams(location.search);
         const app = {
             mode: params.has('demo') ? 'demo' : 'live',
             scenario: params.get('demo') && DEMO.SCENARIOS[params.get('demo')] ? params.get('demo') : 'long',
-            data: { cot: null, seasonality: null, vix: null, bars15: null, bars5: null, news: null },
-            meta: { cot: null, seasonality: null, vix: null, bars15: null, bars5: null, news: null },
+            live: EMPTY(),
+            demo: EMPTY(),
             lastFetch: {},
-            ai: { configured: false, image: null, reading: null, busy: false },
+            config: { aiConfigured: false, marketProvider: null },
+            ai: { image: null, reading: null, busy: false },
             serverReachable: null,
             result: null,
         };
+        const data = () => (app.mode === 'demo' ? app.demo : app.live);
         const prefs = store.get('theeb-prefs', {});
         const user = {
             instrument: prefs.instrument === 'NQ' ? 'NQ' : 'MNQ',
@@ -492,7 +523,6 @@
         };
 
         function loadRules() {
-            // Compatible with the previous build's 'dheeb-settings' keys
             const s = store.get('dheeb-settings', {});
             const n = (v, d) => { const x = parseFloat(v); return Number.isFinite(x) && x > 0 ? x : d; };
             const D = E.DEFAULT_RULES;
@@ -503,82 +533,67 @@
                 requireKillZone: s.requireKillZone === undefined ? D.requireKillZone : !!s.requireKillZone,
             };
         }
-        function loadTrades() {
-            const t = store.get('dheeb_trade_journal', []);
-            user.trades = Array.isArray(t) ? t : [];
-        }
+        function loadTrades() { const t = store.get('dheeb_trade_journal', []); user.trades = Array.isArray(t) ? t : []; }
         function loadReady() {
             const r = store.get('theeb-ready', null);
-            const today = E.nyParts(Date.now()).date;
-            user.userReady = !(r && r.date === today && r.ready === false);
+            user.userReady = !(r && r.date === E.nyParts(Date.now()).date && r.ready === false);
         }
 
-        // ── data fetching ──
+        // ── LIVE fetching (server only; failures become DATA_UNAVAILABLE, never demo data) ──
         async function api(path) {
-            const res = await fetch(path, { signal: AbortSignal.timeout(20000), headers: { Accept: 'application/json' } });
+            const res = await fetch(path, { signal: AbortSignal.timeout(30000), headers: { Accept: 'application/json' } });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             return res.json();
         }
-        function applySource(key, payload, pick) {
-            if (payload && payload.ok) { app.data[key] = pick(payload.data); app.meta[key] = { ok: true, source: payload.source, asOf: payload.asOf }; }
-            else { app.data[key] = null; app.meta[key] = { ok: false, source: payload && payload.source, error: (payload && payload.error) || 'unavailable' }; }
-        }
-        function markDown(keys, err) {
-            keys.forEach((k) => { app.data[k] = null; app.meta[k] = { ok: false, error: err }; });
-        }
+        const down = (msg) => ({ status: 'DATA_UNAVAILABLE', errors: [msg] });
         async function fetchContext() {
             try {
                 const j = await api('/api/context');
                 app.serverReachable = true;
-                applySource('cot', j.cot, (d) => d);
-                applySource('seasonality', j.seasonality, (d) => d);
-                applySource('vix', j.vix, (d) => d);
-            } catch (e) { markDown(['cot', 'seasonality', 'vix'], 'server unreachable'); app.serverReachable = app.serverReachable || false; }
+                Object.assign(app.live, { cot: j.cot, seasonality: j.seasonality, vix: j.vix });
+            } catch (e) {
+                if (app.serverReachable === null) app.serverReachable = false;
+                Object.assign(app.live, { cot: down('server: ' + e.message), seasonality: down('server: ' + e.message), vix: down('server: ' + e.message) });
+            }
             app.lastFetch.context = Date.now();
         }
-        async function fetchBars() {
-            await Promise.all(['15m', '5m'].map(async (tf) => {
-                const key = tf === '15m' ? 'bars15' : 'bars5';
-                try { applySource(key, await api('/api/bars?tf=' + tf), (d) => d.bars); app.serverReachable = true; }
-                catch (e) { markDown([key], 'server unreachable'); }
-            }));
-            app.lastFetch.bars = Date.now();
+        async function fetchMarket() {
+            try { app.live.market = await api('/api/market'); app.serverReachable = true; }
+            catch (e) { app.live.market = { series: {}, error: 'server: ' + e.message }; }
+            app.lastFetch.market = Date.now();
         }
         async function fetchNews() {
-            try { applySource('news', await api('/api/news'), (d) => d); app.serverReachable = true; }
-            catch (e) { markDown(['news'], 'server unreachable'); }
+            try { app.live.news = await api('/api/news'); app.serverReachable = true; }
+            catch (e) { app.live.news = down('server: ' + e.message); }
             app.lastFetch.news = Date.now();
         }
         async function fetchConfig() {
-            try { const c = await api('/api/config'); app.ai.configured = !!c.aiConfigured; app.serverReachable = true; }
-            catch (e) { app.ai.configured = false; }
+            try { app.config = await api('/api/config'); app.serverReachable = true; }
+            catch (e) { app.config = { aiConfigured: false, marketProvider: null }; }
         }
-        async function refreshAll() {
-            if (app.mode === 'demo') { loadDemo(); render(); return; }
-            await Promise.all([fetchContext(), fetchBars(), fetchNews(), fetchConfig()]);
+        async function refreshLive() {
+            await Promise.all([fetchContext(), fetchMarket(), fetchNews(), fetchConfig()]);
             render();
         }
-        function loadDemo() {
-            const d = DEMO.scenario(app.scenario, Date.now());
-            app.data = { cot: d.cot, seasonality: d.seasonality, vix: d.vix, bars15: d.bars15, bars5: d.bars5, news: d.news };
-            const m = { ok: true, source: 'DEMO / SIMULATED', asOf: new Date().toISOString(), simulated: true };
-            app.meta = { cot: m, seasonality: m, vix: m, bars15: m, bars5: m, news: m };
-        }
+        function loadDemo() { app.demo = DEMO.scenario(app.scenario, Date.now()); }
 
         // ── rendering helpers ──
         const BIAS_CLS = { BULLISH: 's-bull', BEARISH: 's-bear', NEUTRAL: 's-neutral', RANGE: 's-neutral', UNAVAILABLE: 's-unavail' };
         const STATUS_CLS = { PASS: 's-pass', FAIL: 's-fail', UNCLEAR: 's-unclear', 'N/A': 's-na', READY: 's-ready', 'NOT READY': 's-notready',
-            LOW: 's-low', CAUTION: 's-caution', 'HIGH IMPACT': 's-high', UNAVAILABLE: 's-unavail', NORMAL: 's-normal', HIGH: 's-high' };
+            CLEAR: 's-low', CAUTION: 's-caution', 'HIGH IMPACT': 's-high', UNAVAILABLE: 's-unavail', NORMAL: 's-normal', HIGH: 's-high', LOW: 's-low' };
+        const FRESH_CLS = { FRESH: 's-ok', DELAYED: 's-caution', STALE: 's-err', UNAVAILABLE: 's-unavail' };
+        const SMT_CLS = { BULLISH_CONFLUENCE: 's-bull', BEARISH_CONFLUENCE: 's-bear', NONE: 's-na', UNCLEAR: 's-unclear' };
+        const smtText = (s) => String(s || '—').replace('_', ' ');
         function pill(el, text, cls) { el.className = 'pill ' + (cls || 's-na'); el.textContent = text; }
         function tcls(b) { return b === 'BULLISH' ? 't-bull' : b === 'BEARISH' ? 't-bear' : b === 'NEUTRAL' || b === 'RANGE' ? 't-neutral' : 't-na'; }
-        function srcText(meta, extra) {
-            if (!meta) return 'DATA UNAVAILABLE';
-            if (!meta.ok) return 'DATA UNAVAILABLE — ' + (meta.error || 'source error');
-            return (meta.simulated ? 'DEMO / SIMULATED' : meta.source || 'source') + (extra ? ' · ' + extra : '');
+        function srcLine(obj, extra) {
+            if (!obj) return 'DATA UNAVAILABLE';
+            if (obj.status !== 'OK') return 'DATA UNAVAILABLE — ' + ((obj.errors || []).join(' · ') || 'source error');
+            return (obj.simulated ? 'DEMO / SIMULATED' : obj.source || 'source') + (extra ? ' · ' + extra : '');
         }
-        function ago(iso) {
-            if (!iso) return '';
-            const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+        function ago(ms) {
+            if (!isNum(ms)) return '';
+            const m = Math.round((Date.now() - ms) / 60000);
             return m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago';
         }
         function nyTime(iso) {
@@ -591,43 +606,35 @@
             const now = Date.now();
             let r;
             try {
-                r = E.runPipeline(app.data, Object.assign({}, user, { structureOverride: user.structureOverride || null, sessionOverride: app.mode === 'demo' ? DEMO.SESSION : null }), now);
+                r = E.runPipeline(data(), Object.assign({}, user, { structureOverride: user.structureOverride || null, sessionOverride: app.mode === 'demo' ? DEMO.SESSION : null }), now);
             } catch (err) {
                 console.error('[THEEB] pipeline error', err);
-                renderFatal(err);
+                $('hero').className = 'hero notrade';
+                $('d-word').textContent = 'NO TRADE';
+                $('d-tag').textContent = 'ENGINE ERROR — ' + (err && err.message ? err.message : 'unknown');
                 return;
             }
             app.result = r;
-            renderHeader(r);
-            renderDecision(r);
-            renderContext(r);
-            renderStructure(r);
-            renderTRIL(r);
-            renderNews(r);
-            renderRisk(r);
-            renderState(r);
-            renderAgents(r);
-        }
-
-        function renderFatal(err) {
-            const hero = $('hero');
-            hero.className = 'hero notrade';
-            $('d-word').textContent = 'NO TRADE';
-            $('d-tag').textContent = 'ENGINE ERROR — ' + (err && err.message ? err.message : 'unknown');
+            renderHeader(r); renderDecision(r); renderContext(r); renderStructure(r); renderTRIL(r);
+            renderSMT(r); renderNews(r); renderRisk(r); renderState(r); renderAgents(r);
         }
 
         function renderHeader(r) {
             const s = r.session;
             $('session-text').textContent = !s.marketOpen ? 'MARKET CLOSED' : s.inKillZone ? s.killZone + ' · ' + s.endsIn + 'm left' : 'Outside KZ · ' + s.next + ' in ' + E.fmtMinutes(s.nextIn);
             $('session-dot').className = 'dot ' + (!s.marketOpen ? 'err' : s.inKillZone ? 'ok live' : 'warn');
-            const keys = ['cot', 'seasonality', 'vix', 'bars15', 'bars5', 'news'];
-            const okCount = keys.filter((k) => app.meta[k] && app.meta[k].ok).length;
+            const src = r.source;
+            $('src-text').textContent = src.status === 'OK' ? (src.role === 'NAS100_PROXY' ? 'NAS100 PROXY' : 'NQ') + ' · ' + src.freshness : 'MARKET DATA ' + src.freshness;
+            $('src-dot').className = 'dot ' + (src.freshness === 'FRESH' ? 'ok live' : src.freshness === 'DELAYED' ? 'warn' : 'err');
+            const d = data();
+            const ok = [d.cot, d.seasonality, d.vix, d.news].filter((x) => x && x.status === 'OK').length + (src.status === 'OK' ? 1 : 0);
             let text, cls;
             if (app.mode === 'demo') { text = 'DEMO / SIMULATED'; cls = 'warn'; }
-            else if (app.serverReachable === false && okCount === 0) { text = 'OFFLINE — DATA UNAVAILABLE'; cls = 'err'; }
-            else if (okCount === keys.length) { text = 'LIVE (DELAYED)'; cls = 'ok live'; }
-            else if (okCount === 0) { text = app.serverReachable === null ? 'LOADING' : 'DATA UNAVAILABLE'; cls = 'err'; }
-            else { text = 'PARTIAL DATA ' + okCount + '/' + keys.length; cls = 'warn'; }
+            else if (app.serverReachable === false) { text = 'OFFLINE — DATA UNAVAILABLE'; cls = 'err'; }
+            else if (app.serverReachable === null) { text = 'LOADING'; cls = ''; }
+            else if (ok === 5) { text = 'LIVE'; cls = 'ok live'; }
+            else if (ok === 0) { text = 'LIVE · DATA UNAVAILABLE'; cls = 'err'; }
+            else { text = 'LIVE · PARTIAL ' + ok + '/5'; cls = 'warn'; }
             $('mode-text').textContent = text;
             $('mode-dot').className = 'dot ' + cls;
             document.querySelectorAll('[data-inst]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.inst === user.instrument)));
@@ -635,106 +642,110 @@
         }
 
         function renderDecision(r) {
-            const d = r.decision;
-            const hero = $('hero');
-            hero.className = 'hero ' + (d.decision === 'LONG' ? 'long' : d.decision === 'SHORT' ? 'short' : 'notrade');
+            const d = r.decision, src = r.source;
+            $('hero').className = 'hero ' + (d.decision === 'LONG' ? 'long' : d.decision === 'SHORT' ? 'short' : 'notrade');
             $('d-word').textContent = d.decision;
-            $('d-tag').textContent = d.candidate ? 'TRADE CANDIDATE — ' + (d.direction === 'LONG' ? 'Long Bias' : 'Short Bias') + ' · القرار لك'
-                : (d.reasons[0] ? d.reasons[0].code : 'NO TRADE');
+            $('d-tag').textContent = d.candidate ? 'TRADE CANDIDATE — ' + (d.direction === 'LONG' ? 'Long Bias' : 'Short Bias') + ' · القرار لك' : (d.reasons[0] ? d.reasons[0].code : 'NO TRADE');
             $('d-bias').textContent = d.bias + (d.biasNote ? ' (' + d.biasNote + ')' : '');
             $('d-bias').className = d.bias.indexOf('LONG') === 0 ? 't-bull' : d.bias.indexOf('SHORT') === 0 ? 't-bear' : 't-neutral';
             const c = d.confidence;
-            $('d-conf-label').textContent = d.candidate ? 'CONFIDENCE' : 'BIAS CONFIDENCE';
-            $('d-conf').textContent = c.value === null ? 'N/A' : c.value + '% · ' + c.label;
+            $('d-conf-label').textContent = d.candidate ? 'CONFIDENCE SCORE' : 'BIAS CONFIDENCE SCORE';
+            $('d-conf').textContent = c.value === null ? 'N/A' : c.value + ' / 95 · ' + c.label;
             $('d-conf').title = c.parts.map((p) => p.k + ' ' + (p.v > 0 ? '+' : '') + p.v).join(' · ');
-            $('d-conf-fill').style.width = (c.value || 0) + '%';
+            $('d-conf-fill').style.width = ((c.value || 0) / 95 * 100) + '%';
+            $('d-src').textContent = src.status === 'OK' ? src.label : 'UNAVAILABLE';
+            $('d-src').className = src.role === 'NAS100_PROXY' ? 't-neutral' : src.status === 'OK' ? '' : 't-bear';
+            $('d-fresh').textContent = src.freshness + (src.status === 'OK' && src.f15 && isNum(src.f15.lagMin) && src.f15.lagMin > 0 ? ' · ' + src.f15.lagMin + 'm' : '');
+            $('d-fresh').className = src.freshness === 'FRESH' ? 't-bull' : src.freshness === 'DELAYED' ? 't-neutral' : 't-bear';
 
             const g = [
+                ['DATA', src.status === 'OK' ? src.freshness : 'UNAVAILABLE', FRESH_CLS[src.freshness] || 's-unavail'],
                 ['CONTEXT', r.context.bias, BIAS_CLS[r.context.bias] || 's-na'],
                 ['STRUCTURE', r.s15.status === 'OK' ? r.s15.bias : 'N/A', r.s15.status === 'OK' ? BIAS_CLS[r.s15.bias] : 's-unavail'],
                 ['TRIL', r.tril.status, STATUS_CLS[r.tril.status]],
-                ['NEWS', r.news.status === 'LOW' ? 'CLEAR' : r.news.status, STATUS_CLS[r.news.status]],
+                ['SMT', r.smt.confluence.replace('_CONFLUENCE', ''), SMT_CLS[r.smt.confluence]],
+                ['NEWS', r.news.status, STATUS_CLS[r.news.status]],
                 ['RISK', r.risk.status, STATUS_CLS[r.risk.status] || 's-na'],
                 ['STATE', r.tradingState.status, STATUS_CLS[r.tradingState.status]],
             ];
             $('gates').innerHTML = g.map((x) => '<div class="gate"><div class="g-name">' + x[0] + '</div><div class="g-val"><span class="pill ' + x[2] + '">' + esc(x[1]) + '</span></div></div>').join('');
-
-            if (d.candidate) {
-                $('d-why').innerHTML = '<b>WHY</b> ' + esc(d.why);
-            } else {
-                $('d-why').innerHTML = '<b>WHY NO TRADE</b><br>' + d.reasons.map((x) => '• <b>' + esc(x.code) + '</b>' + (x.detail ? ' — ' + esc(x.detail) : '')).join('<br>');
-            }
+            $('d-why').innerHTML = d.candidate ? '<b>WHY</b> ' + esc(d.why)
+                : '<b>WHY NO TRADE</b><br>' + d.reasons.map((x) => '• <b>' + esc(x.code) + '</b>' + (x.detail ? ' — ' + esc(x.detail) : '')).join('<br>');
             $('d-warnings').innerHTML = d.warnings.map((w) => '<span class="pill s-caution">⚠ ' + esc(w) + '</span>').join('');
-            const rk = r.risk;
+            const rk = r.risk, pb = r.levels.priceBasis;
             $('d-plan').innerHTML = d.candidate ? [
-                ['ENTRY', fmtP(rk.entry)], ['SL', fmtP(rk.sl)], ['TP', fmtP(rk.tp)], ['RRR', '1:' + rk.rrr.toFixed(2)],
-                [r.instrument, rk.contracts + ' ct'], ['RISK', fmtUsd(rk.riskUsd)],
-            ].map((x) => '<span class="chip"><span class="muted">' + x[0] + '</span> ' + esc(x[1]) + '</span>').join('') : '';
+                ['ENTRY' + (pb === 'NAS100' ? ' (NAS100)' : ''), fmtP(rk.entry)], ['SL', fmtP(rk.sl)], ['TP', fmtP(rk.tp)], ['RRR', '1:' + rk.rrr.toFixed(2)],
+                [r.instrument, rk.contracts + ' ct'], ['RISK', fmtUsd(rk.riskUsd)], ['REWARD', fmtUsd(rk.rewardUsd)],
+            ].map((x) => '<span class="chip"><span class="muted">' + esc(x[0]) + '</span> ' + esc(x[1]) + '</span>').join('') : '';
         }
 
         function renderContext(r) {
-            const ctx = r.context;
+            const ctx = r.context, d = data();
             pill($('ctx-overall'), ctx.bias + (ctx.partial ? ' · PARTIAL' : ''), BIAS_CLS[ctx.bias]);
-            // COT
-            const cotRaw = app.data.cot, cot = ctx.cot;
-            pill($('cot-bias'), cot.status === 'OK' ? cot.bias : 'UNAVAILABLE', cot.status === 'OK' ? BIAS_CLS[cot.bias] : 's-unavail');
-            $('cot-net').textContent = cotRaw && isNum(cotRaw.net) ? fmtInt(cotRaw.net) + ' ct' : 'DATA UNAVAILABLE';
-            $('cot-chg').textContent = cotRaw && isNum(cotRaw.change) ? fmtInt(cotRaw.change) + ' ct' : '—';
-            $('cot-idx').textContent = cotRaw && isNum(cotRaw.index) ? cotRaw.index.toFixed(1) + ' / 100' : 'N/A';
-            $('cot-src').textContent = srcText(app.meta.cot, cotRaw && cotRaw.reportDate ? 'report ' + cotRaw.reportDate : '') + (cot.status !== 'OK' && cot.note ? ' · ' + cot.note : '');
-            // Seasonality
-            const se = ctx.seasonality;
-            $('seas-month').textContent = (app.data.seasonality && app.data.seasonality.month) || '—';
-            pill($('seas-bias'), se.status === 'OK' ? se.bias : 'UNAVAILABLE', se.status === 'OK' ? BIAS_CLS[se.bias] : 's-unavail');
-            const rows = [['10Y', 'y10'], ['5Y', 'y5'], ['2Y', 'y2']].map(([lbl, k]) => {
+            const c = d.cot, cot = ctx.cot, okC = c && c.status === 'OK';
+            pill($('cot-bias'), cot.status === 'OK' ? cot.bias : 'DATA UNAVAILABLE', cot.status === 'OK' ? BIAS_CLS[cot.bias] : 's-unavail');
+            $('cot-ls').textContent = okC && isNum(c.largeSpecLong) ? c.largeSpecLong.toLocaleString('en-US') + ' / ' + c.largeSpecShort.toLocaleString('en-US') : okC ? '—' : 'DATA UNAVAILABLE';
+            $('cot-net').textContent = okC ? fmtInt(c.largeSpecNet) + ' ct' : 'DATA UNAVAILABLE';
+            $('cot-chg').textContent = okC && isNum(c.weeklyChange) ? fmtInt(c.weeklyChange) + ' ct' : '—';
+            $('cot-idx').textContent = okC ? (isNum(c.cotIndex6m) ? c.cotIndex6m.toFixed(0) : 'N/A') + ' · ' + (isNum(c.cotIndex36m) ? c.cotIndex36m.toFixed(0) : 'N/A') : '—';
+            $('cot-others').textContent = okC ? (c.commercials && isNum(c.commercials.net) ? fmtInt(c.commercials.net) : '—') + ' · ' + (c.smallTraders && isNum(c.smallTraders.net) ? fmtInt(c.smallTraders.net) : '—') : '—';
+            $('cot-src').textContent = srcLine(c, okC ? 'report ' + c.reportDate : '') + (cot.status !== 'OK' && okC ? ' · ' + cot.note : '');
+            const s = d.seasonality, se = ctx.seasonality;
+            $('seas-month').textContent = s && s.currentMonth ? s.currentMonth + (s.currentDay ? ' ' + s.currentDay : '') : '—';
+            pill($('seas-bias'), se.status === 'OK' ? se.bias : 'DATA UNAVAILABLE', se.status === 'OK' ? BIAS_CLS[se.bias] : 's-unavail');
+            $('seas-body').innerHTML = [['10Y', 'y10'], ['5Y', 'y5'], ['2Y', 'y2']].map(([lbl, k]) => {
                 const w = se.windows && se.windows[k];
                 if (!w) return '<tr><td>' + lbl + '</td><td colspan="3" class="muted">DATA UNAVAILABLE</td></tr>';
-                return '<tr><td>' + lbl + '</td><td class="' + (w.avg >= 0 ? 't-bull' : 't-bear') + '">' + (w.avg > 0 ? '+' : '') + w.avg.toFixed(2) + '%</td><td>' +
-                    Math.round(w.winRate * w.n) + '/' + w.n + '</td><td class="' + tcls(w.bias) + '">' + w.bias + '</td></tr>';
-            });
-            $('seas-body').innerHTML = rows.join('');
-            $('seas-src').textContent = srcText(app.meta.seasonality, 'Nasdaq-100 monthly returns');
-            // VIX
+                return '<tr><td>' + lbl + '</td><td class="' + (w.averageChange >= 0 ? 't-bull' : 't-bear') + '">' + fmtPct(w.averageChange) + '</td><td class="muted">' +
+                    esc(w.basis || '') + (isNum(w.winRate) && isNum(w.n) ? ' · ' + Math.round(w.winRate * w.n) + '/' + w.n + ' up' : '') + '</td><td class="' + tcls(w.seasonalBias) + '">' + w.seasonalBias + '</td></tr>';
+            }).join('');
+            $('seas-src').textContent = srcLine(s, s && s.status === 'OK' && isNum(s.averageChange) ? 'avg ' + fmtPct(s.averageChange) : '');
             const v = ctx.vix;
-            pill($('vix-state'), v.status === 'OK' ? v.state : 'UNAVAILABLE', v.status === 'OK' ? (v.state === 'LOW' ? 's-low' : STATUS_CLS[v.state]) : 's-unavail');
+            pill($('vix-state'), v.status === 'OK' ? v.state : 'DATA UNAVAILABLE', v.status === 'OK' ? STATUS_CLS[v.state] : 's-unavail');
             $('vix-val').textContent = v.status === 'OK' ? v.value.toFixed(2) : 'DATA UNAVAILABLE';
-            $('vix-src').textContent = srcText(app.meta.vix, 'LOW < 15 · NORMAL 15–25 · HIGH > 25 — يؤثر على الثقة فقط ولا يقلب الاتجاه');
+            $('vix-src').textContent = srcLine(d.vix, 'LOW < 15 · NORMAL 15–25 · HIGH > 25 — يؤثر على الثقة فقط ولا يقلب الاتجاه');
         }
 
         function renderStructure(r) {
-            const s = r.s15, e = r.e5;
+            const s = r.s15, e = r.e5, src = r.source;
+            pill($('st-fresh'), src.freshness, FRESH_CLS[src.freshness]);
+            $('st-src').textContent = src.status === 'OK' ? (src.role === 'NAS100_PROXY' ? 'NAS100 PROXY · ' : '') + (src.symbol || '') + ' · ' + (data().market && data().market.simulated ? 'SIMULATED' : src.provider) : 'NONE — NQ & NAS100 unusable';
+            $('st-src').className = 'v ' + (src.role === 'NAS100_PROXY' ? 't-neutral' : src.status === 'OK' ? '' : 't-bear');
+            const cs = src.candidates || {};
+            const cand = (k) => (cs[k] ? cs[k].f15.state + (cs[k].ok && cs[k].f5.state !== cs[k].f15.state ? '/5m ' + cs[k].f5.state : '') : '—');
+            $('st-cands').textContent = 'NQ ' + cand('NQ') + ' · NAS100 ' + cand('NAS100');
             if (s.status !== 'OK') {
                 pill($('st-overall'), 'DATA UNAVAILABLE', 's-unavail');
-                ['st-price', 'st-trend', 'st-struct', 'st-liq', 'st-raid', 'st-entry', 'st-confirm', 'st-fvg'].forEach((id) => { $(id).textContent = '—'; $(id).className = 'v'; });
-                $('st-15-asof').textContent = '';
-                $('st-src').textContent = srcText(app.meta.bars15);
+                ['st-price', 'st-trend', 'st-struct', 'st-liq', 'st-raid', 'st-entry', 'st-confirm', 'st-fvg', 'st-loc'].forEach((id) => { $(id).textContent = '—'; $(id).className = 'v'; });
+                $('st-15-asof').textContent = ''; $('st-5-asof').textContent = '';
                 return;
             }
             pill($('st-overall'), s.bias + (s.manual ? ' · MANUAL' : ''), BIAS_CLS[s.bias]);
-            $('st-price').textContent = fmtP(e.status === 'OK' ? e.price : s.price);
+            $('st-price').textContent = fmtP(e.status === 'OK' ? e.price : s.price) + (src.role === 'NAS100_PROXY' ? ' (NAS100)' : '');
             $('st-trend').textContent = s.trend; $('st-trend').className = 'v ' + tcls(s.trend);
             $('st-struct').textContent = s.structureLabel; $('st-struct').className = 'v ' + tcls(s.bias);
             const bsl = s.liquidity.bsl[0], ssl = s.liquidity.ssl[0];
             $('st-liq').textContent = 'BSL ' + (isNum(bsl) ? fmtP(bsl) : '—') + ' · SSL ' + (isNum(ssl) ? fmtP(ssl) : '—');
             const lr = s.raids[s.raids.length - 1];
             $('st-raid').textContent = lr ? lr.side + ' swept @ ' + fmtP(lr.level) : 'None (last 16 bars)';
-            $('st-15-asof').textContent = s.asOf ? 'last bar ' + ago(new Date(s.asOf).toISOString()) : '';
+            $('st-15-asof').textContent = src.f15 ? src.f15.state + ' · last bar ' + ago(src.f15.lastBarAt) : '';
+            $('st-5-asof').textContent = src.f5 ? src.f5.state + (src.f5.lastBarAt ? ' · last bar ' + ago(src.f5.lastBarAt) : '') : '';
             if (e.status === 'OK') {
-                $('st-entry').textContent = e.entryState;
-                $('st-entry').className = 'v ' + (e.entryState === 'IN ENTRY ZONE' ? 't-bull' : 't-neutral');
+                $('st-entry').textContent = e.entryState; $('st-entry').className = 'v ' + (e.entryState === 'IN ENTRY ZONE' ? 't-bull' : 't-neutral');
                 $('st-confirm').textContent = e.confirmation + (e.confirmEvent ? ' (' + e.confirmEvent.kind + ')' : '');
                 $('st-confirm').className = 'v ' + (e.confirmation === 'CONFIRMED' ? 't-bull' : 't-neutral');
                 $('st-fvg').textContent = e.fvg ? fmtP(e.fvg.lo) + ' – ' + fmtP(e.fvg.hi) : 'None';
             } else {
                 ['st-entry', 'st-confirm', 'st-fvg'].forEach((id) => { $(id).textContent = 'DATA UNAVAILABLE'; $(id).className = 'v t-na'; });
             }
-            $('st-src').textContent = srcText(app.meta.bars15, 'NQ=F price feed for NQ & MNQ');
+            const loc = r.tril.items.location;
+            $('st-loc').textContent = loc.why; $('st-loc').className = 'v ' + (loc.status === 'PASS' ? 't-bull' : loc.status === 'FAIL' ? 't-bear' : 't-neutral');
         }
 
         const TRIL_DEF = [['trend', 'T', 'Trend'], ['raid', 'R', 'Raid'], ['imbalance', 'I', 'Imbalance'], ['location', 'L', 'Location']];
         function renderTRIL(r) {
             const t = r.tril;
-            pill($('tril-overall'), t.status + ' · ' + t.passCount + '/4', STATUS_CLS[t.status]);
+            pill($('tril-overall'), t.status + ' · ' + t.ready + ' · ' + t.passCount + '/4', STATUS_CLS[t.status]);
             $('tril-rows').innerHTML = TRIL_DEF.map(([k, letter, name]) => {
                 const it = t.items[k];
                 return '<div class="tril-row"><div class="tril-letter">' + letter + '</div><div style="min-width:0"><div class="tril-name">' + name + '</div><div class="tril-why">' + esc(it.why) + '</div></div>' +
@@ -742,20 +753,34 @@
             }).join('');
         }
 
+        function renderSMT(r) {
+            const m = r.smt, d = r.decision;
+            pill($('smt-state'), smtText(m.confluence), SMT_CLS[m.confluence]);
+            const a = r.source.status === 'OK' ? (r.source.role === 'NAS100_PROXY' ? 'NAS100' : 'NQ') : 'NQ';
+            $('smt-pair').textContent = a + ' vs ' + (m.spxSymbol || 'S&P 500') + ' · S&P ' + m.spxFreshness;
+            const tfText = (x) => (x ? (x.state === 'BULLISH' || x.state === 'BEARISH' ? x.state + ' — ' : x.state + ' — ') + x.detail : '—');
+            $('smt-15').textContent = m.m15 ? tfText(m.m15) : m.detail;
+            $('smt-5').textContent = m.m5 ? tfText(m.m5) : '—';
+            const smtDir = m.confluence === 'BULLISH_CONFLUENCE' ? 'LONG' : m.confluence === 'BEARISH_CONFLUENCE' ? 'SHORT' : null;
+            const part = d.confidence.parts.find((p) => p.k.indexOf('SMT') === 0);
+            $('smt-effect').textContent = !smtDir ? 'No effect on confidence' : (part ? (part.v > 0 ? '+' : '') + part.v + ' confidence' : '—') + (d.direction && smtDir !== d.direction ? ' (against setup)' : '');
+            $('smt-effect').className = 'v ' + (part ? (part.v > 0 ? 't-bull' : 't-bear') : 't-na');
+        }
+
         function renderNews(r) {
             const n = r.news;
-            const label = n.status === 'LOW' ? 'LOW · CLEAR' : n.status === UNAV ? 'DATA UNAVAILABLE' : n.status;
-            pill($('news-status'), label, STATUS_CLS[n.status]);
-            $('news-countdown').textContent = n.time_to_event || '—';
+            pill($('news-status'), n.status === UNAV ? 'DATA UNAVAILABLE' : n.status, STATUS_CLS[n.status]);
+            $('news-countdown').textContent = n.timeToEvent || '—';
             $('news-event').textContent = n.event || (n.status === UNAV ? 'DATA UNAVAILABLE' : 'No important USD event');
             $('news-time').textContent = n.time ? nyTime(n.time) : '—';
             $('news-impact').textContent = n.impact || '—';
             $('news-impact').className = 'v ' + (n.impact === 'HIGH' ? 't-bear' : n.impact === 'MEDIUM' ? 't-neutral' : '');
+            $('news-restrict').textContent = n.status === UNAV ? 'UNKNOWN — check manually' : n.tradingRestriction ? 'YES — trading blocked' : 'NO';
+            $('news-restrict').className = 'v ' + (n.tradingRestriction ? 't-bear' : n.status === UNAV ? 't-neutral' : 't-bull');
             $('news-list').innerHTML = (n.upcoming || []).slice(0, 5).map((ev) =>
                 '<div class="ev"><span class="t">' + esc(nyTime(ev.time)) + '</span><span>' + esc(ev.title) + '</span><span class="pill ' + (ev.impact === 'HIGH' ? 's-high' : 's-caution') + '">' + ev.impact + '</span></div>').join('');
-            $('news-src').textContent = n.status === UNAV ? (n.note || 'DATA UNAVAILABLE') : srcText(app.meta.news, 'USD events');
+            $('news-src').textContent = n.status === UNAV ? (n.note || 'DATA UNAVAILABLE') : srcLine(data().news, 'USD events');
         }
-        const UNAV = 'UNAVAILABLE';
 
         function renderRisk(r) {
             const rk = r.risk, lv = r.levels;
@@ -768,7 +793,8 @@
             setIf('lv-entry', lv.entry, isNum(user.levels.entry));
             setIf('lv-sl', lv.sl, isNum(user.levels.sl));
             setIf('lv-tp', lv.tp, isNum(user.levels.tp));
-            $('lv-basis').textContent = lv.source === 'MANUAL' ? 'MANUAL levels (blue) · Auto: ' + (lv.basis || '—') : lv.source === 'AUTO' ? 'AUTO · ' + lv.basis : 'No direction — no plan';
+            const pb = lv.priceBasis === 'NAS100' ? ' · ⚠ NAS100 PROXY prices — translate to NQ before use' : '';
+            $('lv-basis').textContent = (lv.source === 'MANUAL' ? 'MANUAL levels (blue) · Auto: ' + (lv.basis || '—') : lv.source === 'AUTO' ? 'AUTO · ' + lv.basis : 'No direction — no plan') + pb;
             $('rk-rrr').textContent = isNum(rk.rrr) ? '1:' + rk.rrr.toFixed(2) + (isNum(rk.stopPts) ? '  (' + rk.stopPts.toFixed(2) + ' / ' + rk.targetPts.toFixed(2) + ' pts)' : '') : '—';
             $('rk-rrr').className = 'v ' + (isNum(rk.rrr) ? (rk.rrr >= r.rules.minRRR - 1e-9 ? 't-bull' : 't-bear') : '');
             $('rk-ct').textContent = rk.status === 'N/A' ? '—' : rk.contracts + ' × ' + r.instrument + ' ($' + rk.pointValue + '/pt)';
@@ -796,26 +822,24 @@
         }
 
         function renderAgents(r) {
-            const a = r.agents;
-            const meta = app.meta;
-            const coreOk = meta.bars15 && meta.bars15.ok;
-            const ctxOk = ['cot', 'seasonality', 'vix'].filter((k) => meta[k] && meta[k].ok).length;
-            const ag1 = !coreOk ? ['ERROR — price data unavailable', 'err'] : ctxOk < 3 ? ['DEGRADED — context ' + ctxOk + '/3', 'warn'] : ['OK', 'ok'];
+            const d = data(), src = r.source;
+            const ctxOk = [d.cot, d.seasonality, d.vix].filter((x) => x && x.status === 'OK').length;
+            const smtOk = r.smt.confluence !== 'UNCLEAR' || !/UNAVAILABLE|STALE/.test(r.smt.detail || '');
+            const ag1 = src.status !== 'OK' ? ['ERROR — market data unavailable', 'err']
+                : ctxOk < 3 || src.freshness !== 'FRESH' || src.role === 'NAS100_PROXY' || !smtOk ? ['DEGRADED — ' + [ctxOk < 3 ? 'context ' + ctxOk + '/3' : '', src.freshness !== 'FRESH' ? src.freshness : '', src.role === 'NAS100_PROXY' ? 'proxy' : '', !smtOk ? 'SMT data' : ''].filter(Boolean).join(', '), 'warn']
+                : ['OK', 'ok'];
             $('ag1-status').textContent = (app.mode === 'demo' ? 'DEMO · ' : '') + ag1[0];
             $('ag1-dot').className = 'dot ' + ag1[1];
-            $('ag1-json').textContent = JSON.stringify(a.analyst, null, 2);
-            const ag2 = meta.news && meta.news.ok ? ['OK', 'ok'] : ['ERROR — feed unavailable', 'err'];
+            $('ag1-json').textContent = JSON.stringify(r.agents.analyst, null, 2);
+            const ag2 = d.news && d.news.status === 'OK' ? ['OK', 'ok'] : ['ERROR — feed unavailable', 'err'];
             $('ag2-status').textContent = (app.mode === 'demo' ? 'DEMO · ' : '') + ag2[0];
             $('ag2-dot').className = 'dot ' + ag2[1];
-            $('ag2-json').textContent = JSON.stringify(a.news, null, 2);
-            // AI chart reading availability
+            $('ag2-json').textContent = JSON.stringify(r.agents.news, null, 2);
             const btn = $('btn-ai-read');
-            btn.disabled = !app.ai.configured || !app.ai.image || app.ai.busy || app.mode === 'demo';
-            if (app.ai.busy) $('ai-status').textContent = 'Reading chart…';
-            else if (app.mode === 'demo') $('ai-status').textContent = 'AI disabled in demo mode';
-            else if (!app.ai.configured) $('ai-status').textContent = 'AI layer off — set ANTHROPIC_API_KEY on the server (optional)';
-            else if (!app.ai.image) $('ai-status').textContent = 'Upload a chart screenshot (optional)';
-            else $('ai-status').textContent = 'Ready: ' + app.ai.image.name;
+            btn.disabled = !app.config.aiConfigured || !app.ai.image || app.ai.busy || app.mode === 'demo';
+            $('ai-status').textContent = app.ai.busy ? 'Reading chart…' : app.mode === 'demo' ? 'AI disabled in demo mode'
+                : !app.config.aiConfigured ? 'AI layer off — set ANTHROPIC_API_KEY on the server (optional)'
+                : !app.ai.image ? 'Upload a chart screenshot (optional)' : 'Ready: ' + app.ai.image.name;
         }
 
         function renderAiReading() {
@@ -880,7 +904,6 @@
         $('btn-log-loss').addEventListener('click', () => logTrade(-1));
         $('btn-undo').addEventListener('click', () => {
             if (!user.trades.length) return;
-            // remove the most recent entry by time
             let idx = 0;
             user.trades.forEach((t, i) => { if (Date.parse(t.createdAt || t.dateTime) > Date.parse(user.trades[idx].createdAt || user.trades[idx].dateTime)) idx = i; });
             user.trades.splice(idx, 1);
@@ -888,9 +911,12 @@
             toast('Last trade removed');
             render();
         });
-        $('btn-refresh').addEventListener('click', async () => { toast('Refreshing…'); await refreshAll(); });
+        $('btn-refresh').addEventListener('click', async () => {
+            toast('Refreshing…');
+            if (app.mode === 'demo') { loadDemo(); render(); } else await refreshLive();
+        });
 
-        // Demo mode
+        // DEMO ↔ LIVE: separate data slots; switching back to LIVE refetches from the server
         const sel = $('demo-scenario');
         sel.innerHTML = Object.keys(DEMO.SCENARIOS).map((k) => '<option value="' + k + '">' + esc(DEMO.SCENARIOS[k].label) + '</option>').join('');
         function setMode(mode) {
@@ -900,7 +926,7 @@
             if (mode === 'demo') u.searchParams.set('demo', app.scenario); else u.searchParams.delete('demo');
             history.replaceState(null, '', u);
             if (mode === 'demo') { sel.value = app.scenario; loadDemo(); render(); }
-            else { app.data = { cot: null, seasonality: null, vix: null, bars15: null, bars5: null, news: null }; refreshAll(); }
+            else { app.live = EMPTY(); app.serverReachable = null; render(); refreshLive(); }
         }
         $('btn-demo').addEventListener('click', () => setMode(app.mode === 'demo' ? 'live' : 'demo'));
         $('btn-exit-demo').addEventListener('click', () => setMode('live'));
@@ -942,7 +968,7 @@
             render();
         });
 
-        // AI chart reading
+        // AI chart reading (server-side; optional)
         $('chart-file').addEventListener('change', (e) => {
             const f = e.target.files && e.target.files[0];
             if (!f) return;
@@ -980,7 +1006,6 @@
             }
         });
 
-        // Toast
         let toastTimer;
         function toast(msg) {
             let el = document.querySelector('.toast');
@@ -990,7 +1015,6 @@
             toastTimer = setTimeout(() => el.remove(), 3500);
         }
 
-        // Clock
         function tickClock() {
             const now = new Date();
             const f = (tz) => now.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
@@ -1003,14 +1027,13 @@
         loadReady();
         tickClock();
         setInterval(tickClock, 1000);
-        if (app.mode === 'demo') { document.body.classList.add('demo'); sel.value = app.scenario; }
-        refreshAll();
-        // Recompute (session / news countdown) every 15s; refetch on schedule (live only)
+        if (app.mode === 'demo') { document.body.classList.add('demo'); sel.value = app.scenario; loadDemo(); render(); fetchConfig().then(render); }
+        else { render(); refreshLive(); }
+        // Recompute every 15s (session / news countdown / freshness); LIVE refetch schedule
         setInterval(() => {
             if (app.mode === 'demo') { render(); return; }
-            const n = Date.now();
-            const jobs = [];
-            if (!app.lastFetch.bars || n - app.lastFetch.bars > 60000) jobs.push(fetchBars());
+            const n = Date.now(), jobs = [];
+            if (!app.lastFetch.market || n - app.lastFetch.market > 30000) jobs.push(fetchMarket());
             if (!app.lastFetch.news || n - app.lastFetch.news > 5 * 60000) jobs.push(fetchNews());
             if (!app.lastFetch.context || n - app.lastFetch.context > 30 * 60000) jobs.push(fetchContext());
             Promise.all(jobs).then(render);

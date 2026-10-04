@@ -8,7 +8,8 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getCOT, getSeasonality, getVIX, getBars, getNews } from './lib/sources.mjs';
+import { getCOT, getSeasonality, getVIX, getMarket, getNews } from './lib/sources.mjs';
+import { tvConfigured } from './lib/tradingview-mcp.mjs';
 import { readChart, aiConfigured, MODEL } from './lib/chart-reader.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -72,16 +73,14 @@ export async function handle(req, res) {
     const p = url.pathname;
     try {
         if (req.method === 'GET' && p === '/api/health') return send(res, 200, { status: 'ok', time: new Date().toISOString() });
-        if (req.method === 'GET' && p === '/api/config') return send(res, 200, { aiConfigured: aiConfigured(), aiModel: aiConfigured() ? MODEL : null, execution: false });
+        if (req.method === 'GET' && p === '/api/config') {
+            return send(res, 200, { aiConfigured: aiConfigured(), aiModel: aiConfigured() ? MODEL : null, marketProvider: tvConfigured() ? 'TradingView MCP' : 'Yahoo Finance (delayed fallback)', tradingViewConfigured: tvConfigured(), execution: false });
+        }
         if (req.method === 'GET' && p === '/api/context') {
             const [cot, seasonality, vix] = await Promise.all([getCOT(), getSeasonality(), getVIX()]);
             return send(res, 200, { cot, seasonality, vix, fetchedAt: new Date().toISOString() });
         }
-        if (req.method === 'GET' && p === '/api/bars') {
-            const tf = url.searchParams.get('tf') || '15m';
-            if (!['15m', '5m'].includes(tf)) return send(res, 400, { error: 'tf must be 15m or 5m' });
-            return send(res, 200, await getBars(tf));
-        }
+        if (req.method === 'GET' && p === '/api/market') return send(res, 200, await getMarket());
         if (req.method === 'GET' && p === '/api/news') return send(res, 200, await getNews());
         if (req.method === 'POST' && p === '/api/agent/chart-read') {
             if (!aiConfigured()) return send(res, 503, { error: 'AI_NOT_CONFIGURED', message: 'Set ANTHROPIC_API_KEY on the server to enable AI chart reading.' });
@@ -118,6 +117,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const host = process.env.HOST || '0.0.0.0';
     createServer().listen(port, host, () => {
         console.log(`[THEEB MIND] dashboard on http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`);
+        console.log(`[THEEB MIND] market data: ${tvConfigured() ? 'TradingView MCP' : 'Yahoo (delayed) — set TRADINGVIEW_MCP_URL or TRADINGVIEW_MCP_COMMAND for live data'}`);
         console.log(`[THEEB MIND] AI chart reading: ${aiConfigured() ? 'enabled (' + MODEL + ')' : 'disabled — set ANTHROPIC_API_KEY to enable'}`);
     });
 }
