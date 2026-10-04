@@ -12,6 +12,7 @@ import * as TV from '../lib/tradingview-mcp.mjs';
 import { createServer } from '../server.mjs';
 
 const require = createRequire(import.meta.url);
+const Engine = require('../public/engine.js');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const shots = process.env.SHOTS_DIR || path.join(here, '..', '.shots');
@@ -196,16 +197,22 @@ await check('exit demo → live mode again', async () => {
 });
 
 // 7) LIVE through a real TradingView MCP connection (local mock server over stdio)
-await check('LIVE via TradingView MCP → NQ FRESH from MCP, other sources honestly UNAVAILABLE', async () => {
+await check('LIVE via TradingView MCP → NQ from MCP with real-clock market status, other sources honestly UNAVAILABLE', async () => {
     process.env.TRADINGVIEW_MCP_COMMAND = process.execPath;
     process.env.TRADINGVIEW_MCP_ARGS = JSON.stringify([path.join(here, 'fixtures', 'mock-tv-mcp.mjs')]);
     S.setTradingView(TV.fetchTradingViewBars, true);
     S.clearCache();
     const { page, ctx, errors } = await open('/');
-    await page.waitForFunction(() => /^NQ · FRESH/.test(document.getElementById('src-text').textContent), null, { timeout: 20000 });
+    // Expectations follow the REAL clock: open market → FRESH; closed → LAST AVAILABLE + NO TRADE (MARKET CLOSED)
+    const isOpen = Engine.getSession(Date.now()).marketOpen;
+    const fresh = isOpen ? 'FRESH' : 'LAST AVAILABLE';
+    await page.waitForFunction((f) => document.getElementById('src-text').textContent === 'NQ · ' + f, fresh, { timeout: 20000 });
     assert.match(await text(page, '#st-src'), /CME_MINI:NQ1! · TradingView MCP/);
-    assert.match(await text(page, '#st-cands'), /NQ FRESH · NAS100 FRESH/);
-    assert.match(await text(page, '#mode-text'), /LIVE · PARTIAL/);
+    assert.equal(await text(page, '#st-cands'), 'NQ ' + fresh + ' · NAS100 ' + fresh);
+    assert.match(await text(page, '#mode-text'), isOpen ? /LIVE · PARTIAL/ : /MARKET CLOSED · LAST AVAILABLE DATA/);
+    assert.equal(await text(page, '#d-mkt'), isOpen ? 'OPEN' : 'CLOSED');
+    if (!isOpen) assert.match(await text(page, '#d-why'), /MARKET CLOSED/);
+    assert.match(await text(page, '#lin-body'), /TradingView MCP · CME_MINI:NQ1!/);
     assert.match(await text(page, '#cot-bias'), /DATA UNAVAILABLE/);
     assert.match(await text(page, '#vix-val'), /^1\d\.\d\d$/); // VIX from MCP
     assert.match(await text(page, '#smt-pair'), /CME_MINI:ES1!/);

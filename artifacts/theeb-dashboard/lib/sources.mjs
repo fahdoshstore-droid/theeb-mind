@@ -37,7 +37,7 @@ async function request(url, accept) {
 }
 const getJSON = async (url) => (await request(url, 'application/json')).json();
 const getText = async (url) => (await request(url, 'text/html')).text();
-const errMsg = (e) => String(e && e.message ? e.message : e).slice(0, 200);
+const errMsg = (e) => (String(e && e.message ? e.message : e) + (e && e.cause && e.cause.message ? ' (' + e.cause.message + ')' : '')).slice(0, 300);
 
 // ── TTL cache with single-flight; failures are not cached ─────
 const cache = new Map();

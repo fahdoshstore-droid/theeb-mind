@@ -26,7 +26,20 @@ export const TV_SYMBOLS = {
 };
 
 const DEFAULT_TOOL_ARGS = '{"symbol":"{symbol}","interval":"{interval}","bars":{count}}';
-const TOOL_PATTERN = /(ohlc|bars|candles|klines|history|historical|chart|price_data)/i;
+// A bars tool must look like OHLC history AND accept a symbol + a timeframe; scanners/screeners never qualify.
+const TOOL_NAME_GOOD = /(ohlc|bars|candles|klines|history|historical|price_data|chart_data)/i;
+const TOOL_NAME_BAD = /(scan|screener|pattern|top_|gainer|loser|filter|backtest|strategy|sentiment|news|analysis|overview|watchlist)/i;
+const SYMBOL_PARAM = /^(symbol|ticker|tickers|instrument|pair)$/i;
+const TF_PARAM = /^(interval|timeframe|resolution|tf|period)$/i;
+
+/** Picks the OHLC-history tool from an MCP tool list, or null. */
+export function detectBarsTool(tools) {
+    const ok = (t) => {
+        const props = Object.keys((t.inputSchema && t.inputSchema.properties) || {});
+        return TOOL_NAME_GOOD.test(t.name) && !TOOL_NAME_BAD.test(t.name) && props.some((p) => SYMBOL_PARAM.test(p)) && props.some((p) => TF_PARAM.test(p));
+    };
+    return (tools.find(ok) || {}).name || null;
+}
 
 export function tvConfigured(env = process.env) {
     return Boolean(env.TRADINGVIEW_MCP_URL || env.TRADINGVIEW_MCP_COMMAND);
@@ -107,14 +120,20 @@ export function payloadFromToolResult(result) {
         const msg = (result.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(' ').slice(0, 200);
         throw new Error('MCP tool error: ' + (msg || 'unknown'));
     }
-    if (result.structuredContent) return result.structuredContent;
-    const texts = (result.content || []).filter((c) => c.type === 'text').map((c) => c.text);
-    for (const t of texts) {
-        try { return JSON.parse(t); } catch { /* try next */ }
-        const m = t.match(/[[{][\s\S]*[\]}]/);
-        if (m) { try { return JSON.parse(m[0]); } catch { /* ignore */ } }
+    let payload = result.structuredContent;
+    if (!payload) {
+        const texts = (result.content || []).filter((c) => c.type === 'text').map((c) => c.text);
+        for (const t of texts) {
+            try { payload = JSON.parse(t); break; } catch { /* try next */ }
+            const m = t.match(/[[{][\s\S]*[\]}]/);
+            if (m) { try { payload = JSON.parse(m[0]); break; } catch { /* ignore */ } }
+        }
     }
-    throw new Error('MCP tool returned no JSON');
+    if (payload === undefined) throw new Error('MCP tool returned no JSON');
+    // Many MCP servers report failures inside the JSON with isError=false — surface them
+    const err = payload && !Array.isArray(payload) && typeof payload === 'object' ? payload.error : null;
+    if (err) throw new Error('MCP tool error: ' + (typeof err === 'string' ? err : err.message || JSON.stringify(err)).slice(0, 300));
+    return payload;
 }
 
 export function fillTemplate(template, vars) {
@@ -150,8 +169,8 @@ async function connect(env) {
     try {
         await client.connect(transport);
         const { tools } = await client.listTools();
-        toolName = env.TRADINGVIEW_MCP_TOOL || (tools.find((t) => TOOL_PATTERN.test(t.name)) || {}).name || null;
-        if (!toolName) throw new Error('No OHLC tool found on the TradingView MCP server (set TRADINGVIEW_MCP_TOOL). Tools: ' + tools.map((t) => t.name).join(', '));
+        toolName = env.TRADINGVIEW_MCP_TOOL || detectBarsTool(tools);
+        if (!toolName) throw new Error('MCP server exposes no OHLC-history tool (15m/5m bars) — set TRADINGVIEW_MCP_TOOL if one exists. Tools: ' + tools.map((t) => t.name).join(', '));
         if (!tools.some((t) => t.name === toolName)) throw new Error(`Tool "${toolName}" not offered by the MCP server`);
         return client;
     } catch (e) {
@@ -161,8 +180,15 @@ async function connect(env) {
     }
 }
 
+// After a failed connect, fail fast for a while instead of respawning the MCP process on every request
+const CONNECT_BACKOFF_MS = 60_000;
+let lastConnectFailure = null;
+
 async function getClient(env) {
-    if (!clientPromise) clientPromise = connect(env).catch((e) => { clientPromise = null; throw e; });
+    if (!clientPromise && lastConnectFailure && Date.now() - lastConnectFailure.at < CONNECT_BACKOFF_MS) throw lastConnectFailure.error;
+    if (!clientPromise) {
+        clientPromise = connect(env).then((c) => { lastConnectFailure = null; return c; }, (e) => { clientPromise = null; lastConnectFailure = { at: Date.now(), error: e }; throw e; });
+    }
     return clientPromise;
 }
 
@@ -170,6 +196,7 @@ export async function resetTradingViewClient() {
     const p = clientPromise;
     clientPromise = null;
     toolName = null;
+    lastConnectFailure = null;
     if (p) { try { (await p).close(); } catch { /* ignore */ } }
 }
 

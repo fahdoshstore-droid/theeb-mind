@@ -91,7 +91,7 @@
         .conf-bar { height: 5px; border-radius: 100px; background: var(--raised); overflow: hidden; margin-top: 4px; width: 140px; }
         .conf-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); width: 0; transition: width .5s; }
         .hero-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-        .gates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .gates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
         .gate { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; min-width: 0; }
         .gate .g-name { font-size: 10px; color: var(--text-3); font-weight: 800; letter-spacing: 1.2px; direction: ltr; text-align: right; }
         .gate .g-val { font-family: var(--mono); font-size: 12px; font-weight: 700; margin-top: 2px; direction: ltr; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -170,6 +170,12 @@
         .reason-list li::before { content: '• '; }
 
         .agents { grid-column: span 2; }
+        .lineage { grid-column: 1 / -1; }
+        .table-wrap { overflow-x: auto; }
+        .lin-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; direction: ltr; min-width: 760px; }
+        .lin-table th { text-align: left; color: var(--text-3); font-weight: 600; font-size: 10px; letter-spacing: 1px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        .lin-table td { padding: 7px 8px; border-bottom: 1px dashed rgba(212,168,67,.07); vertical-align: top; overflow-wrap: anywhere; }
+        .lin-table td.err { color: #fca5a5; max-width: 340px; }
         .agents-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
         .agent { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px; min-width: 0; }
         .agent-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
@@ -253,6 +259,7 @@
                     </div>
                 </div>
                 <div class="kv-row">
+                    <div class="kv"><span>MARKET STATUS</span><span id="d-mkt">—</span></div>
                     <div class="kv"><span>DATA SOURCE</span><span id="d-src">—</span></div>
                     <div class="kv"><span>FRESHNESS</span><span id="d-fresh">—</span></div>
                 </div>
@@ -448,6 +455,20 @@
                     </div>
                 </div>
             </section>
+
+            <!-- ═════════ DATA LINEAGE ═════════ -->
+            <section class="card lineage" id="card-lineage">
+                <div class="card-h">
+                    <div class="card-t">DATA LINEAGE<small>مصدر كل رقم، وقت جلبه، وحداثته</small></div>
+                    <span class="src" id="lin-now" style="margin:0">—</span>
+                </div>
+                <div class="table-wrap">
+                    <table class="lin-table">
+                        <thead><tr><th>Input</th><th>Source</th><th>Status</th><th>Last data</th><th>Fetched</th><th>Freshness</th><th>Error / fallback</th></tr></thead>
+                        <tbody id="lin-body"></tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </main>
 
@@ -581,7 +602,9 @@
         const BIAS_CLS = { BULLISH: 's-bull', BEARISH: 's-bear', NEUTRAL: 's-neutral', RANGE: 's-neutral', UNAVAILABLE: 's-unavail' };
         const STATUS_CLS = { PASS: 's-pass', FAIL: 's-fail', UNCLEAR: 's-unclear', 'N/A': 's-na', READY: 's-ready', 'NOT READY': 's-notready',
             CLEAR: 's-low', CAUTION: 's-caution', 'HIGH IMPACT': 's-high', UNAVAILABLE: 's-unavail', NORMAL: 's-normal', HIGH: 's-high', LOW: 's-low' };
-        const FRESH_CLS = { FRESH: 's-ok', DELAYED: 's-caution', STALE: 's-err', UNAVAILABLE: 's-unavail' };
+        const FRESH_CLS = { FRESH: 's-ok', DELAYED: 's-caution', LAST_AVAILABLE: 's-info', STALE: 's-err', UNAVAILABLE: 's-unavail' };
+        const MKT_CLS = { OPEN: 's-ok', CLOSED: 's-err', UNKNOWN: 's-caution' };
+        const freshText = (f) => (f === 'LAST_AVAILABLE' ? 'LAST AVAILABLE' : f || '—');
         const SMT_CLS = { BULLISH_CONFLUENCE: 's-bull', BEARISH_CONFLUENCE: 's-bear', NONE: 's-na', UNCLEAR: 's-unclear' };
         const smtText = (s) => String(s || '—').replace('_', ' ');
         function pill(el, text, cls) { el.className = 'pill ' + (cls || 's-na'); el.textContent = text; }
@@ -616,22 +639,25 @@
             }
             app.result = r;
             renderHeader(r); renderDecision(r); renderContext(r); renderStructure(r); renderTRIL(r);
-            renderSMT(r); renderNews(r); renderRisk(r); renderState(r); renderAgents(r);
+            renderSMT(r); renderNews(r); renderRisk(r); renderState(r); renderAgents(r); renderLineage(r);
         }
 
         function renderHeader(r) {
             const s = r.session;
-            $('session-text').textContent = !s.marketOpen ? 'MARKET CLOSED' : s.inKillZone ? s.killZone + ' · ' + s.endsIn + 'm left' : 'Outside KZ · ' + s.next + ' in ' + E.fmtMinutes(s.nextIn);
-            $('session-dot').className = 'dot ' + (!s.marketOpen ? 'err' : s.inKillZone ? 'ok live' : 'warn');
+            const ms = r.marketStatus.status;
+            $('session-text').textContent = 'MARKET ' + ms + (ms === 'OPEN' ? ' · ' + (s.inKillZone ? s.killZone + ' · ' + s.endsIn + 'm left' : 'Outside KZ · ' + s.next + ' in ' + E.fmtMinutes(s.nextIn)) : '');
+            $('session-dot').className = 'dot ' + (ms === 'CLOSED' ? 'err' : ms === 'UNKNOWN' ? 'warn' : s.inKillZone ? 'ok live' : 'warn');
             const src = r.source;
-            $('src-text').textContent = src.status === 'OK' ? (src.role === 'NAS100_PROXY' ? 'NAS100 PROXY' : 'NQ') + ' · ' + src.freshness : 'MARKET DATA ' + src.freshness;
-            $('src-dot').className = 'dot ' + (src.freshness === 'FRESH' ? 'ok live' : src.freshness === 'DELAYED' ? 'warn' : 'err');
+            $('src-text').textContent = src.status === 'OK' ? (src.role === 'NAS100_PROXY' ? 'NAS100 PROXY' : 'NQ') + ' · ' + freshText(src.freshness) : 'MARKET DATA ' + freshText(src.freshness);
+            $('src-dot').className = 'dot ' + (src.freshness === 'FRESH' ? 'ok live' : src.freshness === 'DELAYED' || src.freshness === 'LAST_AVAILABLE' ? 'warn' : 'err');
             const d = data();
             const ok = [d.cot, d.seasonality, d.vix, d.news].filter((x) => x && x.status === 'OK').length + (src.status === 'OK' ? 1 : 0);
             let text, cls;
             if (app.mode === 'demo') { text = 'DEMO / SIMULATED'; cls = 'warn'; }
             else if (app.serverReachable === false) { text = 'OFFLINE — DATA UNAVAILABLE'; cls = 'err'; }
             else if (app.serverReachable === null) { text = 'LOADING'; cls = ''; }
+            else if (ms === 'CLOSED') { text = ok === 0 ? 'MARKET CLOSED · DATA UNAVAILABLE' : 'MARKET CLOSED · LAST AVAILABLE DATA · ' + ok + '/5 sources'; cls = ok === 0 ? 'err' : 'warn'; }
+            else if (ms === 'UNKNOWN') { text = 'MARKET UNKNOWN · ' + ok + '/5 sources'; cls = 'warn'; }
             else if (ok === 5) { text = 'LIVE'; cls = 'ok live'; }
             else if (ok === 0) { text = 'LIVE · DATA UNAVAILABLE'; cls = 'err'; }
             else { text = 'LIVE · PARTIAL ' + ok + '/5'; cls = 'warn'; }
@@ -650,16 +676,21 @@
             $('d-bias').className = d.bias.indexOf('LONG') === 0 ? 't-bull' : d.bias.indexOf('SHORT') === 0 ? 't-bear' : 't-neutral';
             const c = d.confidence;
             $('d-conf-label').textContent = d.candidate ? 'CONFIDENCE SCORE' : 'BIAS CONFIDENCE SCORE';
-            $('d-conf').textContent = c.value === null ? 'N/A' : c.value + ' / 95 · ' + c.label;
+            $('d-conf').textContent = c.value === null ? 'N/A' + (isNum(c.validationScore) ? ' · engine ' + c.validationScore : '') : c.value + ' / 95 · ' + c.label;
+            if (c.value === null && isNum(c.validationScore)) $('d-conf').title = 'Market not open — evidence score shown for engine validation only. ' + $('d-conf').title;
+            $('d-mkt').textContent = r.marketStatus.status;
+            $('d-mkt').className = r.marketStatus.status === 'OPEN' ? 't-bull' : r.marketStatus.status === 'CLOSED' ? 't-bear' : 't-neutral';
+            $('d-mkt').title = r.marketStatus.detail;
             $('d-conf').title = c.parts.map((p) => p.k + ' ' + (p.v > 0 ? '+' : '') + p.v).join(' · ');
             $('d-conf-fill').style.width = ((c.value || 0) / 95 * 100) + '%';
             $('d-src').textContent = src.status === 'OK' ? src.label : 'UNAVAILABLE';
             $('d-src').className = src.role === 'NAS100_PROXY' ? 't-neutral' : src.status === 'OK' ? '' : 't-bear';
-            $('d-fresh').textContent = src.freshness + (src.status === 'OK' && src.f15 && isNum(src.f15.lagMin) && src.f15.lagMin > 0 ? ' · ' + src.f15.lagMin + 'm' : '');
-            $('d-fresh').className = src.freshness === 'FRESH' ? 't-bull' : src.freshness === 'DELAYED' ? 't-neutral' : 't-bear';
+            $('d-fresh').textContent = freshText(src.freshness) + (src.status === 'OK' && src.f15 && isNum(src.f15.lagMin) && src.f15.lagMin > 0 ? ' · ' + src.f15.lagMin + 'm' : '');
+            $('d-fresh').className = src.freshness === 'FRESH' ? 't-bull' : src.freshness === 'DELAYED' || src.freshness === 'LAST_AVAILABLE' ? 't-neutral' : 't-bear';
 
             const g = [
-                ['DATA', src.status === 'OK' ? src.freshness : 'UNAVAILABLE', FRESH_CLS[src.freshness] || 's-unavail'],
+                ['MARKET', r.marketStatus.status, MKT_CLS[r.marketStatus.status]],
+                ['DATA', src.status === 'OK' ? freshText(src.freshness) : 'UNAVAILABLE', FRESH_CLS[src.freshness] || 's-unavail'],
                 ['CONTEXT', r.context.bias, BIAS_CLS[r.context.bias] || 's-na'],
                 ['STRUCTURE', r.s15.status === 'OK' ? r.s15.bias : 'N/A', r.s15.status === 'OK' ? BIAS_CLS[r.s15.bias] : 's-unavail'],
                 ['TRIL', r.tril.status, STATUS_CLS[r.tril.status]],
@@ -708,11 +739,11 @@
 
         function renderStructure(r) {
             const s = r.s15, e = r.e5, src = r.source;
-            pill($('st-fresh'), src.freshness, FRESH_CLS[src.freshness]);
+            pill($('st-fresh'), freshText(src.freshness), FRESH_CLS[src.freshness]);
             $('st-src').textContent = src.status === 'OK' ? (src.role === 'NAS100_PROXY' ? 'NAS100 PROXY · ' : '') + (src.symbol || '') + ' · ' + (data().market && data().market.simulated ? 'SIMULATED' : src.provider) : 'NONE — NQ & NAS100 unusable';
             $('st-src').className = 'v ' + (src.role === 'NAS100_PROXY' ? 't-neutral' : src.status === 'OK' ? '' : 't-bear');
             const cs = src.candidates || {};
-            const cand = (k) => (cs[k] ? cs[k].f15.state + (cs[k].ok && cs[k].f5.state !== cs[k].f15.state ? '/5m ' + cs[k].f5.state : '') : '—');
+            const cand = (k) => (cs[k] ? freshText(cs[k].f15.state) + (cs[k].ok && cs[k].f5.state !== cs[k].f15.state ? '/5m ' + freshText(cs[k].f5.state) : '') : '—');
             $('st-cands').textContent = 'NQ ' + cand('NQ') + ' · NAS100 ' + cand('NAS100');
             if (s.status !== 'OK') {
                 pill($('st-overall'), 'DATA UNAVAILABLE', 's-unavail');
@@ -728,8 +759,8 @@
             $('st-liq').textContent = 'BSL ' + (isNum(bsl) ? fmtP(bsl) : '—') + ' · SSL ' + (isNum(ssl) ? fmtP(ssl) : '—');
             const lr = s.raids[s.raids.length - 1];
             $('st-raid').textContent = lr ? lr.side + ' swept @ ' + fmtP(lr.level) : 'None (last 16 bars)';
-            $('st-15-asof').textContent = src.f15 ? src.f15.state + ' · last bar ' + ago(src.f15.lastBarAt) : '';
-            $('st-5-asof').textContent = src.f5 ? src.f5.state + (src.f5.lastBarAt ? ' · last bar ' + ago(src.f5.lastBarAt) : '') : '';
+            $('st-15-asof').textContent = src.f15 ? freshText(src.f15.state) + ' · last bar ' + nyTime(new Date(src.f15.lastBarAt).toISOString()) : '';
+            $('st-5-asof').textContent = src.f5 ? freshText(src.f5.state) + (src.f5.lastBarAt ? ' · last bar ' + nyTime(new Date(src.f5.lastBarAt).toISOString()) : '') : '';
             if (e.status === 'OK') {
                 $('st-entry').textContent = e.entryState; $('st-entry').className = 'v ' + (e.entryState === 'IN ENTRY ZONE' ? 't-bull' : 't-neutral');
                 $('st-confirm').textContent = e.confirmation + (e.confirmEvent ? ' (' + e.confirmEvent.kind + ')' : '');
@@ -757,7 +788,7 @@
             const m = r.smt, d = r.decision;
             pill($('smt-state'), smtText(m.confluence), SMT_CLS[m.confluence]);
             const a = r.source.status === 'OK' ? (r.source.role === 'NAS100_PROXY' ? 'NAS100' : 'NQ') : 'NQ';
-            $('smt-pair').textContent = a + ' vs ' + (m.spxSymbol || 'S&P 500') + ' · S&P ' + m.spxFreshness;
+            $('smt-pair').textContent = a + ' vs ' + (m.spxSymbol || 'S&P 500') + ' · S&P ' + freshText(m.spxFreshness);
             const tfText = (x) => (x ? (x.state === 'BULLISH' || x.state === 'BEARISH' ? x.state + ' — ' : x.state + ' — ') + x.detail : '—');
             $('smt-15').textContent = m.m15 ? tfText(m.m15) : m.detail;
             $('smt-5').textContent = m.m5 ? tfText(m.m5) : '—';
@@ -840,6 +871,36 @@
             $('ai-status').textContent = app.ai.busy ? 'Reading chart…' : app.mode === 'demo' ? 'AI disabled in demo mode'
                 : !app.config.aiConfigured ? 'AI layer off — set ANTHROPIC_API_KEY on the server (optional)'
                 : !app.ai.image ? 'Upload a chart screenshot (optional)' : 'Ready: ' + app.ai.image.name;
+        }
+
+        function renderLineage(r) {
+            const d = data(), now = Date.now();
+            const sim = (x) => (x && x.simulated ? 'SIMULATED' : null);
+            const iso = (v) => (v ? nyTime(typeof v === 'number' ? new Date(v).toISOString() : v) : '—');
+            const errs = (x) => [x && x.fallbackReason ? 'FALLBACK — primary failed: ' + x.fallbackReason : '', ...((x && x.errors) || [])].filter(Boolean).join(' · ');
+            const st = (x) => (!x ? 'NOT LOADED' : x.status === 'OK' ? 'AVAILABLE' : 'DATA_UNAVAILABLE');
+            const rows = [
+                ['COT', sim(d.cot) || (d.cot && d.cot.source) || '—', st(d.cot), d.cot && d.cot.reportDate ? 'report ' + d.cot.reportDate : '—', iso(d.cot && d.cot.fetchedAt), '—', errs(d.cot)],
+                ['Seasonality', sim(d.seasonality) || (d.seasonality && d.seasonality.source) || '—', st(d.seasonality), d.seasonality && d.seasonality.currentMonth ? d.seasonality.currentMonth + ' ' + (d.seasonality.currentDay || '') : '—', iso(d.seasonality && d.seasonality.fetchedAt), '—', errs(d.seasonality)],
+                ['VIX', sim(d.vix) || (d.vix && d.vix.source) || '—', st(d.vix) + (d.vix && isNum(d.vix.value) ? ' · ' + d.vix.value.toFixed(2) : ''), iso(d.vix && d.vix.asOf), iso(d.vix && d.vix.fetchedAt), '—', errs(d.vix)],
+            ];
+            const series = (d.market && d.market.series) || {};
+            for (const k of ['NQ', 'NAS100', 'SPX']) {
+                const raw = series[k];
+                const x = E.describeSeries(raw, now, r.mkt);
+                const used = r.source.status === 'OK' && ((k === 'NQ' && r.source.role === 'NQ') || (k === 'NAS100' && r.source.role === 'NAS100_PROXY'));
+                rows.push([
+                    k + (k === 'NAS100' ? ' (proxy)' : k === 'SPX' ? ' (SMT)' : '') + (used ? ' ✓ USED' : ''),
+                    (sim(raw) || (raw && raw.provider) || '—') + (x.symbol ? ' · ' + x.symbol : ''),
+                    st(raw) + (isNum(x.lastPrice) ? ' · last ' + fmtP(x.lastPrice) : '') + ' · 15m ' + (x.ok ? 'YES' : 'NO') + ' · 5m ' + (raw && raw.bars5 ? 'YES' : 'NO'),
+                    x.f15.lastBarAt ? iso(x.f15.lastBarAt) : '—', iso(raw && raw.fetchedAt),
+                    freshText(x.f15.state) + (x.ok ? ' / 5m ' + freshText(x.f5.state) : ''),
+                    [raw && raw.error5 ? '5m: ' + raw.error5 : '', ...((raw && raw.errors) || [])].filter(Boolean).join(' · '),
+                ]);
+            }
+            rows.push(['News', sim(d.news) || (d.news && d.news.source) || '—', st(d.news) + (d.news && d.news.events ? ' · ' + d.news.events.length + ' events' : ''), '—', iso(d.news && d.news.fetchedAt), '—', errs(d.news)]);
+            $('lin-body').innerHTML = rows.map((row) => '<tr>' + row.map((c, i) => '<td' + (i === 6 && c ? ' class="err"' : '') + '>' + esc(c || (i === 6 ? '' : '—')) + '</td>').join('') + '</tr>').join('');
+            $('lin-now').textContent = 'MARKET ' + r.marketStatus.status + ' · ' + r.marketStatus.detail + (app.mode === 'demo' ? ' · DEMO' : '');
         }
 
         function renderAiReading() {

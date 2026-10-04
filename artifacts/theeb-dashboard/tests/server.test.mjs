@@ -136,6 +136,17 @@ describe('TradingView MCP adapter', () => {
         assert.deepEqual(TV.fillTemplate('{"symbol":"{symbol}","interval":"{interval}","bars":{count}}', { symbol: 'CME_MINI:NQ1!', interval: '15m', count: 200 }), { symbol: 'CME_MINI:NQ1!', interval: '15m', bars: 200 });
         assert.deepEqual(TV.fillTemplate('{"exchange":"{exchange}","ticker":"{ticker}"}', { exchange: 'CME_MINI', ticker: 'NQ1!' }), { exchange: 'CME_MINI', ticker: 'NQ1!' });
     });
+    test('tool detection on the REAL tradingview-mcp-server 0.8.1 tool list: no OHLC tool → null (scanners rejected)', () => {
+        const names = ['top_gainers', 'top_losers', 'bollinger_scan', 'rating_filter', 'coin_analysis', 'consecutive_candles_scan', 'advanced_candle_pattern', 'volume_breakout_scanner', 'multi_timeframe_analysis', 'yahoo_price', 'futures_category_snapshot', 'stock_prices'];
+        const tool = (n) => ({ name: n, inputSchema: { properties: n === 'consecutive_candles_scan' ? { exchange: {}, timeframe: {}, pattern_type: {} } : n === 'coin_analysis' ? { symbol: {}, exchange: {}, timeframe: {} } : { symbol: {} } } });
+        assert.equal(TV.detectBarsTool(names.map(tool)), null);
+        assert.equal(TV.detectBarsTool([{ name: 'get_ohlcv', inputSchema: { properties: { symbol: {}, interval: {} } } }]), 'get_ohlcv');
+        assert.equal(TV.detectBarsTool([{ name: 'get_historical_bars', inputSchema: { properties: { ticker: {}, timeframe: {} } } }]), 'get_historical_bars');
+    });
+    test('errors inside the JSON payload (isError=false) are surfaced — seen on the real server', () => {
+        assert.throws(() => TV.payloadFromToolResult({ content: [{ type: 'text', text: '{"symbol":"NQ=F","error":"403 Forbidden","source":"Yahoo Finance"}' }] }), /403 Forbidden/);
+        assert.throws(() => TV.payloadFromToolResult({ content: [{ type: 'text', text: '{"error":{"code":"UPSTREAM_ERROR","message":"Tunnel connection failed: 403"}}' }] }), /Tunnel connection failed/);
+    });
     test('MCP tool error / no JSON → throws', () => {
         assert.throws(() => TV.payloadFromToolResult({ isError: true, content: [{ type: 'text', text: 'symbol not found' }] }), /symbol not found/);
         assert.throws(() => TV.payloadFromToolResult({ content: [{ type: 'text', text: 'hello' }] }), /no JSON/);
@@ -333,5 +344,19 @@ describe('Security', () => {
         const html = await readFile(path.join(here, '..', 'public', 'index.html'), 'utf8');
         const fetchFns = html.slice(html.indexOf('async function fetchContext'), html.indexOf('function loadDemo'));
         assert.doesNotMatch(fetchFns, /DEMO\.|scenario\(/);
+    });
+});
+
+describe('TradingView MCP connect backoff', () => {
+    test('a failed connect is not retried (no process respawn) within the backoff window', async () => {
+        await TV.resetTradingViewClient();
+        const env = { TRADINGVIEW_MCP_COMMAND: process.execPath, TRADINGVIEW_MCP_ARGS: JSON.stringify([path.join(here, 'fixtures', 'mock-tv-mcp.mjs')]), TRADINGVIEW_MCP_TOOL: 'missing_tool' };
+        const t0 = Date.now();
+        await assert.rejects(TV.fetchTradingViewBars('NQ', '15m', { env }), /not offered/);
+        const first = Date.now() - t0;
+        const t1 = Date.now();
+        await assert.rejects(TV.fetchTradingViewBars('NQ', '15m', { env }), /not offered/);
+        assert.ok(Date.now() - t1 < Math.max(20, first / 4), 'second call must fail fast from the backoff cache');
+        await TV.resetTradingViewClient();
     });
 });

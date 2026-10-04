@@ -423,8 +423,55 @@ describe('Decision engine — scenarios', () => {
     });
     test('structured agent outputs have the documented shape', () => {
         const r = run('news_high');
-        assert.deepEqual(Object.keys(r.agents.analyst), ['agent', 'context', 'structure', 'tril', 'smt', 'bias', 'confidence', 'dataSource', 'freshness', 'reason']);
+        assert.deepEqual(Object.keys(r.agents.analyst), ['agent', 'context', 'structure', 'tril', 'smt', 'bias', 'confidence', 'dataSource', 'freshness', 'marketStatus', 'reason']);
         assert.deepEqual(Object.keys(r.agents.news), ['agent', 'status', 'event', 'impact', 'timeToEvent', 'tradingRestriction']);
         assert.ok(!('bias' in r.agents.news));
+    });
+});
+
+describe('Market status (OPEN / CLOSED / UNKNOWN) — closed market never trades', () => {
+    const FRI_CLOSE = Date.parse('2026-10-02T21:00:00Z'); // Fri 17:00 ET
+    const SUN = Date.parse('2026-10-04T14:00:00Z');       // Sun 10:00 ET — CME closed
+    test('last session close is Friday 17:00 ET', () => {
+        assert.equal(E.lastSessionClose(SUN), FRI_CLOSE);
+        assert.equal(E.lastSessionClose(NOW), null); // Tuesday morning: open
+    });
+    test('19. CLOSED: last-session bars → LAST_AVAILABLE, layers analysed, decision NO TRADE — MARKET CLOSED', () => {
+        const d = DEMO.scenario('long', FRI_CLOSE - 60000);
+        for (const k of ['NQ', 'NAS100', 'SPX']) d.market.series[k].simulated = undefined;
+        const r = E.runPipeline(d, { instrument: 'MNQ', trades: [] }, SUN); // real clock, no session override
+        assert.equal(r.marketStatus.status, 'CLOSED');
+        assert.equal(r.source.freshness, 'LAST_AVAILABLE');
+        assert.equal(r.source.role, 'NQ');
+        assert.equal(r.decision.decision, 'NO TRADE');
+        assert.equal(r.decision.reasons[0].code, 'MARKET CLOSED');
+        assert.equal(r.decision.candidate, false);
+        assert.equal(r.decision.confidence.value, null);              // no live confidence when closed
+        assert.ok(Number.isFinite(r.decision.confidence.validationScore)); // engine still scored the evidence
+        assert.equal(r.tril.status, 'PASS');                          // TRIL engine ran (validation only)
+        assert.equal(r.smt.confluence, 'BULLISH_CONFLUENCE');          // SMT ran on last available data
+        assert.equal(r.risk.status, 'PASS');                          // risk computed, still no trade
+        assert.ok(r.decision.warnings.some((w) => /LAST AVAILABLE DATA/.test(w)));
+        assert.equal(r.agents.analyst.marketStatus, 'CLOSED');
+        assert.ok(!r.decision.reasons.some((x) => x.code === 'TRADING STATE: NOT READY')); // no duplicate "market closed"
+    });
+    test('CLOSED: bars older than the last session → STALE → NO TRADE / DATA UNAVAILABLE', () => {
+        const d = DEMO.scenario('long', FRI_CLOSE - 2 * 86400000);
+        const r = E.runPipeline(d, {}, SUN);
+        assert.equal(r.marketStatus.status, 'CLOSED');
+        assert.equal(r.source.status, 'UNAVAILABLE');
+        assert.equal(r.source.candidates.NQ.f15.state, 'STALE');
+        assert.equal(r.decision.reasons[0].code, 'MARKET CLOSED');
+    });
+    test('UNKNOWN: schedule open but data dead (holiday / halt)', () => {
+        const d = DEMO.scenario('long', NOW - 4 * 3600000);
+        const r = E.runPipeline(d, {}, NOW);
+        assert.equal(r.marketStatus.status, 'UNKNOWN');
+        assert.equal(r.decision.decision, 'NO TRADE');
+        assert.ok(r.decision.reasons.some((x) => x.code === 'DATA UNAVAILABLE'));
+    });
+    test('OPEN: schedule open + current data', () => {
+        const r = E.runPipeline(DEMO.scenario('long', NOW), {}, NOW);
+        assert.equal(r.marketStatus.status, 'OPEN');
     });
 });

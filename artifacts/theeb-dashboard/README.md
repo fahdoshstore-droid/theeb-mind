@@ -40,8 +40,12 @@ pnpm --filter @workspace/theeb-dashboard start        # http://localhost:5173
 
 The MarketBulls adapter parses the page's tables and embedded chart series and validates every field. If the format is not recognised, it throws and the fallback is used, labelled as such.
 
+### Market status
+`OPEN` · `CLOSED` · `UNKNOWN`: the CME Globex schedule (New York time) first, then data evidence. If the schedule says open but no current data arrives, the status is UNKNOWN (holiday, halt, or feed issue).
+When the market is not OPEN, the decision is always **NO TRADE** (`MARKET CLOSED` / `MARKET STATUS UNKNOWN`). The last session's bars are labelled **LAST AVAILABLE** and are analysed for engine validation only, with no live confidence.
+
 ### Freshness and source selection
-`FRESH` (last bar ≤ 2 min late) · `DELAYED` (≤ 20 min, or a delayed feed) · `STALE` (shown, never used) · `UNAVAILABLE`.
+`FRESH` (last bar ≤ 2 min late) · `DELAYED` (≤ 20 min, or a delayed feed) · `LAST AVAILABLE` (market closed, last session) · `STALE` (shown, never used) · `UNAVAILABLE`.
 
 1. NQ is FRESH → use NQ.
 2. NQ is delayed, stale or unavailable, and NAS100 is FRESH → **NAS100 PROXY**. It is labelled everywhere, and levels are marked as NAS100 prices.
@@ -71,4 +75,8 @@ NO TRADE when any core gate fails: `DATA UNAVAILABLE` · `TRADING STATE: NOT REA
 ```bash
 pnpm --filter @workspace/theeb-dashboard test       # engine, adapters, real stdio MCP round-trip, server, security
 PLAYWRIGHT_MODULE=$(npm root -g)/playwright pnpm --filter @workspace/theeb-dashboard test:e2e   # browser: all scenarios + LIVE via MCP
+# REAL sources (no mocks): records every source failure and checks the invariants
+TRADINGVIEW_MCP_COMMAND=... REPORT_PATH=live-report.json pnpm --filter @workspace/theeb-dashboard test:live
 ```
+
+The TradingView MCP server must expose an **OHLC-history tool** (symbol + timeframe → bars). Example: `tradingview-mcp-server` 0.8.1 (PyPI) has 37 tools but none that returns 15m/5m bars, so the adapter reports that clearly and does not misuse a scanner tool.

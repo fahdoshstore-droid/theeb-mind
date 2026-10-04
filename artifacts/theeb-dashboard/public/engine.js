@@ -289,8 +289,9 @@
     // 2b. DATA FRESHNESS + SOURCE SELECTION (NQ → NAS100 proxy)
     // ═══════════════════════════════════════════════════════════
 
-    const USABLE = ['FRESH', 'DELAYED'];
-    const FRESH_RANK = { FRESH: 0, DELAYED: 1, STALE: 2, UNAVAILABLE: 3 };
+    // LAST_AVAILABLE = market closed, bars from the last session: usable for ENGINE VALIDATION only, never live
+    const USABLE = ['FRESH', 'DELAYED', 'LAST_AVAILABLE'];
+    const FRESH_RANK = { FRESH: 0, DELAYED: 1, LAST_AVAILABLE: 2, STALE: 3, UNAVAILABLE: 4 };
     const worstOf = (...s) => s.filter(Boolean).sort((a, b) => FRESH_RANK[b] - FRESH_RANK[a])[0] || 'UNAVAILABLE';
 
     /**
@@ -298,25 +299,56 @@
      * DELAYED  ≤ 20 min behind, or the provider is a delayed feed
      * STALE    older — shown, never used
      */
-    function computeFreshness(bars, tfMin, now, delayedProvider) {
+    /** Most recent moment the CME schedule closed (null while open). 15-minute resolution — CME closes on the hour. */
+    function lastSessionClose(now) {
+        if (getSession(now).marketOpen) return null;
+        const step = 15 * 60000;
+        let t = Math.floor(now / step) * step;
+        for (let i = 0; i < 4 * 24 * 4; i++, t -= step) if (getSession(t - 1).marketOpen) return t;
+        return null;
+    }
+
+    /**
+     * FRESH           market open, last bar ≤ 2 min late, real-time provider
+     * DELAYED         market open, ≤ 20 min late or a delayed feed
+     * LAST_AVAILABLE  market CLOSED, bars reach the last session close (validation only, never "live")
+     * STALE           older — shown, never used
+     */
+    function computeFreshness(bars, tfMin, now, delayedProvider, market) {
         const b = cleanBars(bars);
         if (b.length < 30) return { state: 'UNAVAILABLE', lastBarAt: null, lagMin: null };
         const last = b[b.length - 1].t;
         if (!isNum(last)) return { state: 'UNAVAILABLE', lastBarAt: null, lagMin: null };
+        if (market && market.marketOpen === false) {
+            const close = market.lastClose;
+            const ok = isNum(close) && last + tfMin * 60000 >= close - 2 * 15 * 60000;
+            return { state: ok ? 'LAST_AVAILABLE' : 'STALE', lastBarAt: last, lagMin: null };
+        }
         const lagMin = (now - last) / 60000 - tfMin; // minutes since the last bar should have closed
         let state = lagMin <= 2 ? 'FRESH' : lagMin <= 20 ? 'DELAYED' : 'STALE';
         if (delayedProvider && state === 'FRESH') state = 'DELAYED';
         return { state, lastBarAt: last, lagMin: Math.max(0, Math.round(lagMin)) };
     }
 
-    function describeSeries(s, now) {
-        if (!s || s.status !== 'OK') return { ok: false, f15: { state: 'UNAVAILABLE' }, f5: { state: 'UNAVAILABLE' }, errors: (s && s.errors) || [] };
+    function describeSeries(s, now, market) {
+        if (!s || s.status !== 'OK') return { ok: false, f15: { state: 'UNAVAILABLE' }, f5: { state: 'UNAVAILABLE' }, errors: (s && s.errors) || [], provider: s && s.provider, symbol: s && s.symbol };
+        const b15 = cleanBars(s.bars15);
         return {
-            ok: true, symbol: s.symbol, provider: s.provider, delayed: !!s.delayed,
-            f15: computeFreshness(s.bars15, 15, now, s.delayed),
-            f5: computeFreshness(s.bars5, 5, now, s.delayed),
+            ok: true, symbol: s.symbol, provider: s.provider, delayed: !!s.delayed, fetchedAt: s.fetchedAt || null,
+            f15: computeFreshness(s.bars15, 15, now, s.delayed, market),
+            f5: computeFreshness(s.bars5, 5, now, s.delayed, market),
+            lastPrice: b15.length ? b15[b15.length - 1].c : null,
             errors: s.errors || [],
         };
+    }
+
+    /** OPEN / CLOSED / UNKNOWN — schedule first, then data evidence (holidays, halts, dead feeds). */
+    function computeMarketStatus(session, source) {
+        if (!session || session.marketOpen === false) return { status: 'CLOSED', detail: session && session.simulated ? 'SIMULATED session' : 'CME Globex closed (schedule)' };
+        if (source && source.status === 'OK' && (source.freshness === 'FRESH' || source.freshness === 'DELAYED')) {
+            return { status: 'OPEN', detail: session.simulated ? 'SIMULATED session' : 'Schedule open, data current' };
+        }
+        return { status: 'UNKNOWN', detail: source && source.status === 'OK' ? 'Schedule open but data ' + source.freshness + ' — holiday / halt / feed issue?' : 'Schedule open but no usable market data' };
     }
 
     /**
@@ -324,13 +356,15 @@
      * delayed/stale/unavailable and NAS100 is fresh; otherwise the best usable one; else UNAVAILABLE.
      * 15m and 5m always come from the same series; a stale 5m is dropped, never mixed silently.
      */
-    function selectMarketSource(market, now) {
+    function selectMarketSource(market, now, mkt) {
         const series = (market && market.series) || {};
-        const nq = describeSeries(series.NQ, now), nas = describeSeries(series.NAS100, now);
+        const nq = describeSeries(series.NQ, now, mkt), nas = describeSeries(series.NAS100, now, mkt);
         const candidates = { NQ: nq, NAS100: nas };
         let role = null;
         if (nq.f15.state === 'FRESH') role = 'NQ';
         else if (nas.f15.state === 'FRESH') role = 'NAS100_PROXY';
+        else if (nq.f15.state === 'LAST_AVAILABLE') role = 'NQ';
+        else if (nas.f15.state === 'LAST_AVAILABLE') role = 'NAS100_PROXY';
         else if (nq.f15.state === 'DELAYED') role = 'NQ';
         else if (nas.f15.state === 'DELAYED') role = 'NAS100_PROXY';
         if (!role) {
@@ -345,7 +379,7 @@
         else if (pick.f5.state !== pick.f15.state) notes.push('15m ' + pick.f15.state + ' / 5m ' + pick.f5.state);
         const freshness = worstOf(pick.f15.state, use5 ? pick.f5.state : null);
         return {
-            status: 'OK', role, symbol: pick.symbol, provider: pick.provider,
+            status: 'OK', role, symbol: pick.symbol, provider: pick.provider, lastPrice: pick.lastPrice, fetchedAt: pick.fetchedAt,
             label: role === 'NQ' ? 'NQ ' + (pick.symbol || '') : 'NAS100 PROXY ' + (pick.symbol || ''),
             freshness, f15: pick.f15, f5: pick.f5, candidates, notes,
             bars15: raw.bars15, bars5: use5 ? raw.bars5 : null,
@@ -381,10 +415,10 @@
         return { state: 'NONE', detail: (lowA ? 'Both took the low' : highA ? 'Both took the high' : 'No liquidity taken') + ' — no divergence' };
     }
 
-    function computeSMT(source, spxSeries, now) {
+    function computeSMT(source, spxSeries, now, mkt) {
         const base = { confluence: UNCLEAR, tf: null, confirmed5m: false, spxFreshness: 'UNAVAILABLE' };
         if (!source || source.status !== 'OK') return Object.assign(base, { detail: 'NQ / NAS100 data unavailable' });
-        const spx = describeSeries(spxSeries, now);
+        const spx = describeSeries(spxSeries, now, mkt);
         base.spxFreshness = spx.f15.state;
         base.spxSymbol = spx.symbol || null;
         if (!USABLE.includes(spx.f15.state)) return Object.assign(base, { detail: 'S&P 500 data ' + spx.f15.state });
@@ -715,7 +749,11 @@
 
     function decide(d) {
         const { context, s15, e5, tril, news, risk, tradingState, source, smt } = d;
+        const marketStatus = d.marketStatus || { status: 'OPEN' };
         const reasons = [];
+        if (marketStatus.status === 'CLOSED') reasons.push({ code: 'MARKET CLOSED', detail: source && source.status === 'OK' ? 'Last available data — analysis is engine validation only, not a live trade' : 'No live trade while the market is closed' });
+        // UNKNOWN with no usable data is reported as DATA UNAVAILABLE below (the precise cause)
+        else if (marketStatus.status === 'UNKNOWN' && source && source.status === 'OK') reasons.push({ code: 'MARKET STATUS UNKNOWN', detail: marketStatus.detail });
         const structDir = s15 && s15.status === 'OK' ? dirOf(s15.bias) : null;
         const ctxDir = dirOf(context.bias);
         const direction = structDir;
@@ -727,7 +765,8 @@
 
         if (!source || source.status !== 'OK') reasons.push({ code: 'DATA UNAVAILABLE', detail: 'NQ & NAS100 market data unavailable or stale' });
         else if (!s15 || s15.status !== 'OK') reasons.push({ code: 'DATA UNAVAILABLE', detail: '15m price data insufficient' });
-        if (tradingState.status !== 'READY') reasons.push({ code: 'TRADING STATE: NOT READY', detail: tradingState.reasons.join(' · ') });
+        const stateReasons = tradingState.reasons.filter((r) => !(r === 'Market closed' && marketStatus.status === 'CLOSED'));
+        if (stateReasons.length) reasons.push({ code: 'TRADING STATE: NOT READY', detail: stateReasons.join(' · ') });
         if (news.status === 'HIGH IMPACT') reasons.push({ code: 'NEWS HIGH IMPACT', detail: news.event + ' (' + news.timeToEvent + ')' });
         if (s15 && s15.status === 'OK' && !structDir) reasons.push({ code: 'STRUCTURE UNCLEAR', detail: '15m ' + s15.trend + ', no break' });
         if (context.bias === UNAVAILABLE) reasons.push({ code: 'DATA UNAVAILABLE', detail: 'COT & seasonality unavailable' });
@@ -739,11 +778,14 @@
             if (risk.status !== PASS) reasons.push({ code: 'RISK FAIL', detail: risk.reasons.join(' · ') || 'No valid plan' });
         }
 
-        const confidence = computeConfidence(Object.assign({}, d, { direction: direction || ctxDir }));
+        const evidence = computeConfidence(Object.assign({}, d, { direction: direction || ctxDir }));
+        // A closed / unknown market gets no live confidence; the evidence score is kept for engine validation
+        const confidence = marketStatus.status === 'OPEN' ? evidence : { value: null, label: 'N/A', parts: evidence.parts, validationScore: evidence.value };
         const candidate = reasons.length === 0 && !!direction;
         const decision = candidate ? direction : 'NO TRADE';
         const warnings = [];
         if (source && source.status === 'OK') {
+            if (source.freshness === 'LAST_AVAILABLE') warnings.push('MARKET CLOSED — LAST AVAILABLE DATA (bar ' + new Date(source.f15.lastBarAt).toISOString().slice(0, 16).replace('T', ' ') + ' UTC), not live');
             if (source.freshness === 'DELAYED') warnings.push('DELAYED DATA — ' + (source.f15.lagMin || 0) + ' min behind');
             if (source.role === 'NAS100_PROXY') warnings.push('DATA SOURCE: NAS100 PROXY — levels are NAS100 prices, not NQ');
             source.notes.filter((n) => /not used/.test(n)).forEach((n) => warnings.push(n));
@@ -785,15 +827,17 @@
         const instrument = INSTRUMENTS[user.instrument] ? user.instrument : 'MNQ';
 
         const context = buildContext(analyzeCOT(data.cot, now), analyzeSeasonality(data.seasonality), analyzeVIX(data.vix));
-        const source = selectMarketSource(data.market, now);
+        const session = user.sessionOverride || getSession(now); // sessionOverride: DEMO / SIMULATED only
+        const mkt = { marketOpen: session.marketOpen !== false, lastClose: session.marketOpen === false ? (isNum(session.lastClose) ? session.lastClose : lastSessionClose(now)) : null };
+        const source = selectMarketSource(data.market, now, mkt);
+        const marketStatus = computeMarketStatus(session, source);
         let s15 = source.status === 'OK' ? analyzeStructure15(source.bars15) : { status: UNAVAILABLE, bias: null, note: 'No usable market data' };
         if (user.structureOverride && [BULL, BEAR, NEUTRAL].includes(user.structureOverride) && s15.status === 'OK') {
             s15 = Object.assign({}, s15, { bias: user.structureOverride, structureLabel: s15.structureLabel + ' (manual: ' + user.structureOverride + ')', manual: true });
         }
         const direction = s15.status === 'OK' ? dirOf(s15.bias) : null;
         const e5 = analyzeEntry5(source.status === 'OK' ? source.bars5 : null, direction);
-        const smt = computeSMT(source, data.market && data.market.series ? data.market.series.SPX : null, now);
-        const session = user.sessionOverride || getSession(now); // sessionOverride: DEMO / SIMULATED only
+        const smt = computeSMT(source, data.market && data.market.series ? data.market.series.SPX : null, now, mkt);
         const tradingState = computeTradingState({ trades: user.trades, now, session, userReady: user.userReady, rules });
         const news = analyzeNews(data.news, now);
 
@@ -809,7 +853,7 @@
         };
         const tril = computeTRIL({ direction, context, s15, e5, plannedEntry: levels.entry, overrides: user.trilOverrides });
         const risk = computeRisk({ direction, entry: levels.entry, sl: levels.sl, tp: levels.tp, instrument, rules, remainingLoss: tradingState.remainingLoss });
-        const decision = decide({ context, s15, e5, tril, news, risk, tradingState, source, smt });
+        const decision = decide({ context, s15, e5, tril, news, risk, tradingState, source, smt, marketStatus });
 
         const analystAgent = {
             agent: 'THEEB Market Analyst',
@@ -821,6 +865,7 @@
             confidence: decision.confidence.value,
             dataSource: source.status === 'OK' ? source.label : UNAVAILABLE,
             freshness: source.freshness,
+            marketStatus: marketStatus.status,
             reason: decision.why,
         };
         const newsAgent = {
@@ -831,14 +876,14 @@
             timeToEvent: news.timeToEvent,
             tradingRestriction: news.tradingRestriction,
         };
-        return { instrument, rules, context, source, s15, e5, smt, session, tradingState, news, levels, tril, risk, decision, agents: { analyst: analystAgent, news: newsAgent } };
+        return { instrument, rules, marketStatus, mkt, context, source, s15, e5, smt, session, tradingState, news, levels, tril, risk, decision, agents: { analyst: analystAgent, news: newsAgent } };
     }
 
     const api = {
         DEFAULT_RULES, INSTRUMENTS, KILL_ZONES,
         analyzeCOT, analyzeSeasonality, analyzeVIX, buildContext,
         findSwings, structureBreaks, findRaids, findFVGs, analyzeStructure15, analyzeEntry5,
-        computeFreshness, selectMarketSource, smtOnTimeframe, computeSMT,
+        computeFreshness, selectMarketSource, computeMarketStatus, lastSessionClose, describeSeries, smtOnTimeframe, computeSMT,
         computeTRIL, classifyEventImpact, analyzeNews, fmtMinutes,
         getSession, nyParts, computeTradingState, suggestLevels, computeRisk,
         computeConfidence, decide, runPipeline,
