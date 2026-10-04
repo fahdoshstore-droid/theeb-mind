@@ -204,9 +204,9 @@
         return out;
     }
 
-    function analyzeStructure15(rawBars) {
+    function analyzeStructure(rawBars) {
         const bars = cleanBars(rawBars);
-        if (bars.length < 30) return { status: UNAVAILABLE, bias: null, note: '15m data unavailable' };
+        if (bars.length < 30) return { status: UNAVAILABLE, bias: null, note: 'Structure data unavailable' };
         const k = 2;
         const swings = findSwings(bars, k);
         const highs = swings.filter((s) => s.type === 'H');
@@ -256,7 +256,7 @@
         };
     }
 
-    function analyzeEntry5(rawBars, direction) {
+    function analyzeEntry(rawBars, direction) {
         const bars = cleanBars(rawBars);
         if (bars.length < 30) return { status: UNAVAILABLE, entryState: 'DATA UNAVAILABLE', confirmation: UNAVAILABLE };
         const price = bars[bars.length - 1].c;
@@ -299,6 +299,64 @@
      * DELAYED  ≤ 20 min behind, or the provider is a delayed feed
      * STALE    older — shown, never used
      */
+    // ── Timeframes: configurable, never assumed ─────────────────
+    const TIMEFRAMES = Object.freeze({ '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60 });
+    const tfMinutes = (tf) => (TIMEFRAMES[tf] || null);
+
+    /**
+     * Deterministic OHLCV aggregation of finer bars into a higher timeframe:
+     * open = first, high = max, low = min, close = last, volume = sum. No interpolation:
+     * empty buckets are skipped, buckets keep their real bar count, and a bucket that spans
+     * a contract change is flagged (roll) instead of being silently merged.
+     */
+    function resampleBars(bars, fromTf, toTf) {
+        const fm = tfMinutes(fromTf), tm = tfMinutes(toTf);
+        if (!fm || !tm || tm < fm || tm % fm !== 0) throw new Error('Cannot resample ' + fromTf + ' → ' + toTf);
+        const src = cleanBars(bars).slice().sort((a, b) => a.t - b.t);
+        if (tm === fm) return src.map((b) => Object.assign({}, b));
+        const ms = tm * 60000, out = [];
+        let cur = null;
+        for (const b of src) {
+            const start = Math.floor(b.t / ms) * ms;
+            if (!cur || cur.t !== start) {
+                cur = { t: start, o: b.o, h: b.h, l: b.l, c: b.c, n: 1 };
+                if (isNum(b.v)) cur.v = b.v;
+                if (b.contract) cur.contract = b.contract;
+                out.push(cur);
+                continue;
+            }
+            cur.h = Math.max(cur.h, b.h);
+            cur.l = Math.min(cur.l, b.l);
+            cur.c = b.c;
+            cur.n++;
+            if (isNum(b.v)) cur.v = (cur.v || 0) + b.v;
+            if (b.contract && cur.contract && b.contract !== cur.contract) { cur.roll = true; cur.contract = b.contract; }
+        }
+        const expected = tm / fm;
+        for (const o of out) o.complete = o.n === expected;
+        return out;
+    }
+
+    /** Splits a continuous series at contract changes (front-month roll). */
+    function splitAtRolls(bars) {
+        const segs = [];
+        let cur = [];
+        for (const b of bars || []) {
+            if (cur.length && b.contract && cur[cur.length - 1].contract && b.contract !== cur[cur.length - 1].contract) { segs.push(cur); cur = []; }
+            cur.push(b);
+        }
+        if (cur.length) segs.push(cur);
+        return segs;
+    }
+
+    /** Bars of one timeframe from a series ({ barsByTf }), restricted to the current contract after a roll. */
+    function barsFor(s, tf) {
+        if (!s || !tf || !s.barsByTf || !Array.isArray(s.barsByTf[tf])) return { bars: null, rolled: false };
+        const segs = splitAtRolls(s.barsByTf[tf]);
+        const last = segs[segs.length - 1] || [];
+        return { bars: last, rolled: segs.length > 1, contract: last.length ? last[last.length - 1].contract || null : null };
+    }
+
     /** Most recent moment the CME schedule closed (null while open). 15-minute resolution — CME closes on the hour. */
     function lastSessionClose(now) {
         if (getSession(now).marketOpen) return null;
@@ -330,14 +388,25 @@
         return { state, lastBarAt: last, lagMin: Math.max(0, Math.round(lagMin)) };
     }
 
-    function describeSeries(s, now, market) {
-        if (!s || s.status !== 'OK') return { ok: false, f15: { state: 'UNAVAILABLE' }, f5: { state: 'UNAVAILABLE' }, errors: (s && s.errors) || [], provider: s && s.provider, symbol: s && s.symbol };
-        const b15 = cleanBars(s.bars15);
+    /**
+     * Freshness per timeframe. With no timeframe selected, the series' base timeframe is described
+     * (availability / lineage only — no analysis runs on it).
+     */
+    function describeSeries(s, now, market, tf) {
+        const t = tf || {};
+        if (!s || s.status !== 'OK') return { ok: false, fStruct: { state: 'UNAVAILABLE' }, fExec: { state: 'UNAVAILABLE' }, errors: (s && s.errors) || [], provider: s && s.provider, symbol: s && s.symbol, structTf: t.structure || null, execTf: t.execution || null };
+        const structTf = t.structure || s.baseTf || null, execTf = t.execution || null;
+        const st = barsFor(s, structTf), ex = barsFor(s, execTf);
+        const bStruct = cleanBars(st.bars);
+        const baseBars = barsFor(s, s.baseTf).bars || [];
         return {
             ok: true, symbol: s.symbol, provider: s.provider, delayed: !!s.delayed, fetchedAt: s.fetchedAt || null,
-            f15: computeFreshness(s.bars15, 15, now, s.delayed, market),
-            f5: computeFreshness(s.bars5, 5, now, s.delayed, market),
-            lastPrice: b15.length ? b15[b15.length - 1].c : null,
+            structTf, execTf, contract: st.contract || (baseBars.length ? baseBars[baseBars.length - 1].contract || null : null),
+            rolled: st.rolled || ex.rolled, baseTf: s.baseTf || null, availableTfs: Object.keys(s.barsByTf || {}),
+            barsStruct: st.bars, barsExec: ex.bars,
+            fStruct: structTf ? computeFreshness(st.bars, tfMinutes(structTf), now, s.delayed, market) : { state: 'UNAVAILABLE' },
+            fExec: execTf ? computeFreshness(ex.bars, tfMinutes(execTf), now, s.delayed, market) : { state: 'UNAVAILABLE' },
+            lastPrice: bStruct.length ? bStruct[bStruct.length - 1].c : null,
             errors: s.errors || [],
         };
     }
@@ -354,35 +423,37 @@
     /**
      * Picks ONE series for structure/price: NQ when fresh; NAS100 as a labelled proxy when NQ is
      * delayed/stale/unavailable and NAS100 is fresh; otherwise the best usable one; else UNAVAILABLE.
-     * 15m and 5m always come from the same series; a stale 5m is dropped, never mixed silently.
+     * Structure and execution timeframes always come from the same series; a stale execution
+     * timeframe is dropped, never mixed silently.
      */
-    function selectMarketSource(market, now, mkt) {
+    function selectMarketSource(market, now, mkt, tf) {
         const series = (market && market.series) || {};
-        const nq = describeSeries(series.NQ, now, mkt), nas = describeSeries(series.NAS100, now, mkt);
+        const nq = describeSeries(series.NQ, now, mkt, tf), nas = describeSeries(series.NAS100, now, mkt, tf);
         const candidates = { NQ: nq, NAS100: nas };
         let role = null;
-        if (nq.f15.state === 'FRESH') role = 'NQ';
-        else if (nas.f15.state === 'FRESH') role = 'NAS100_PROXY';
-        else if (nq.f15.state === 'LAST_AVAILABLE') role = 'NQ';
-        else if (nas.f15.state === 'LAST_AVAILABLE') role = 'NAS100_PROXY';
-        else if (nq.f15.state === 'DELAYED') role = 'NQ';
-        else if (nas.f15.state === 'DELAYED') role = 'NAS100_PROXY';
+        if (nq.fStruct.state === 'FRESH') role = 'NQ';
+        else if (nas.fStruct.state === 'FRESH') role = 'NAS100_PROXY';
+        else if (nq.fStruct.state === 'LAST_AVAILABLE') role = 'NQ';
+        else if (nas.fStruct.state === 'LAST_AVAILABLE') role = 'NAS100_PROXY';
+        else if (nq.fStruct.state === 'DELAYED') role = 'NQ';
+        else if (nas.fStruct.state === 'DELAYED') role = 'NAS100_PROXY';
         if (!role) {
-            return { status: UNAVAILABLE, role: null, label: 'NQ & NAS100 UNAVAILABLE', freshness: worstOf(nq.f15.state, nas.f15.state) === 'STALE' ? 'STALE' : 'UNAVAILABLE', candidates, bars15: null, bars5: null, notes: ['NQ: ' + nq.f15.state, 'NAS100: ' + nas.f15.state] };
+            return { status: UNAVAILABLE, role: null, label: 'NQ & NAS100 UNAVAILABLE', freshness: worstOf(nq.fStruct.state, nas.fStruct.state) === 'STALE' ? 'STALE' : 'UNAVAILABLE', candidates, barsStruct: null, barsExec: null, notes: ['NQ: ' + nq.fStruct.state, 'NAS100: ' + nas.fStruct.state] };
         }
         const pick = role === 'NQ' ? nq : nas;
-        const raw = role === 'NQ' ? series.NQ : series.NAS100;
         const notes = [];
-        if (role === 'NAS100_PROXY') notes.push('NQ ' + nq.f15.state + ' — using NAS100 as proxy (not NQ prices)');
-        const use5 = USABLE.includes(pick.f5.state);
-        if (!use5) notes.push('5m ' + pick.f5.state + ' — not used');
-        else if (pick.f5.state !== pick.f15.state) notes.push('15m ' + pick.f15.state + ' / 5m ' + pick.f5.state);
-        const freshness = worstOf(pick.f15.state, use5 ? pick.f5.state : null);
+        if (pick.rolled) notes.push('Contract roll in window — only ' + (pick.contract || 'current contract') + ' bars used');
+        if (role === 'NAS100_PROXY') notes.push('NQ ' + nq.fStruct.state + ' — using NAS100 as proxy (not NQ prices)');
+        const useExec = USABLE.includes(pick.fExec.state);
+        if (pick.execTf && !useExec) notes.push(pick.execTf + ' ' + pick.fExec.state + ' — not used');
+        else if (pick.execTf && pick.fExec.state !== pick.fStruct.state) notes.push(pick.structTf + ' ' + pick.fStruct.state + ' / ' + pick.execTf + ' ' + pick.fExec.state);
+        const freshness = worstOf(pick.fStruct.state, useExec ? pick.fExec.state : null);
         return {
             status: 'OK', role, symbol: pick.symbol, provider: pick.provider, lastPrice: pick.lastPrice, fetchedAt: pick.fetchedAt,
             label: role === 'NQ' ? 'NQ ' + (pick.symbol || '') : 'NAS100 PROXY ' + (pick.symbol || ''),
-            freshness, f15: pick.f15, f5: pick.f5, candidates, notes,
-            bars15: raw.bars15, bars5: use5 ? raw.bars5 : null,
+            freshness, fStruct: pick.fStruct, fExec: pick.fExec, candidates, notes, contract: pick.contract,
+            structTf: pick.structTf, execTf: pick.execTf,
+            barsStruct: pick.barsStruct, barsExec: useExec ? pick.barsExec : null,
         };
     }
 
@@ -415,33 +486,35 @@
         return { state: 'NONE', detail: (lowA ? 'Both took the low' : highA ? 'Both took the high' : 'No liquidity taken') + ' — no divergence' };
     }
 
-    function computeSMT(source, spxSeries, now, mkt) {
-        const base = { confluence: UNCLEAR, tf: null, confirmed5m: false, spxFreshness: 'UNAVAILABLE' };
+    function computeSMT(source, spxSeries, now, mkt, tf) {
+        const base = { confluence: UNCLEAR, tf: null, confirmedExec: false, spxFreshness: 'UNAVAILABLE' };
         if (!source || source.status !== 'OK') return Object.assign(base, { detail: 'NQ / NAS100 data unavailable' });
-        const spx = describeSeries(spxSeries, now, mkt);
-        base.spxFreshness = spx.f15.state;
+        const spx = describeSeries(spxSeries, now, mkt, tf && tf.structure ? tf : null);
+        base.spxFreshness = spx.fStruct.state;
         base.spxSymbol = spx.symbol || null;
-        if (!USABLE.includes(spx.f15.state)) return Object.assign(base, { detail: 'S&P 500 data ' + spx.f15.state });
-        if (Math.abs(spx.f15.lastBarAt - source.f15.lastBarAt) > 15 * 60000) return Object.assign(base, { detail: 'S&P and ' + (source.role === 'NAS100_PROXY' ? 'NAS100' : 'NQ') + ' last bars differ by > 1 bar — not compared' });
+        if (!tf || !tf.structure) return Object.assign(base, { detail: 'No timeframe selected — SMT not evaluated' });
+        if (!USABLE.includes(spx.fStruct.state)) return Object.assign(base, { detail: 'S&P 500 data ' + spx.fStruct.state });
+        if (Math.abs(spx.fStruct.lastBarAt - source.fStruct.lastBarAt) > tfMinutes(tf.structure) * 60000) return Object.assign(base, { detail: 'S&P and ' + (source.role === 'NAS100_PROXY' ? 'NAS100' : 'NQ') + ' last bars differ by > 1 bar — not compared' });
         const nameA = source.role === 'NAS100_PROXY' ? 'NAS100' : 'NQ';
-        const m15 = smtOnTimeframe(source.bars15, spxSeries.bars15, 16, 32, nameA);
-        const use5 = source.bars5 && USABLE.includes(spx.f5.state);
-        const m5 = use5 ? smtOnTimeframe(source.bars5, spxSeries.bars5, 24, 48, nameA) : { state: UNCLEAR, detail: '5m unavailable' };
+        const mStruct = smtOnTimeframe(source.barsStruct, spx.barsStruct, 16, 32, nameA);
+        const useExec = source.barsExec && USABLE.includes(spx.fExec.state);
+        const mExec = useExec ? smtOnTimeframe(source.barsExec, spx.barsExec, 24, 48, nameA) : { state: UNCLEAR, detail: (tf.execution || 'execution timeframe') + ' unavailable' };
         const conf = (s) => (s === BULL ? 'BULLISH_CONFLUENCE' : s === BEAR ? 'BEARISH_CONFLUENCE' : s);
-        if (m15.state === BULL || m15.state === BEAR) {
-            return Object.assign(base, { confluence: conf(m15.state), tf: '15m', confirmed5m: m5.state === m15.state, detail: m15.detail + (m5.state === m15.state ? ' · 5m confirms' : ''), m15, m5 });
+        if (mStruct.state === BULL || mStruct.state === BEAR) {
+            return Object.assign(base, { confluence: conf(mStruct.state), tf: tf.structure, level: 'structure', confirmedExec: mExec.state === mStruct.state, detail: mStruct.detail + (mExec.state === mStruct.state ? ' · ' + tf.execution + ' confirms' : ''), mStruct, mExec });
         }
-        if (m15.state === 'NONE' && (m5.state === BULL || m5.state === BEAR)) {
-            return Object.assign(base, { confluence: conf(m5.state), tf: '5m', detail: '5m: ' + m5.detail, m15, m5 });
+        if (mStruct.state === 'NONE' && (mExec.state === BULL || mExec.state === BEAR)) {
+            return Object.assign(base, { confluence: conf(mExec.state), tf: tf.execution, level: 'execution', detail: tf.execution + ': ' + mExec.detail, mStruct, mExec });
         }
-        return Object.assign(base, { confluence: m15.state === 'NONE' ? 'NONE' : UNCLEAR, tf: '15m', detail: m15.detail, m15, m5 });
+        return Object.assign(base, { confluence: mStruct.state === 'NONE' ? 'NONE' : UNCLEAR, tf: tf.structure, level: 'structure', detail: mStruct.detail, mStruct, mExec });
     }
     // ═══════════════════════════════════════════════════════════
     // 3. TRIL — Trend · Raid · Imbalance · Location
     // ═══════════════════════════════════════════════════════════
 
     function computeTRIL(input) {
-        const { direction, context, s15, e5, plannedEntry, overrides } = input;
+        const { direction, context, sStruct, eExec, plannedEntry, overrides } = input;
+        const TS = (input.tf && input.tf.structure) || 'structure', TE = (input.tf && input.tf.execution) || 'execution';
         const ov = overrides || {};
         const items = {};
         const set = (key, auto, why) => {
@@ -449,39 +522,39 @@
             else items[key] = { status: auto, source: 'AUTO', why };
         };
         const ctxBias = context && context.bias;
-        const s15ok = s15 && s15.status === 'OK';
+        const sStructOk = sStruct && sStruct.status === 'OK';
 
         // T — 15m structure aligned with the market context
-        if (!direction || !s15ok) set('trend', UNCLEAR, 'No 15m direction');
+        if (!direction || !sStructOk) set('trend', UNCLEAR, 'No ' + TS + ' direction');
         else if (ctxBias !== BULL && ctxBias !== BEAR) set('trend', UNCLEAR, 'Context ' + (ctxBias || 'n/a') + ' — no HTF trend');
-        else if (biasOf(direction) === ctxBias) set('trend', PASS, '15m ' + s15.bias + ' = context ' + ctxBias);
-        else set('trend', FAIL, '15m ' + s15.bias + ' vs context ' + ctxBias);
+        else if (biasOf(direction) === ctxBias) set('trend', PASS, TS + ' ' + sStruct.bias + ' = context ' + ctxBias);
+        else set('trend', FAIL, TS + ' ' + sStruct.bias + ' vs context ' + ctxBias);
 
         // R — opposing liquidity raided (SSL for longs, BSL for shorts) on 15m or 5m
-        if (!direction || !s15ok) set('raid', UNCLEAR, 'No data');
+        if (!direction || !sStructOk) set('raid', UNCLEAR, 'No data');
         else {
             const side = direction === 'LONG' ? 'SSL' : 'BSL';
-            const all = (s15.raids || []).concat(e5 && e5.status === 'OK' ? e5.raids || [] : []);
+            const all = (sStruct.raids || []).concat(eExec && eExec.status === 'OK' ? eExec.raids || [] : []);
             const hit = all.filter((r) => r.side === side);
             if (hit.length) set('raid', PASS, side + ' swept @ ' + hit[hit.length - 1].level.toFixed(2));
             else set('raid', FAIL, 'No ' + side + ' sweep in lookback');
         }
 
         // I — unmitigated FVG in trade direction (5m, else 15m)
-        if (!direction || !s15ok) set('imbalance', UNCLEAR, 'No data');
+        if (!direction || !sStructOk) set('imbalance', UNCLEAR, 'No data');
         else {
             const want = direction === 'LONG' ? 'UP' : 'DOWN';
-            const f5 = e5 && e5.status === 'OK' ? (e5.fvgs || []).filter((f) => f.dir === want && !f.filled) : [];
-            const f15 = (s15.fvgs || []).filter((f) => f.dir === want && !f.filled);
-            const f = f5[f5.length - 1] || f15[f15.length - 1];
-            if (f) set('imbalance', PASS, (f5.length ? '5m' : '15m') + ' FVG ' + f.lo.toFixed(2) + '–' + f.hi.toFixed(2));
+            const fExec = eExec && eExec.status === 'OK' ? (eExec.fvgs || []).filter((f) => f.dir === want && !f.filled) : [];
+            const fStruct = (sStruct.fvgs || []).filter((f) => f.dir === want && !f.filled);
+            const f = fExec[fExec.length - 1] || fStruct[fStruct.length - 1];
+            if (f) set('imbalance', PASS, (fExec.length ? TE : TS) + ' FVG ' + f.lo.toFixed(2) + '–' + f.hi.toFixed(2));
             else set('imbalance', FAIL, 'No open FVG in direction');
         }
 
         // L — planned entry in discount (long) / premium (short) of the 15m dealing range
-        if (!direction || !s15ok || !s15.range || !isNum(plannedEntry)) set('location', UNCLEAR, 'No dealing range');
+        if (!direction || !sStructOk || !sStruct.range || !isNum(plannedEntry)) set('location', UNCLEAR, 'No dealing range');
         else {
-            const r = s15.range;
+            const r = sStruct.range;
             const pos = (plannedEntry - r.lo) / (r.hi - r.lo);
             const pct = Math.round(pos * 100);
             const good = direction === 'LONG' ? pos <= 0.45 : pos >= 0.55;
@@ -644,33 +717,33 @@
     // ═══════════════════════════════════════════════════════════
 
     /** Structure-based plan: entry at FVG CE (else last price), SL beyond the raid / swing, TP at opposing liquidity. */
-    function suggestLevels(direction, s15, e5, instrument, minRRR) {
-        if (!direction || !s15 || s15.status !== 'OK') return null;
+    function suggestLevels(direction, sStruct, eExec, instrument, minRRR) {
+        if (!direction || !sStruct || sStruct.status !== 'OK') return null;
         const tick = (INSTRUMENTS[instrument] || INSTRUMENTS.NQ).tick;
         const want = direction === 'LONG' ? 'UP' : 'DOWN';
         const side = direction === 'LONG' ? 'SSL' : 'BSL';
-        const fvg = (e5 && e5.fvg) || (s15.fvgs || []).filter((f) => f.dir === want && !f.filled).pop() || null;
-        const price = e5 && e5.status === 'OK' ? e5.price : s15.price;
+        const fvg = (eExec && eExec.fvg) || (sStruct.fvgs || []).filter((f) => f.dir === want && !f.filled).pop() || null;
+        const price = eExec && eExec.status === 'OK' ? eExec.price : sStruct.price;
         let entry = fvg ? (fvg.lo + fvg.hi) / 2 : price;
-        const allRaids = (s15.raids || []).concat(e5 && e5.status === 'OK' ? e5.raids || [] : []).filter((r) => r.side === side);
+        const allRaids = (sStruct.raids || []).concat(eExec && eExec.status === 'OK' ? eExec.raids || [] : []).filter((r) => r.side === side);
         // Stop anchors on the latest raid whose extreme sits beyond the entry (the sweep that started the move)
         const beyond = allRaids.filter((r) => (direction === 'LONG' ? r.extreme < entry : r.extreme > entry));
         const raid = beyond[beyond.length - 1];
         const buffer = 2 * tick;
         let sl;
         if (direction === 'LONG') {
-            sl = raid ? raid.extreme : s15.lastLow;
+            sl = raid ? raid.extreme : sStruct.lastLow;
             if (!isNum(sl) || sl >= entry) return { entry: roundTick(entry, tick), sl: null, tp: null, basis: 'No valid stop below entry' };
             sl -= buffer;
         } else {
-            sl = raid ? raid.extreme : s15.lastHigh;
+            sl = raid ? raid.extreme : sStruct.lastHigh;
             if (!isNum(sl) || sl <= entry) return { entry: roundTick(entry, tick), sl: null, tp: null, basis: 'No valid stop above entry' };
             sl += buffer;
         }
         const stop = Math.abs(entry - sl);
         const pools = direction === 'LONG'
-            ? (s15.liquidity.bsl || []).filter((p) => p > entry).sort((a, b) => a - b)
-            : (s15.liquidity.ssl || []).filter((p) => p < entry).sort((a, b) => b - a);
+            ? (sStruct.liquidity.bsl || []).filter((p) => p > entry).sort((a, b) => a - b)
+            : (sStruct.liquidity.ssl || []).filter((p) => p < entry).sort((a, b) => b - a);
         let tp = pools.find((p) => Math.abs(p - entry) / stop >= minRRR - 1e-9);
         let tpBasis = 'liquidity meeting min RRR';
         if (!isNum(tp)) { tp = pools[0]; tpBasis = 'nearest liquidity (below min RRR)'; }
@@ -711,9 +784,9 @@
     // ═══════════════════════════════════════════════════════════
 
     function computeConfidence(d) {
-        const { direction, context, s15, e5, tril, news, smt, source } = d;
+        const { direction, context, sStruct, eExec, tril, news, smt, source } = d;
         // essential inputs missing → N/A, never a made-up number
-        if (!direction || !s15 || s15.status !== 'OK' || context.bias === UNAVAILABLE) return { value: null, label: 'N/A', parts: [] };
+        if (!direction || !sStruct || sStruct.status !== 'OK' || context.bias === UNAVAILABLE) return { value: null, label: 'N/A', parts: [] };
         const want = biasOf(direction);
         const parts = [];
         let score = 0;
@@ -725,11 +798,11 @@
             const opp = want === BULL ? seas.bearCount : seas.bullCount;
             add('Seasonality', Math.round(((al - opp) / 3) * 10));
         }
-        add('15m structure', s15.bias === want ? 20 : s15.bias === NEUTRAL ? 0 : -20);
-        if (e5 && e5.status === 'OK') add('5m confirmation', e5.confirmation === 'CONFIRMED' ? 10 : 0);
+        add('Structure', sStruct.bias === want ? 20 : sStruct.bias === NEUTRAL ? 0 : -20);
+        if (eExec && eExec.status === 'OK') add('Execution confirmation', eExec.confirmation === 'CONFIRMED' ? 10 : 0);
         add('TRIL ' + tril.passCount + '/4', tril.passCount * 7.5);
         const smtDir = smt.confluence === 'BULLISH_CONFLUENCE' ? BULL : smt.confluence === 'BEARISH_CONFLUENCE' ? BEAR : null;
-        if (smtDir) add('SMT ' + smt.tf, smtDir === want ? (smt.tf === '15m' ? 8 + (smt.confirmed5m ? 2 : 0) : 4) : -8);
+        if (smtDir) add('SMT ' + smt.tf, smtDir === want ? (smt.level === 'structure' ? 8 + (smt.confirmedExec ? 2 : 0) : 4) : -8);
         if (context.vix.status === 'OK' && context.vix.state === 'HIGH') add('VIX HIGH', -10);
         if (news.status === 'CAUTION' || news.status === UNAVAILABLE) add('News ' + news.status, -10);
         if (context.partial) add('Partial context', -5);
@@ -748,13 +821,15 @@
     // ═══════════════════════════════════════════════════════════
 
     function decide(d) {
-        const { context, s15, e5, tril, news, risk, tradingState, source, smt } = d;
+        const { context, sStruct, eExec, tril, news, risk, tradingState, source, smt } = d;
         const marketStatus = d.marketStatus || { status: 'OPEN' };
+        const tf = d.timeframes || { status: 'NOT_SELECTED' };
+        const TS = tf.structure || 'structure';
         const reasons = [];
         if (marketStatus.status === 'CLOSED') reasons.push({ code: 'MARKET CLOSED', detail: source && source.status === 'OK' ? 'Last available data — analysis is engine validation only, not a live trade' : 'No live trade while the market is closed' });
         // UNKNOWN with no usable data is reported as DATA UNAVAILABLE below (the precise cause)
         else if (marketStatus.status === 'UNKNOWN' && source && source.status === 'OK') reasons.push({ code: 'MARKET STATUS UNKNOWN', detail: marketStatus.detail });
-        const structDir = s15 && s15.status === 'OK' ? dirOf(s15.bias) : null;
+        const structDir = sStruct && sStruct.status === 'OK' ? dirOf(sStruct.bias) : null;
         const ctxDir = dirOf(context.bias);
         const direction = structDir;
 
@@ -764,14 +839,17 @@
         else if (ctxDir) { bias = ctxDir + ' BIAS'; biasNote = 'Context only'; }
 
         if (!source || source.status !== 'OK') reasons.push({ code: 'DATA UNAVAILABLE', detail: 'NQ & NAS100 market data unavailable or stale' });
-        else if (!s15 || s15.status !== 'OK') reasons.push({ code: 'DATA UNAVAILABLE', detail: '15m price data insufficient' });
+        // Timeframes are selected by evidence (Edge validation), never assumed
+        if (!tf.structure) reasons.push({ code: 'NO TIMEFRAME SELECTED — INSUFFICIENT EVIDENCE', detail: tf.detail || 'No timeframe configuration passed validation' });
+        else if (!['VALIDATED', 'SIMULATED'].includes(tf.status)) reasons.push({ code: 'TIMEFRAME NOT VALIDATED — INSUFFICIENT EVIDENCE', detail: (tf.label || TS) + ': ' + (tf.detail || tf.status) });
+        else if (!sStruct || sStruct.status !== 'OK') reasons.push({ code: 'DATA UNAVAILABLE', detail: TS + ' price data insufficient' });
         const stateReasons = tradingState.reasons.filter((r) => !(r === 'Market closed' && marketStatus.status === 'CLOSED'));
         if (stateReasons.length) reasons.push({ code: 'TRADING STATE: NOT READY', detail: stateReasons.join(' · ') });
         if (news.status === 'HIGH IMPACT') reasons.push({ code: 'NEWS HIGH IMPACT', detail: news.event + ' (' + news.timeToEvent + ')' });
-        if (s15 && s15.status === 'OK' && !structDir) reasons.push({ code: 'STRUCTURE UNCLEAR', detail: '15m ' + s15.trend + ', no break' });
+        if (sStruct && sStruct.status === 'OK' && !structDir) reasons.push({ code: 'STRUCTURE UNCLEAR', detail: TS + ' ' + sStruct.trend + ', no break' });
         if (context.bias === UNAVAILABLE) reasons.push({ code: 'DATA UNAVAILABLE', detail: 'COT & seasonality unavailable' });
         else if (context.bias === NEUTRAL) reasons.push({ code: 'CONTEXT UNCLEAR', detail: 'Context NEUTRAL' });
-        else if (structDir && ctxDir !== structDir) reasons.push({ code: 'CONTEXT CONFLICT', detail: 'Context ' + context.bias + ' vs 15m ' + s15.bias });
+        else if (structDir && ctxDir !== structDir) reasons.push({ code: 'CONTEXT CONFLICT', detail: 'Context ' + context.bias + ' vs ' + TS + ' ' + sStruct.bias });
         if (structDir) {
             if (tril.status === FAIL) reasons.push({ code: 'TRIL FAIL', detail: failList(tril) });
             else if (tril.status === UNCLEAR) reasons.push({ code: 'TRIL UNCLEAR', detail: failList(tril, UNCLEAR) });
@@ -785,8 +863,8 @@
         const decision = candidate ? direction : 'NO TRADE';
         const warnings = [];
         if (source && source.status === 'OK') {
-            if (source.freshness === 'LAST_AVAILABLE') warnings.push('MARKET CLOSED — LAST AVAILABLE DATA (bar ' + new Date(source.f15.lastBarAt).toISOString().slice(0, 16).replace('T', ' ') + ' UTC), not live');
-            if (source.freshness === 'DELAYED') warnings.push('DELAYED DATA — ' + (source.f15.lagMin || 0) + ' min behind');
+            if (source.freshness === 'LAST_AVAILABLE') warnings.push('MARKET CLOSED — LAST AVAILABLE DATA (bar ' + new Date(source.fStruct.lastBarAt).toISOString().slice(0, 16).replace('T', ' ') + ' UTC), not live');
+            if (source.freshness === 'DELAYED') warnings.push('DELAYED DATA — ' + (source.fStruct.lagMin || 0) + ' min behind');
             if (source.role === 'NAS100_PROXY') warnings.push('DATA SOURCE: NAS100 PROXY — levels are NAS100 prices, not NQ');
             source.notes.filter((n) => /not used/.test(n)).forEach((n) => warnings.push(n));
         }
@@ -799,8 +877,8 @@
 
         let why;
         if (candidate) {
-            why = 'Context ' + context.bias + ' · 15m ' + s15.structureLabel + ' · TRIL ' + tril.passCount + '/4 · SMT ' + smt.confluence +
-                ' · News ' + news.status + ' · RRR 1:' + risk.rrr.toFixed(2) + ' · ' + risk.contracts + ' ct · Data ' + source.freshness + (source.role === 'NAS100_PROXY' ? ' (NAS100 proxy)' : '');
+            why = 'Context ' + context.bias + ' · ' + TS + ' ' + sStruct.structureLabel + ' · TRIL ' + tril.passCount + '/4 · SMT ' + smt.confluence +
+                ' · News ' + news.status + ' · RRR 1:' + risk.rrr.toFixed(2) + ' · ' + risk.contracts + ' ct · Data ' + source.freshness + (source.role === 'NAS100_PROXY' ? ' (NAS100 proxy)' : '') + ' · TF ' + tf.label + ' (' + tf.status + ')';
         } else {
             why = reasons.map((r) => r.code + (r.detail ? ' — ' + r.detail : '')).join(' | ');
         }
@@ -821,6 +899,17 @@
      * data: { cot, seasonality, vix, market: { series: { NQ, NAS100, SPX } }, news }
      * user: { instrument, rules, trades, userReady, trilOverrides, structureOverride, levels, sessionOverride(DEMO only) }
      */
+    /**
+     * user.timeframes = { structure, execution, status: VALIDATED | INSUFFICIENT | NOT_RUN | SIMULATED, detail, evidence }
+     * Absent / invalid → NOT_SELECTED (no analysis timeframe, decision NO TRADE).
+     */
+    function normalizeTimeframes(t) {
+        if (!t || !tfMinutes(t.structure)) return { structure: null, execution: null, status: 'NOT_SELECTED', label: 'NOT SELECTED', detail: (t && t.detail) || 'No timeframe configuration passed validation' };
+        const execution = tfMinutes(t.execution) && tfMinutes(t.execution) <= tfMinutes(t.structure) ? t.execution : null;
+        return { structure: t.structure, execution, status: t.status || 'NOT_RUN', detail: t.detail || null, evidence: t.evidence || null,
+            label: t.structure + (execution && execution !== t.structure ? ' → ' + execution : '') };
+    }
+
     function runPipeline(data, user, now) {
         user = user || {};
         const rules = Object.assign({}, DEFAULT_RULES, user.rules || {});
@@ -829,19 +918,21 @@
         const context = buildContext(analyzeCOT(data.cot, now), analyzeSeasonality(data.seasonality), analyzeVIX(data.vix));
         const session = user.sessionOverride || getSession(now); // sessionOverride: DEMO / SIMULATED only
         const mkt = { marketOpen: session.marketOpen !== false, lastClose: session.marketOpen === false ? (isNum(session.lastClose) ? session.lastClose : lastSessionClose(now)) : null };
-        const source = selectMarketSource(data.market, now, mkt);
+        const tf = normalizeTimeframes(user.timeframes || data.timeframes); // config travels with the data (server: validation file, demo: SIMULATED)
+        const source = selectMarketSource(data.market, now, mkt, tf.structure ? tf : null);
         const marketStatus = computeMarketStatus(session, source);
-        let s15 = source.status === 'OK' ? analyzeStructure15(source.bars15) : { status: UNAVAILABLE, bias: null, note: 'No usable market data' };
-        if (user.structureOverride && [BULL, BEAR, NEUTRAL].includes(user.structureOverride) && s15.status === 'OK') {
-            s15 = Object.assign({}, s15, { bias: user.structureOverride, structureLabel: s15.structureLabel + ' (manual: ' + user.structureOverride + ')', manual: true });
+        let sStruct = !tf.structure ? { status: UNAVAILABLE, bias: null, note: 'NO TIMEFRAME SELECTED' }
+            : source.status === 'OK' ? analyzeStructure(source.barsStruct) : { status: UNAVAILABLE, bias: null, note: 'No usable market data' };
+        if (user.structureOverride && [BULL, BEAR, NEUTRAL].includes(user.structureOverride) && sStruct.status === 'OK') {
+            sStruct = Object.assign({}, sStruct, { bias: user.structureOverride, structureLabel: sStruct.structureLabel + ' (manual: ' + user.structureOverride + ')', manual: true });
         }
-        const direction = s15.status === 'OK' ? dirOf(s15.bias) : null;
-        const e5 = analyzeEntry5(source.status === 'OK' ? source.bars5 : null, direction);
-        const smt = computeSMT(source, data.market && data.market.series ? data.market.series.SPX : null, now, mkt);
+        const direction = sStruct.status === 'OK' ? dirOf(sStruct.bias) : null;
+        const eExec = analyzeEntry(source.status === 'OK' && tf.execution ? source.barsExec : null, direction);
+        const smt = computeSMT(source, data.market && data.market.series ? data.market.series.SPX : null, now, mkt, tf.structure ? tf : null);
         const tradingState = computeTradingState({ trades: user.trades, now, session, userReady: user.userReady, rules });
         const news = analyzeNews(data.news, now);
 
-        const auto = suggestLevels(direction, s15, e5, instrument, rules.minRRR);
+        const auto = suggestLevels(direction, sStruct, eExec, instrument, rules.minRRR);
         const lv = user.levels && [user.levels.entry, user.levels.sl, user.levels.tp].some(isNum) ? user.levels : null;
         const levels = {
             entry: lv && isNum(lv.entry) ? lv.entry : auto ? auto.entry : null,
@@ -851,14 +942,14 @@
             basis: auto ? auto.basis : null,
             priceBasis: source.role === 'NAS100_PROXY' ? 'NAS100' : 'NQ',
         };
-        const tril = computeTRIL({ direction, context, s15, e5, plannedEntry: levels.entry, overrides: user.trilOverrides });
+        const tril = computeTRIL({ direction, context, sStruct, eExec, tf, plannedEntry: levels.entry, overrides: user.trilOverrides });
         const risk = computeRisk({ direction, entry: levels.entry, sl: levels.sl, tp: levels.tp, instrument, rules, remainingLoss: tradingState.remainingLoss });
-        const decision = decide({ context, s15, e5, tril, news, risk, tradingState, source, smt, marketStatus });
+        const decision = decide({ context, sStruct, eExec, tril, news, risk, tradingState, source, smt, marketStatus, timeframes: tf });
 
         const analystAgent = {
             agent: 'THEEB Market Analyst',
             context: context.bias,
-            structure: s15.status === 'OK' ? s15.bias : UNAVAILABLE,
+            structure: sStruct.status === 'OK' ? sStruct.bias : UNAVAILABLE,
             tril: tril.status,
             smt: smt.confluence,
             bias: decision.direction || (decision.bias.indexOf('LONG') === 0 ? 'LONG' : decision.bias.indexOf('SHORT') === 0 ? 'SHORT' : 'NEUTRAL'),
@@ -866,6 +957,7 @@
             dataSource: source.status === 'OK' ? source.label : UNAVAILABLE,
             freshness: source.freshness,
             marketStatus: marketStatus.status,
+            timeframes: tf.structure ? { structure: tf.structure, execution: tf.execution, validation: tf.status } : 'NOT SELECTED',
             reason: decision.why,
         };
         const newsAgent = {
@@ -876,13 +968,14 @@
             timeToEvent: news.timeToEvent,
             tradingRestriction: news.tradingRestriction,
         };
-        return { instrument, rules, marketStatus, mkt, context, source, s15, e5, smt, session, tradingState, news, levels, tril, risk, decision, agents: { analyst: analystAgent, news: newsAgent } };
+        return { instrument, rules, marketStatus, mkt, timeframes: tf, context, source, sStruct, eExec, smt, session, tradingState, news, levels, tril, risk, decision, agents: { analyst: analystAgent, news: newsAgent } };
     }
 
     const api = {
         DEFAULT_RULES, INSTRUMENTS, KILL_ZONES,
         analyzeCOT, analyzeSeasonality, analyzeVIX, buildContext,
-        findSwings, structureBreaks, findRaids, findFVGs, analyzeStructure15, analyzeEntry5,
+        findSwings, structureBreaks, findRaids, findFVGs, analyzeStructure, analyzeEntry,
+        TIMEFRAMES, tfMinutes, resampleBars, splitAtRolls, barsFor, normalizeTimeframes,
         computeFreshness, selectMarketSource, computeMarketStatus, lastSessionClose, describeSeries, smtOnTimeframe, computeSMT,
         computeTRIL, classifyEventImpact, analyzeNews, fmtMinutes,
         getSession, nyParts, computeTradingState, suggestLevels, computeRisk,

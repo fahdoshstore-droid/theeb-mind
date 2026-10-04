@@ -91,7 +91,7 @@
         .conf-bar { height: 5px; border-radius: 100px; background: var(--raised); overflow: hidden; margin-top: 4px; width: 140px; }
         .conf-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); width: 0; transition: width .5s; }
         .hero-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-        .gates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .gates { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
         .gate { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; min-width: 0; }
         .gate .g-name { font-size: 10px; color: var(--text-3); font-weight: 800; letter-spacing: 1.2px; direction: ltr; text-align: right; }
         .gate .g-val { font-family: var(--mono); font-size: 12px; font-weight: 700; margin-top: 2px; direction: ltr; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -172,7 +172,7 @@
         .agents { grid-column: span 2; }
         .lineage { grid-column: 1 / -1; }
         .table-wrap { overflow-x: auto; }
-        .lin-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; direction: ltr; min-width: 760px; }
+        .lin-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; direction: ltr; min-width: 1000px; }
         .lin-table th { text-align: left; color: var(--text-3); font-weight: 600; font-size: 10px; letter-spacing: 1px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
         .lin-table td { padding: 7px 8px; border-bottom: 1px dashed rgba(212,168,67,.07); vertical-align: top; overflow-wrap: anywhere; }
         .lin-table td.err { color: #fca5a5; max-width: 340px; }
@@ -312,23 +312,25 @@
                     <div class="row"><span class="k">Using</span><span class="v" id="st-src">—</span></div>
                     <div class="row"><span class="k">NQ · NAS100</span><span class="v" id="st-cands">—</span></div>
                     <div class="row"><span class="k">Last price</span><span class="v" id="st-price">—</span></div>
+                    <div class="row"><span class="k">Contract</span><span class="v" id="st-contract">—</span></div>
+                    <div class="row"><span class="k">Timeframes</span><span class="v" id="st-tf">—</span></div>
                 </div>
                 <div class="block">
-                    <div class="block-h"><span class="block-t">15m</span><span class="src" id="st-15-asof" style="margin:0"></span></div>
+                    <div class="block-h"><span class="block-t" id="st-struct-tf">STRUCTURE</span><span class="src" id="st-15-asof" style="margin:0"></span></div>
                     <div class="row"><span class="k">Trend</span><span class="v" id="st-trend">—</span></div>
                     <div class="row"><span class="k">Structure</span><span class="v" id="st-struct">—</span></div>
                     <div class="row"><span class="k">Liquidity</span><span class="v" id="st-liq">—</span></div>
                     <div class="row"><span class="k">Last raid</span><span class="v" id="st-raid">—</span></div>
                 </div>
                 <div class="block">
-                    <div class="block-h"><span class="block-t">5m</span><span class="src" id="st-5-asof" style="margin:0"></span></div>
+                    <div class="block-h"><span class="block-t" id="st-exec-tf">EXECUTION</span><span class="src" id="st-5-asof" style="margin:0"></span></div>
                     <div class="row"><span class="k">Entry state</span><span class="v" id="st-entry">—</span></div>
                     <div class="row"><span class="k">Confirmation</span><span class="v" id="st-confirm">—</span></div>
                     <div class="row"><span class="k">FVG / Imbalance</span><span class="v" id="st-fvg">—</span></div>
                     <div class="row"><span class="k">Entry location</span><span class="v" id="st-loc">—</span></div>
                 </div>
                 <div class="field" style="margin-top:8px">
-                    <label for="st-override">15m STRUCTURE (override)</label>
+                    <label for="st-override">STRUCTURE (override)</label>
                     <select id="st-override">
                         <option value="">AUTO (from price data)</option>
                         <option value="BULLISH">BULLISH</option>
@@ -355,8 +357,8 @@
                     <span class="pill s-na" id="smt-state">—</span>
                 </div>
                 <div class="row"><span class="k">Compared</span><span class="v" id="smt-pair">—</span></div>
-                <div class="row"><span class="k">15m (context)</span><span class="v" id="smt-15">—</span></div>
-                <div class="row"><span class="k">5m (confirmation)</span><span class="v" id="smt-5">—</span></div>
+                <div class="row"><span class="k" id="smt-15-k">Structure TF</span><span class="v" id="smt-15">—</span></div>
+                <div class="row"><span class="k" id="smt-5-k">Execution TF</span><span class="v" id="smt-5">—</span></div>
                 <div class="row"><span class="k">Effect</span><span class="v" id="smt-effect">—</span></div>
                 <div class="hint">SMT لا يصدر LONG أو SHORT وحده — يرفع أو يخفض Confidence فقط. المقارنة: هل أخذ أحد المؤشرين قمة/قاع لم يؤكده الآخر.</div>
             </section>
@@ -464,7 +466,7 @@
                 </div>
                 <div class="table-wrap">
                     <table class="lin-table">
-                        <thead><tr><th>Input</th><th>Source</th><th>Status</th><th>Last data</th><th>Fetched</th><th>Freshness</th><th>Error / fallback</th></tr></thead>
+                        <thead><tr><th>Input</th><th>Source · symbol</th><th>Contract</th><th>Timeframes</th><th>Status</th><th>Last data</th><th>Fetched</th><th>Freshness</th><th>Error / fallback</th></tr></thead>
                         <tbody id="lin-body"></tbody>
                     </table>
                 </div>
@@ -579,8 +581,8 @@
             app.lastFetch.context = Date.now();
         }
         async function fetchMarket() {
-            try { app.live.market = await api('/api/market'); app.serverReachable = true; }
-            catch (e) { app.live.market = { series: {}, error: 'server: ' + e.message }; }
+            try { app.live.market = await api('/api/market'); app.live.timeframes = app.live.market.timeframes; app.serverReachable = true; }
+            catch (e) { app.live.market = { series: {}, error: 'server: ' + e.message }; app.live.timeframes = null; }
             app.lastFetch.market = Date.now();
         }
         async function fetchNews() {
@@ -685,14 +687,15 @@
             $('d-conf-fill').style.width = ((c.value || 0) / 95 * 100) + '%';
             $('d-src').textContent = src.status === 'OK' ? src.label : 'UNAVAILABLE';
             $('d-src').className = src.role === 'NAS100_PROXY' ? 't-neutral' : src.status === 'OK' ? '' : 't-bear';
-            $('d-fresh').textContent = freshText(src.freshness) + (src.status === 'OK' && src.f15 && isNum(src.f15.lagMin) && src.f15.lagMin > 0 ? ' · ' + src.f15.lagMin + 'm' : '');
+            $('d-fresh').textContent = freshText(src.freshness) + (src.status === 'OK' && src.fStruct && isNum(src.fStruct.lagMin) && src.fStruct.lagMin > 0 ? ' · ' + src.fStruct.lagMin + 'm' : '');
             $('d-fresh').className = src.freshness === 'FRESH' ? 't-bull' : src.freshness === 'DELAYED' || src.freshness === 'LAST_AVAILABLE' ? 't-neutral' : 't-bear';
 
             const g = [
                 ['MARKET', r.marketStatus.status, MKT_CLS[r.marketStatus.status]],
+                ['TIMEFRAME', r.timeframes.structure ? r.timeframes.label + ' · ' + r.timeframes.status : 'NOT SELECTED', r.timeframes.status === 'VALIDATED' ? 's-ok' : r.timeframes.status === 'SIMULATED' ? 's-caution' : 's-err'],
                 ['DATA', src.status === 'OK' ? freshText(src.freshness) : 'UNAVAILABLE', FRESH_CLS[src.freshness] || 's-unavail'],
                 ['CONTEXT', r.context.bias, BIAS_CLS[r.context.bias] || 's-na'],
-                ['STRUCTURE', r.s15.status === 'OK' ? r.s15.bias : 'N/A', r.s15.status === 'OK' ? BIAS_CLS[r.s15.bias] : 's-unavail'],
+                ['STRUCTURE', r.sStruct.status === 'OK' ? r.sStruct.bias : 'N/A', r.sStruct.status === 'OK' ? BIAS_CLS[r.sStruct.bias] : 's-unavail'],
                 ['TRIL', r.tril.status, STATUS_CLS[r.tril.status]],
                 ['SMT', r.smt.confluence.replace('_CONFLUENCE', ''), SMT_CLS[r.smt.confluence]],
                 ['NEWS', r.news.status, STATUS_CLS[r.news.status]],
@@ -738,13 +741,20 @@
         }
 
         function renderStructure(r) {
-            const s = r.s15, e = r.e5, src = r.source;
+            const s = r.sStruct, e = r.eExec, src = r.source;
             pill($('st-fresh'), freshText(src.freshness), FRESH_CLS[src.freshness]);
             $('st-src').textContent = src.status === 'OK' ? (src.role === 'NAS100_PROXY' ? 'NAS100 PROXY · ' : '') + (src.symbol || '') + ' · ' + (data().market && data().market.simulated ? 'SIMULATED' : src.provider) : 'NONE — NQ & NAS100 unusable';
             $('st-src').className = 'v ' + (src.role === 'NAS100_PROXY' ? 't-neutral' : src.status === 'OK' ? '' : 't-bear');
             const cs = src.candidates || {};
-            const cand = (k) => (cs[k] ? freshText(cs[k].f15.state) + (cs[k].ok && cs[k].f5.state !== cs[k].f15.state ? '/5m ' + freshText(cs[k].f5.state) : '') : '—');
+            const cand = (k) => (cs[k] ? freshText(cs[k].fStruct.state) + (cs[k].ok && cs[k].execTf && cs[k].fExec.state !== cs[k].fStruct.state ? '/' + cs[k].execTf + ' ' + freshText(cs[k].fExec.state) : '') : '—');
             $('st-cands').textContent = 'NQ ' + cand('NQ') + ' · NAS100 ' + cand('NAS100');
+            const tfc = r.timeframes;
+            $('st-tf').textContent = tfc.structure ? tfc.label + ' · ' + tfc.status : 'NOT SELECTED — INSUFFICIENT EVIDENCE';
+            $('st-tf').className = 'v ' + (tfc.status === 'VALIDATED' ? 't-bull' : tfc.status === 'SIMULATED' ? 't-neutral' : 't-bear');
+            $('st-tf').title = tfc.detail || '';
+            $('st-struct-tf').textContent = 'STRUCTURE · ' + (tfc.structure || 'NOT SELECTED');
+            $('st-exec-tf').textContent = 'EXECUTION · ' + (tfc.execution || 'NOT SELECTED');
+            $('st-contract').textContent = src.status === 'OK' ? (src.contract || 'not provided by source') : '—';
             if (s.status !== 'OK') {
                 pill($('st-overall'), 'DATA UNAVAILABLE', 's-unavail');
                 ['st-price', 'st-trend', 'st-struct', 'st-liq', 'st-raid', 'st-entry', 'st-confirm', 'st-fvg', 'st-loc'].forEach((id) => { $(id).textContent = '—'; $(id).className = 'v'; });
@@ -759,8 +769,8 @@
             $('st-liq').textContent = 'BSL ' + (isNum(bsl) ? fmtP(bsl) : '—') + ' · SSL ' + (isNum(ssl) ? fmtP(ssl) : '—');
             const lr = s.raids[s.raids.length - 1];
             $('st-raid').textContent = lr ? lr.side + ' swept @ ' + fmtP(lr.level) : 'None (last 16 bars)';
-            $('st-15-asof').textContent = src.f15 ? freshText(src.f15.state) + ' · last bar ' + nyTime(new Date(src.f15.lastBarAt).toISOString()) : '';
-            $('st-5-asof').textContent = src.f5 ? freshText(src.f5.state) + (src.f5.lastBarAt ? ' · last bar ' + nyTime(new Date(src.f5.lastBarAt).toISOString()) : '') : '';
+            $('st-15-asof').textContent = src.fStruct ? freshText(src.fStruct.state) + ' · last bar ' + nyTime(new Date(src.fStruct.lastBarAt).toISOString()) : '';
+            $('st-5-asof').textContent = src.fExec ? freshText(src.fExec.state) + (src.fExec.lastBarAt ? ' · last bar ' + nyTime(new Date(src.fExec.lastBarAt).toISOString()) : '') : '';
             if (e.status === 'OK') {
                 $('st-entry').textContent = e.entryState; $('st-entry').className = 'v ' + (e.entryState === 'IN ENTRY ZONE' ? 't-bull' : 't-neutral');
                 $('st-confirm').textContent = e.confirmation + (e.confirmEvent ? ' (' + e.confirmEvent.kind + ')' : '');
@@ -790,8 +800,10 @@
             const a = r.source.status === 'OK' ? (r.source.role === 'NAS100_PROXY' ? 'NAS100' : 'NQ') : 'NQ';
             $('smt-pair').textContent = a + ' vs ' + (m.spxSymbol || 'S&P 500') + ' · S&P ' + freshText(m.spxFreshness);
             const tfText = (x) => (x ? (x.state === 'BULLISH' || x.state === 'BEARISH' ? x.state + ' — ' : x.state + ' — ') + x.detail : '—');
-            $('smt-15').textContent = m.m15 ? tfText(m.m15) : m.detail;
-            $('smt-5').textContent = m.m5 ? tfText(m.m5) : '—';
+            $('smt-15-k').textContent = (r.timeframes.structure || 'Structure TF') + ' (context)';
+            $('smt-5-k').textContent = (r.timeframes.execution || 'Execution TF') + ' (confirmation)';
+            $('smt-15').textContent = m.mStruct ? tfText(m.mStruct) : m.detail;
+            $('smt-5').textContent = m.mExec ? tfText(m.mExec) : '—';
             const smtDir = m.confluence === 'BULLISH_CONFLUENCE' ? 'LONG' : m.confluence === 'BEARISH_CONFLUENCE' ? 'SHORT' : null;
             const part = d.confidence.parts.find((p) => p.k.indexOf('SMT') === 0);
             $('smt-effect').textContent = !smtDir ? 'No effect on confidence' : (part ? (part.v > 0 ? '+' : '') + part.v + ' confidence' : '—') + (d.direction && smtDir !== d.direction ? ' (against setup)' : '');
@@ -880,26 +892,28 @@
             const errs = (x) => [x && x.fallbackReason ? 'FALLBACK — primary failed: ' + x.fallbackReason : '', ...((x && x.errors) || [])].filter(Boolean).join(' · ');
             const st = (x) => (!x ? 'NOT LOADED' : x.status === 'OK' ? 'AVAILABLE' : 'DATA_UNAVAILABLE');
             const rows = [
-                ['COT', sim(d.cot) || (d.cot && d.cot.source) || '—', st(d.cot), d.cot && d.cot.reportDate ? 'report ' + d.cot.reportDate : '—', iso(d.cot && d.cot.fetchedAt), '—', errs(d.cot)],
-                ['Seasonality', sim(d.seasonality) || (d.seasonality && d.seasonality.source) || '—', st(d.seasonality), d.seasonality && d.seasonality.currentMonth ? d.seasonality.currentMonth + ' ' + (d.seasonality.currentDay || '') : '—', iso(d.seasonality && d.seasonality.fetchedAt), '—', errs(d.seasonality)],
-                ['VIX', sim(d.vix) || (d.vix && d.vix.source) || '—', st(d.vix) + (d.vix && isNum(d.vix.value) ? ' · ' + d.vix.value.toFixed(2) : ''), iso(d.vix && d.vix.asOf), iso(d.vix && d.vix.fetchedAt), '—', errs(d.vix)],
+                ['COT', sim(d.cot) || (d.cot && d.cot.source) || '—', '—', 'weekly', st(d.cot), d.cot && d.cot.reportDate ? 'report ' + d.cot.reportDate : '—', iso(d.cot && d.cot.fetchedAt), '—', errs(d.cot)],
+                ['Seasonality', sim(d.seasonality) || (d.seasonality && d.seasonality.source) || '—', '—', 'monthly / daily', st(d.seasonality), d.seasonality && d.seasonality.currentMonth ? d.seasonality.currentMonth + ' ' + (d.seasonality.currentDay || '') : '—', iso(d.seasonality && d.seasonality.fetchedAt), '—', errs(d.seasonality)],
+                ['VIX', sim(d.vix) || (d.vix && d.vix.source) || '—', '—', '1d', st(d.vix) + (d.vix && isNum(d.vix.value) ? ' · ' + d.vix.value.toFixed(2) : ''), iso(d.vix && d.vix.asOf), iso(d.vix && d.vix.fetchedAt), '—', errs(d.vix)],
             ];
             const series = (d.market && d.market.series) || {};
             for (const k of ['NQ', 'NAS100', 'SPX']) {
                 const raw = series[k];
-                const x = E.describeSeries(raw, now, r.mkt);
+                const x = E.describeSeries(raw, now, r.mkt, r.timeframes.structure ? r.timeframes : null);
                 const used = r.source.status === 'OK' && ((k === 'NQ' && r.source.role === 'NQ') || (k === 'NAS100' && r.source.role === 'NAS100_PROXY'));
                 rows.push([
                     k + (k === 'NAS100' ? ' (proxy)' : k === 'SPX' ? ' (SMT)' : '') + (used ? ' ✓ USED' : ''),
                     (sim(raw) || (raw && raw.provider) || '—') + (x.symbol ? ' · ' + x.symbol : ''),
-                    st(raw) + (isNum(x.lastPrice) ? ' · last ' + fmtP(x.lastPrice) : '') + ' · 15m ' + (x.ok ? 'YES' : 'NO') + ' · 5m ' + (raw && raw.bars5 ? 'YES' : 'NO'),
-                    x.f15.lastBarAt ? iso(x.f15.lastBarAt) : '—', iso(raw && raw.fetchedAt),
-                    freshText(x.f15.state) + (x.ok ? ' / 5m ' + freshText(x.f5.state) : ''),
-                    [raw && raw.error5 ? '5m: ' + raw.error5 : '', ...((raw && raw.errors) || [])].filter(Boolean).join(' · '),
+                    x.contract || (raw && raw.contractNote) || (x.ok ? 'not provided by source' : '—'),
+                    x.ok ? 'base ' + (x.baseTf || '?') + ' · have ' + x.availableTfs.join(', ') + (r.timeframes.structure ? ' · using ' + r.timeframes.label : ' · none selected') : '—',
+                    st(raw) + (isNum(x.lastPrice) ? ' · last ' + fmtP(x.lastPrice) : ''),
+                    x.fStruct.lastBarAt ? iso(x.fStruct.lastBarAt) : '—', iso(raw && raw.fetchedAt),
+                    (x.structTf ? x.structTf + ' ' : '') + freshText(x.fStruct.state) + (x.ok && x.execTf ? ' / ' + x.execTf + ' ' + freshText(x.fExec.state) : ''),
+                    ((raw && raw.errors) || []).join(' · '),
                 ]);
             }
-            rows.push(['News', sim(d.news) || (d.news && d.news.source) || '—', st(d.news) + (d.news && d.news.events ? ' · ' + d.news.events.length + ' events' : ''), '—', iso(d.news && d.news.fetchedAt), '—', errs(d.news)]);
-            $('lin-body').innerHTML = rows.map((row) => '<tr>' + row.map((c, i) => '<td' + (i === 6 && c ? ' class="err"' : '') + '>' + esc(c || (i === 6 ? '' : '—')) + '</td>').join('') + '</tr>').join('');
+            rows.push(['News', sim(d.news) || (d.news && d.news.source) || '—', '—', '—', st(d.news) + (d.news && d.news.events ? ' · ' + d.news.events.length + ' events' : ''), '—', iso(d.news && d.news.fetchedAt), '—', errs(d.news)]);
+            $('lin-body').innerHTML = rows.map((row) => '<tr>' + row.map((c, i) => '<td' + (i === 8 && c ? ' class="err"' : '') + '>' + esc(c || (i === 8 ? '' : '—')) + '</td>').join('') + '</tr>').join('');
             $('lin-now').textContent = 'MARKET ' + r.marketStatus.status + ' · ' + r.marketStatus.detail + (app.mode === 'demo' ? ' · DEMO' : '');
         }
 

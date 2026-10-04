@@ -11,6 +11,10 @@
 // ═══════════════════════════════════════════════════════════════
 import { MB_URLS, parseMarketBullsCOT, parseMarketBullsSeasonality, toCOTSchema, toSeasonalitySchema } from './marketbulls.mjs';
 import { tvConfigured, fetchTradingViewBars, TV_SYMBOLS } from './tradingview-mcp.mjs';
+import { databentoConfigured, fetchDatabentoBars, csvConfigured, loadCSVBars } from './nq-data.mjs';
+import { createRequire } from 'node:module';
+
+const E = createRequire(import.meta.url)('../public/engine.js');
 
 const UA = 'Mozilla/5.0 (THEEB MIND dashboard)';
 const TIMEOUT_MS = 12_000;
@@ -30,9 +34,17 @@ let tvEnabled = () => tvConfigured();
 export function setFetch(fn) { fetchImpl = fn; }
 export function setTradingView(fn, enabled = true) { tvImpl = fn; tvEnabled = () => enabled; }
 
+/** Distinguishes a network/egress block (proxy) from a real answer by the source. */
+export function httpError(res, url) {
+    const host = new URL(url).host;
+    const deny = res.headers && typeof res.headers.get === 'function' ? res.headers.get('x-deny-reason') : null;
+    if (deny) return `BLOCKED by network egress proxy (${deny}) — ${host} never reached (HTTP ${res.status})`;
+    return `HTTP ${res.status} from ${host}`;
+}
+
 async function request(url, accept) {
     const res = await fetchImpl(url, { headers: { 'User-Agent': UA, Accept: accept }, signal: AbortSignal.timeout(TIMEOUT_MS) });
-    if (!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(url).host}`);
+    if (!res.ok) throw new Error(httpError(res, url));
     return res;
 }
 const getJSON = async (url) => (await request(url, 'application/json')).json();
@@ -154,51 +166,89 @@ export function getSeasonality(now = Date.now()) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Market bars — NQ / NAS100 / SPX, 15m + 5m
+// Market bars — NQ / NAS100 / SPX
+// Timeframes are NOT fixed: the server builds exactly the timeframes the
+// (validated) configuration needs, by deterministic resampling of the finest
+// real bars a provider returns. With no timeframe selected only the base
+// series is returned (availability / lineage, no analysis).
 // ═══════════════════════════════════════════════════════════
-const YF = { '15m': { interval: '15m', range: '5d' }, '5m': { interval: '5m', range: '2d' } };
+const KEEP_BARS = 400; // per timeframe sent to the browser
 
-async function yahooBars(key, tf) {
-    const spec = YF[tf];
-    const { bars } = parseYahooBars(await getJSON(`${SOURCES.yahoo}${encodeURIComponent(YAHOO_SYMBOLS[key])}?interval=${spec.interval}&range=${spec.range}&includePrePost=true`));
+// Yahoo: 1m history (≤ 7 days) resampled locally — always DELAYED
+async function yahooBase(key) {
+    const { bars } = parseYahooBars(await getJSON(`${SOURCES.yahoo}${encodeURIComponent(YAHOO_SYMBOLS[key])}?interval=1m&range=5d&includePrePost=true`));
     if (bars.length < 30) throw new Error('not enough bars (' + bars.length + ')');
-    return { bars, symbol: YAHOO_SYMBOLS[key], provider: 'Yahoo Finance', delayed: true };
+    return { bars, baseTf: '1m', symbol: YAHOO_SYMBOLS[key], provider: 'Yahoo Finance', delayed: true, continuous: key === 'NQ' ? 'Yahoo NQ=F continuous front month (no contract field)' : null };
 }
 
-async function tvBars(key, tf) {
-    const r = await tvImpl(key, tf, { count: 200 });
-    if (r.bars.length < 30) throw new Error('not enough bars (' + r.bars.length + ')');
-    return { bars: r.bars, symbol: r.symbol, provider: 'TradingView MCP', delayed: !!r.delayed };
+// TradingView MCP: each needed timeframe fetched directly from the MCP tool
+async function tvSeries(key, needed) {
+    const tfs = needed.length ? needed : ['1m'];
+    const out = {};
+    let symbol = null, delayed = false;
+    for (const tf of tfs) {
+        const r = await tvImpl(key, tf, { count: 300 });
+        if (r.bars.length < 30) throw new Error(tf + ': not enough bars (' + r.bars.length + ')');
+        out[tf] = r.bars; symbol = r.symbol; delayed = delayed || !!r.delayed;
+    }
+    const baseTf = tfs.slice().sort((x, y) => E.tfMinutes(x) - E.tfMinutes(y))[0];
+    return { direct: out, baseTf, symbol, provider: 'TradingView MCP', delayed };
 }
 
-/** One series (both timeframes from the SAME provider, so fresh and stale data are never mixed). */
-export async function getSeries(key) {
-    return cached('series:' + key, 30_000, async () => {
+async function databentoBase() {
+    const r = await fetchDatabentoBars();
+    return Object.assign(r, { continuous: 'Databento ' + r.symbol + ' (continuous front month; actual contract per bar)' });
+}
+async function csvBase() { return loadCSVBars(); }
+
+function buildSeries(key, r, needed, errors) {
+    let barsByTf;
+    if (r.direct) barsByTf = r.direct;
+    else {
+        const wanted = [...new Set([r.baseTf, ...needed])];
+        barsByTf = {};
+        for (const tf of wanted) {
+            const bm = E.tfMinutes(r.baseTf), tm = E.tfMinutes(tf);
+            if (!tm || tm < bm || tm % bm !== 0) { errors.push(r.provider + ': cannot build ' + tf + ' from ' + r.baseTf + ' data'); continue; }
+            barsByTf[tf] = E.resampleBars(r.bars, r.baseTf, tf);
+        }
+    }
+    for (const tf of Object.keys(barsByTf)) barsByTf[tf] = barsByTf[tf].slice(-KEEP_BARS);
+    const base = barsByTf[r.baseTf] || [];
+    const last = base[base.length - 1];
+    return {
+        key, status: 'OK', provider: r.provider, symbol: r.symbol, delayed: !!r.delayed, historical: !!r.historical,
+        baseTf: r.baseTf, barsByTf, contract: last && last.contract ? last.contract : null, contractNote: r.continuous || null,
+        missingTfs: needed.filter((tf) => !barsByTf[tf]),
+        errors, fetchedAt: new Date().toISOString(),
+    };
+}
+
+/** One series; every timeframe comes from the SAME provider so fresh and stale data are never mixed. */
+export async function getSeries(key, needed = []) {
+    return cached('series:' + key + ':' + needed.join(','), 30_000, async () => {
         const errors = [];
         const providers = [];
-        if (tvEnabled()) providers.push(['TradingView MCP', tvBars]);
-        providers.push(['Yahoo', yahooBars]);
+        if (key === 'NQ' && databentoConfigured()) providers.push(['Databento', () => databentoBase()]);
+        if (tvEnabled()) providers.push(['TradingView MCP', () => tvSeries(key, needed)]);
+        providers.push(['Yahoo', () => yahooBase(key)]);
+        if (key === 'NQ' && csvConfigured()) providers.push(['CSV', () => csvBase()]);
         for (const [name, fn] of providers) {
-            const [r15, r5] = await Promise.allSettled([fn(key, '15m'), fn(key, '5m')]);
-            if (r15.status === 'fulfilled') {
-                const base = r15.value;
-                return {
-                    key, status: 'OK', provider: base.provider, symbol: base.symbol, delayed: base.delayed,
-                    bars15: base.bars,
-                    bars5: r5.status === 'fulfilled' ? r5.value.bars : null,
-                    error5: r5.status === 'rejected' ? errMsg(r5.reason) : null,
-                    errors, fetchedAt: new Date().toISOString(),
-                };
-            }
-            errors.push(name + ': ' + errMsg(r15.reason));
+            try {
+                const s = buildSeries(key, await fn(), needed, errors);
+                if (s.missingTfs.length) { errors.push(name + ': timeframe(s) ' + s.missingTfs.join(', ') + ' unavailable'); continue; }
+                return s;
+            } catch (e) { errors.push(name + ': ' + errMsg(e)); }
         }
-        return { key, status: 'DATA_UNAVAILABLE', provider: null, symbol: TV_SYMBOLS[key] || key, bars15: null, bars5: null, errors, fetchedAt: new Date().toISOString() };
+        return { key, status: 'DATA_UNAVAILABLE', provider: null, symbol: TV_SYMBOLS[key] || key, barsByTf: null, errors, fetchedAt: new Date().toISOString() };
     }, (v) => v.status === 'OK');
 }
 
-export async function getMarket() {
-    const [NQ, NAS100, SPX] = await Promise.all(['NQ', 'NAS100', 'SPX'].map(getSeries));
-    return { series: { NQ, NAS100, SPX }, primaryProvider: tvEnabled() ? 'TradingView MCP' : 'Yahoo Finance (delayed fallback — TradingView MCP not configured)', fetchedAt: new Date().toISOString() };
+/** needed = timeframes of the selected configuration ([] when none is selected). */
+export async function getMarket(needed = []) {
+    const [NQ, NAS100, SPX] = await Promise.all(['NQ', 'NAS100', 'SPX'].map((k) => getSeries(k, needed)));
+    const primary = databentoConfigured() ? 'Databento (CME GLBX.MDP3)' : tvEnabled() ? 'TradingView MCP' : 'Yahoo Finance (delayed) — no Databento key / TradingView MCP configured';
+    return { series: { NQ, NAS100, SPX }, primaryProvider: primary, fetchedAt: new Date().toISOString() };
 }
 
 export function getVIX() {

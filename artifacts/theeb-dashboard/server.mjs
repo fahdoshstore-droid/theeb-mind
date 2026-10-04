@@ -10,6 +10,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getCOT, getSeasonality, getVIX, getMarket, getNews } from './lib/sources.mjs';
 import { tvConfigured } from './lib/tradingview-mcp.mjs';
+import { databentoConfigured, csvConfigured } from './lib/nq-data.mjs';
+import { currentTimeframes, neededTimeframes, loadValidationReport } from './lib/timeframe-config.mjs';
 import { readChart, aiConfigured, MODEL } from './lib/chart-reader.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -74,13 +76,20 @@ export async function handle(req, res) {
     try {
         if (req.method === 'GET' && p === '/api/health') return send(res, 200, { status: 'ok', time: new Date().toISOString() });
         if (req.method === 'GET' && p === '/api/config') {
-            return send(res, 200, { aiConfigured: aiConfigured(), aiModel: aiConfigured() ? MODEL : null, marketProvider: tvConfigured() ? 'TradingView MCP' : 'Yahoo Finance (delayed fallback)', tradingViewConfigured: tvConfigured(), execution: false });
+            return send(res, 200, { aiConfigured: aiConfigured(), aiModel: aiConfigured() ? MODEL : null, marketProvider: databentoConfigured() ? 'Databento' : tvConfigured() ? 'TradingView MCP' : 'Yahoo Finance (delayed fallback)', tradingViewConfigured: tvConfigured(), databentoConfigured: databentoConfigured(), csvConfigured: csvConfigured(), timeframes: await currentTimeframes(), execution: false });
         }
         if (req.method === 'GET' && p === '/api/context') {
             const [cot, seasonality, vix] = await Promise.all([getCOT(), getSeasonality(), getVIX()]);
             return send(res, 200, { cot, seasonality, vix, fetchedAt: new Date().toISOString() });
         }
-        if (req.method === 'GET' && p === '/api/market') return send(res, 200, await getMarket());
+        if (req.method === 'GET' && p === '/api/market') {
+            const timeframes = await currentTimeframes();
+            return send(res, 200, Object.assign(await getMarket(neededTimeframes(timeframes)), { timeframes }));
+        }
+        if (req.method === 'GET' && p === '/api/timeframes') {
+            const report = await loadValidationReport();
+            return send(res, 200, { timeframes: await currentTimeframes(), report });
+        }
         if (req.method === 'GET' && p === '/api/news') return send(res, 200, await getNews());
         if (req.method === 'POST' && p === '/api/agent/chart-read') {
             if (!aiConfigured()) return send(res, 503, { error: 'AI_NOT_CONFIGURED', message: 'Set ANTHROPIC_API_KEY on the server to enable AI chart reading.' });

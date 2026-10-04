@@ -19,6 +19,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getCOT, getSeasonality, getVIX, getMarket, getNews } from '../lib/sources.mjs';
 import { tvConfigured, resetTradingViewClient } from '../lib/tradingview-mcp.mjs';
+import { DATABENTO_URL, databentoConfigured, fetchDatabentoBars, csvConfigured } from '../lib/nq-data.mjs';
+import { currentTimeframes, neededTimeframes } from '../lib/timeframe-config.mjs';
 import { createServer } from '../server.mjs';
 
 const require = createRequire(import.meta.url);
@@ -27,11 +29,27 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const now = Date.now();
 const t0 = Date.now();
 
-const [cot, seasonality, vix, market, news] = await Promise.all([getCOT(), getSeasonality(), getVIX(), getMarket(), getNews()]);
-const data = { cot, seasonality, vix, market, news };
+const timeframes = await currentTimeframes();
+const [cot, seasonality, vix, market, news] = await Promise.all([getCOT(), getSeasonality(), getVIX(), getMarket(neededTimeframes(timeframes)), getNews()]);
+const data = { cot, seasonality, vix, market, news, timeframes };
+
+// Databento (CME) — real request. Without a key, an unauthenticated probe records whether the API is even reachable.
+let databento;
+if (databentoConfigured()) {
+    try { const r = await fetchDatabentoBars(); databento = { status: 'AVAILABLE', bars: r.bars.length, lastBar: new Date(r.bars[r.bars.length - 1].t).toISOString(), contract: r.bars[r.bars.length - 1].contract || null }; }
+    catch (e) { databento = { status: 'DATA_UNAVAILABLE', error: e.message }; }
+} else {
+    try {
+        const res = await fetch(DATABENTO_URL, { method: 'POST', signal: AbortSignal.timeout(15000) });
+        const deny = res.headers.get('x-deny-reason');
+        databento = { status: 'NOT_CONFIGURED', error: 'DATABENTO_API_KEY not set; ' + (deny ? 'hist.databento.com BLOCKED by network egress proxy (' + deny + ')' : 'API reachable (HTTP ' + res.status + ' without credentials)') };
+    } catch (e) {
+        databento = { status: 'NOT_CONFIGURED', error: 'DATABENTO_API_KEY not set; API unreachable: ' + e.message + (e.cause ? ' (' + e.cause.message + ')' : '') };
+    }
+}
 const r = E.runPipeline(data, { instrument: 'MNQ', trades: [], userReady: true }, now); // real clock, no session override
 
-const httpOf = (msg) => { const m = String(msg || '').match(/HTTP (\d{3})|(\d{3}) Forbidden|Tunnel connection failed: (\d{3})/); return m ? m[1] || m[2] || m[3] : null; };
+const httpOf = (msg) => { const m = String(msg || '').match(/HTTP (\d{3})|(\d{3}) Forbidden|Tunnel connection failed: (\d{3})/); return m ? (m[1] || m[2] || m[3]) + (/BLOCKED by network egress proxy|Tunnel connection failed/.test(msg) ? ' (egress proxy)' : '') : null; };
 const row = (name, x, extra = {}) => ({
     source: name,
     provider: x && (x.source || x.provider) || null,
@@ -45,12 +63,16 @@ const row = (name, x, extra = {}) => ({
 const series = (k) => {
     const s = market.series[k];
     const d = E.describeSeries(s, now, r.mkt);
-    return row(k, s, { symbol: s.symbol, lastPrice: d.lastPrice, lastBarTime: d.f15.lastBarAt ? new Date(d.f15.lastBarAt).toISOString() : null, has15m: !!s.bars15, has5m: !!s.bars5, freshness15m: d.f15.state, freshness5m: d.f5.state });
+    return row(k, s, { symbol: s.symbol, contract: d.contract || s.contractNote || null, baseTf: d.baseTf || null, timeframes: d.availableTfs || [], lastPrice: d.lastPrice, lastBarTime: d.fStruct.lastBarAt ? new Date(d.fStruct.lastBarAt).toISOString() : null, freshness: d.fStruct.state });
 };
 const report = {
     ranAt: new Date(now).toISOString(),
     durationMs: Date.now() - t0,
     tradingViewMcpConfigured: tvConfigured(),
+    databentoConfigured: databentoConfigured(),
+    csvConfigured: csvConfigured(),
+    databento,
+    timeframes,
     marketStatus: r.marketStatus,
     sources: [
         row('MarketBulls COT', cot, cot.status === 'OK' ? { reportDate: cot.reportDate, largeSpecNet: cot.largeSpecNet } : {}),
@@ -61,7 +83,7 @@ const report = {
     ],
     layers: {
         context: r.context.bias, source: r.source.status === 'OK' ? r.source.label : 'UNAVAILABLE', freshness: r.source.freshness,
-        structure: r.s15.status === 'OK' ? r.s15.bias : 'UNAVAILABLE', tril: r.tril.status, smt: r.smt.confluence + ' — ' + r.smt.detail,
+        structure: r.sStruct.status === 'OK' ? r.sStruct.bias : 'UNAVAILABLE', tril: r.tril.status, smt: r.smt.confluence + ' — ' + r.smt.detail,
         news: r.news.status, risk: r.risk.status, tradingState: r.tradingState.status,
     },
     decision: { decision: r.decision.decision, reasons: r.decision.reasons, confidence: r.decision.confidence.value, warnings: r.decision.warnings },
@@ -78,7 +100,7 @@ inv('unavailable sources carry errors and no numbers', () => {
     }
     for (const k of ['NQ', 'NAS100', 'SPX']) if (market.series[k].status !== 'OK') {
         assert.ok(market.series[k].errors.length, k + ' has no error recorded');
-        assert.equal(market.series[k].bars15, null);
+        assert.equal(market.series[k].barsByTf, null);
     }
 });
 inv('UNAVAILABLE is never shown as NEUTRAL', () => {
@@ -94,6 +116,8 @@ inv('market not OPEN ⇒ NO TRADE (never LONG/SHORT)', () => {
     if (r.marketStatus.status === 'CLOSED') assert.equal(r.decision.reasons[0].code, 'MARKET CLOSED');
 });
 inv('NAS100 proxy is never labelled as NQ', () => { if (r.source.role === 'NAS100_PROXY') assert.match(r.source.label, /^NAS100 PROXY/); });
+inv('no validated timeframe ⇒ NO TRADE', () => { if (timeframes.status !== 'VALIDATED') assert.equal(r.decision.decision, 'NO TRADE'); });
+inv('live timeframe config is never SIMULATED', () => assert.notEqual(timeframes.status, 'SIMULATED'));
 inv('news agent never gives a direction', () => assert.ok(!('bias' in r.agents.news) && !('direction' in r.agents.news)));
 
 // ── optional: the live UI on the real server ───────────────────
@@ -134,10 +158,11 @@ await resetTradingViewClient();
 // ── print ──────────────────────────────────────────────────────
 console.log(`\nLIVE DATA INTEGRATION — ${report.ranAt}`);
 console.log(`MARKET STATUS: ${r.marketStatus.status} (${r.marketStatus.detail})`);
-console.log(`TradingView MCP configured: ${report.tradingViewMcpConfigured}\n`);
+console.log(`TradingView MCP configured: ${report.tradingViewMcpConfigured} · Databento: ${databento.status} — ${databento.error || databento.bars + ' bars'} · CSV: ${report.csvConfigured}`);
+console.log(`TIMEFRAMES: ${timeframes.structure ? timeframes.structure + ' → ' + timeframes.execution + ' (' + timeframes.status + ')' : timeframes.status + ' — ' + timeframes.detail}\n`);
 for (const s of report.sources) {
     console.log(`${s.status === 'AVAILABLE' ? 'OK  ' : 'FAIL'} ${s.source.padEnd(24)} provider=${s.provider || '—'} fallback=${s.fallbackUsed ? 'YES' : 'no'}` +
-        (s.symbol ? ` symbol=${s.symbol} last=${s.lastPrice ?? '—'} lastBar=${s.lastBarTime || '—'} 15m=${s.has15m ? 'Y' : 'N'} 5m=${s.has5m ? 'Y' : 'N'} fresh=${s.freshness15m}` : ''));
+        (s.symbol ? ` symbol=${s.symbol} contract=${s.contract || '—'} base=${s.baseTf || '—'} tfs=${s.timeframes.join('/') || '—'} last=${s.lastPrice ?? '—'} lastBar=${s.lastBarTime || '—'} fresh=${s.freshness}` : ''));
     for (const e of s.errors) console.log('       ↳ ' + e);
 }
 console.log('\nLAYERS', JSON.stringify(report.layers));

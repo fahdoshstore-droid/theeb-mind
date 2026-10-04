@@ -219,14 +219,14 @@ describe('Server API', () => {
                 const r = await st('yahoo'); if (r) return r;
                 if (u.includes('%5EVIX')) return resp(200, yahoo(intraday(20, 1440), { regularMarketPrice: 17.4, regularMarketTime: 1_790_000_000 }));
                 if (u.includes('%5ENDX') && u.includes('1mo')) return resp(200, yahoo(monthly()));
-                return resp(200, yahoo(intraday(200, u.includes('interval=5m') ? 5 : 15)));
+                return resp(200, yahoo(intraday(600, Number((u.match(/interval=(\d+)m/) || [0, 15])[1]))));
             }
             if (u.includes('faireconomy')) return (await st('cal')) || resp(200, [{ title: 'CPI m/m', country: 'USD', date: new Date(Date.now() + 3600e3).toISOString(), impact: 'High' }]);
             return resp(404, {});
         });
         S.setTradingView(async (key, tf) => {
             if (tv.mode === 'down') throw new Error('MCP connection refused');
-            const bars = intraday(200, tf === '5m' ? 5 : tf === '1d' ? 1440 : 15);
+            const bars = intraday(200, { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '1d': 1440 }[tf] || 15);
             return { bars, symbol: TV.TV_SYMBOLS[key], delayed: false };
         }, false);
         server = createServer();
@@ -237,7 +237,7 @@ describe('Server API', () => {
     beforeEach(() => { net = { mb: 'ok', cftc: 'ok', yahoo: 'ok', cal: 'ok' }; tv = { enabled: false, mode: 'ok' }; S.setTradingView(async () => { throw new Error('TradingView MCP not configured'); }, false); S.clearCache(); });
     const enableTV = () => S.setTradingView(async (key, tf) => {
         if (tv.mode === 'down') throw new Error('MCP connection refused');
-        return { bars: intraday(200, tf === '5m' ? 5 : tf === '1d' ? 1440 : 15), symbol: TV.TV_SYMBOLS[key], delayed: false };
+        return { bars: intraday(200, { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '1d': 1440 }[tf] || 15), symbol: TV.TV_SYMBOLS[key], delayed: false };
     }, true);
     const get = async (p) => (await fetch(base + p)).json();
 
@@ -271,7 +271,7 @@ describe('Server API', () => {
             assert.ok(!('largeSpecNet' in j[k]) && !j[k].value);
         }
         const m = await get('/api/market');
-        for (const k of ['NQ', 'NAS100', 'SPX']) { assert.equal(m.series[k].status, 'DATA_UNAVAILABLE'); assert.equal(m.series[k].bars15, null); }
+        for (const k of ['NQ', 'NAS100', 'SPX']) { assert.equal(m.series[k].status, 'DATA_UNAVAILABLE'); assert.equal(m.series[k].barsByTf, null); }
         const n = await get('/api/news');
         assert.equal(n.status, 'DATA_UNAVAILABLE');
         assert.equal(n.events, null);
@@ -280,7 +280,9 @@ describe('Server API', () => {
         const m = await get('/api/market');
         assert.equal(m.series.NQ.provider, 'Yahoo Finance');
         assert.equal(m.series.NQ.delayed, true);
-        assert.equal(m.series.NQ.bars15.length, 200);
+        assert.equal(m.series.NQ.baseTf, '1m');
+        assert.equal(m.series.NQ.barsByTf['1m'].length, 400); // trimmed for the browser
+        assert.deepEqual(Object.keys(m.series.NQ.barsByTf), ['1m']); // no timeframe selected → base only
         assert.equal(m.series.SPX.symbol, 'ES=F');
     });
     test('market with TradingView MCP → primary provider, real-time', async () => {
@@ -299,6 +301,28 @@ describe('Server API', () => {
         const m = await get('/api/market');
         assert.equal(m.series.NQ.provider, 'Yahoo Finance');
         assert.match(m.series.NQ.errors[0], /TradingView MCP: MCP connection refused/);
+    });
+    test('NQ chain: network sources down + NQ_CSV_PATH → CSV provider, historical, real contract, base 1m', async () => {
+        const { mkdtemp, writeFile } = await import('node:fs/promises');
+        const { tmpdir } = await import('node:os');
+        const d = await mkdtemp(path.join(tmpdir(), 'theeb-csv-'));
+        const T0 = Date.parse('2026-10-02T19:00:00Z');
+        const rows = Array.from({ length: 120 }, (_, i) => `${new Date(T0 + i * 60000).toISOString()},33,1,1,${20000 + i},${20002 + i},${19999 + i},${20001 + i},${10 + i},NQZ6`);
+        await writeFile(path.join(d, 'nq.csv'), 'ts_event,rtype,publisher_id,instrument_id,open,high,low,close,volume,symbol\n' + rows.join('\n'));
+        process.env.NQ_CSV_PATH = path.join(d, 'nq.csv');
+        try {
+            net.yahoo = 'down';
+            const m = await get('/api/market');
+            const nq = m.series.NQ;
+            assert.equal(nq.status, 'OK');
+            assert.match(nq.provider, /^CSV file nq\.csv$/);
+            assert.equal(nq.historical, true);
+            assert.equal(nq.delayed, true);
+            assert.equal(nq.contract, 'NQZ6');
+            assert.equal(nq.baseTf, '1m');
+            assert.match(nq.errors.join(' '), /Yahoo: getaddrinfo ENOTFOUND/);
+            assert.equal(m.timeframes.status, 'NOT_RUN'); // no validation report → nothing selected
+        } finally { delete process.env.NQ_CSV_PATH; }
     });
     test('AI agent endpoint: 503 when key missing', async () => {
         const r = await fetch(base + '/api/agent/chart-read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageBase64: 'AAAA', mediaType: 'image/png' }) });

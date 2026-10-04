@@ -34,11 +34,27 @@ pnpm --filter @workspace/theeb-dashboard start        # http://localhost:5173
 |---|---|---|
 | COT (Large Spec long/short/net, weekly Δ, COT Index 6M/36M, commercials, small traders) | MarketBulls `cot-report-nasdaq-100` | CFTC Legacy COT (E-mini Nasdaq-100) |
 | Seasonality (10Y / 5Y / 2Y, current month/day, avg change, bias) | MarketBulls `seasonal-tendencies-nasdaq-100` | Yahoo `^NDX` monthly returns |
-| NQ / NAS100 / S&P 500 bars (15m + 5m) | **TradingView MCP** | Yahoo (always marked DELAYED) |
+| NQ futures OHLC | **Databento** CME GLBX.MDP3 `ohlcv-1m`, `NQ.c.0` (contract per bar) → TradingView MCP → Yahoo `NQ=F` (DELAYED) → CSV file (`NQ_CSV_PATH`, historical) | each labelled in Data Lineage |
+| NAS100 / S&P 500 bars | TradingView MCP | Yahoo (always marked DELAYED) |
 | VIX | TradingView MCP | Yahoo `^VIX` |
 | Economic calendar | ForexFactory weekly export | none (shown as DATA UNAVAILABLE) |
 
 The MarketBulls adapter parses the page's tables and embedded chart series and validates every field. If the format is not recognised, it throws and the fallback is used, labelled as such.
+
+### Timeframes: selected by evidence, never assumed
+Nothing is hard-wired to 15m/5m. The supported timeframes are 1m, 5m, 15m, 30m, and 1h. Higher timeframes are built from the finest real bars by deterministic aggregation (open = first, high = max, low = min, close = last, volume = sum). Empty buckets are skipped, never interpolated, and buckets spanning a contract roll are flagged. Analysis only uses bars of the current contract.
+
+`validate:timeframes` replays the live engine (Structure → TRIL R/I/L → Risk) over real NQ history for 12 configurations: 5 single-timeframe and 7 structure→execution pairs. Trades are simulated on the finest bars (limit fill, SL before TP in the same bar, 48h max hold). For each configuration it reports:
+- n, win rate, Wilson 95% CI
+- expectancy (R), profit factor, 95% lower bound of expectancy
+- 4-period stability, recent performance, yearly distribution
+
+A configuration is **eligible** only with n ≥ 30, expectancy LB95 > 0, PF ≥ 1.2, positive in ≥ 3/4 periods, and positive recent expectancy. Among eligible configurations, the one with the highest LB95 is selected; win rate alone never selects. Without a report, or without an eligible configuration, the result is **NO TIMEFRAME SELECTED — INSUFFICIENT EVIDENCE** and the decision is NO TRADE. T (Trend) is the weekly context layer and is not timeframe-dependent, so the replay evaluates R / I / L.
+
+```bash
+pnpm --filter @workspace/theeb-dashboard validate:timeframes -- --csv nq_1m.csv --tz America/Chicago
+DATABENTO_API_KEY=... pnpm --filter @workspace/theeb-dashboard validate:timeframes -- --databento --days 180
+```
 
 ### Market status
 `OPEN` · `CLOSED` · `UNKNOWN`: the CME Globex schedule (New York time) first, then data evidence. If the schedule says open but no current data arrives, the status is UNKNOWN (holiday, halt, or feed issue).

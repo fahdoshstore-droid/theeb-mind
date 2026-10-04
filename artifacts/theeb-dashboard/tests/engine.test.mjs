@@ -65,21 +65,21 @@ describe('Market context — COT / Seasonality / VIX', () => {
 describe('Market structure & TRIL', () => {
     test('demo long bars → bullish 15m structure with raid, FVG, discount', () => {
         const r = run('long');
-        assert.equal(r.s15.status, 'OK');
-        assert.equal(r.s15.bias, 'BULLISH');
-        assert.equal(r.e5.confirmation, 'CONFIRMED');
+        assert.equal(r.sStruct.status, 'OK');
+        assert.equal(r.sStruct.bias, 'BULLISH');
+        assert.equal(r.eExec.confirmation, 'CONFIRMED');
         assert.equal(r.tril.status, 'PASS');
         assert.equal(r.tril.ready, 'READY');
         assert.equal(r.tril.passCount, 4);
     });
     test('mirrored bars → bearish structure', () => {
         const r = run('short');
-        assert.equal(r.s15.bias, 'BEARISH');
+        assert.equal(r.sStruct.bias, 'BEARISH');
         assert.equal(r.tril.status, 'PASS');
     });
     test('too few bars → UNAVAILABLE', () => {
-        assert.equal(E.analyzeStructure15([{ o: 1, h: 2, l: 0, c: 1 }]).status, 'UNAVAILABLE');
-        assert.equal(E.analyzeStructure15(null).status, 'UNAVAILABLE');
+        assert.equal(E.analyzeStructure([{ o: 1, h: 2, l: 0, c: 1 }]).status, 'UNAVAILABLE');
+        assert.equal(E.analyzeStructure(null).status, 'UNAVAILABLE');
     });
     test('TRIL FAIL when trend opposes context', () => {
         const d = DEMO.scenario('long', NOW);
@@ -279,7 +279,7 @@ describe('Data freshness & source selection (NQ → NAS100 proxy)', () => {
         d.market.series.NQ.delayed = true;
         const r = E.runPipeline(d, { sessionOverride: DEMO.SESSION }, NOW);
         assert.equal(r.source.role, 'NAS100_PROXY');
-        assert.equal(r.source.candidates.NQ.f15.state, 'DELAYED');
+        assert.equal(r.source.candidates.NQ.fStruct.state, 'DELAYED');
     });
     test('12. NQ + NAS100 unavailable → NO TRADE, confidence N/A', () => {
         const r = run('no_data');
@@ -291,11 +291,11 @@ describe('Data freshness & source selection (NQ → NAS100 proxy)', () => {
     });
     test('stale 5m is dropped (never mixed silently with fresh 15m)', () => {
         const d = DEMO.scenario('long', NOW);
-        d.market.series.NQ.bars5 = d.market.series.NQ.bars5.map((b) => Object.assign({}, b, { t: b.t - 3 * 3600000 }));
+        d.market.series.NQ.barsByTf['5m'] = d.market.series.NQ.barsByTf['5m'].map((b) => Object.assign({}, b, { t: b.t - 3 * 3600000 }));
         const r = E.runPipeline(d, { sessionOverride: DEMO.SESSION }, NOW);
         assert.equal(r.source.role, 'NQ');
-        assert.equal(r.source.bars5, null);
-        assert.equal(r.e5.status, 'UNAVAILABLE');
+        assert.equal(r.source.barsExec, null);
+        assert.equal(r.eExec.status, 'UNAVAILABLE');
         assert.ok(r.decision.warnings.some((x) => /5m STALE — not used/.test(x)));
     });
 });
@@ -305,7 +305,7 @@ describe('SMT (confluence only)', () => {
         const r = run('long');
         assert.equal(r.smt.confluence, 'BULLISH_CONFLUENCE');
         assert.equal(r.smt.tf, '15m');
-        assert.equal(r.smt.confirmed5m, true);
+        assert.equal(r.smt.confirmedExec, true);
         assert.equal(r.agents.analyst.smt, 'BULLISH_CONFLUENCE');
     });
     test('14. bearish SMT on a short', () => {
@@ -334,7 +334,7 @@ describe('SMT (confluence only)', () => {
     });
     test('misaligned timestamps → UNCLEAR', () => {
         const d = DEMO.scenario('long', NOW);
-        d.market.series.SPX.bars15 = d.market.series.SPX.bars15.map((b) => Object.assign({}, b, { t: b.t + 7 * 60000 }));
+        d.market.series.SPX.barsByTf['15m'] = d.market.series.SPX.barsByTf['15m'].map((b) => Object.assign({}, b, { t: b.t + 7 * 60000 }));
         const r = E.runPipeline(d, { sessionOverride: DEMO.SESSION }, NOW);
         assert.equal(r.smt.confluence, 'UNCLEAR');
     });
@@ -423,7 +423,7 @@ describe('Decision engine — scenarios', () => {
     });
     test('structured agent outputs have the documented shape', () => {
         const r = run('news_high');
-        assert.deepEqual(Object.keys(r.agents.analyst), ['agent', 'context', 'structure', 'tril', 'smt', 'bias', 'confidence', 'dataSource', 'freshness', 'marketStatus', 'reason']);
+        assert.deepEqual(Object.keys(r.agents.analyst), ['agent', 'context', 'structure', 'tril', 'smt', 'bias', 'confidence', 'dataSource', 'freshness', 'marketStatus', 'timeframes', 'reason']);
         assert.deepEqual(Object.keys(r.agents.news), ['agent', 'status', 'event', 'impact', 'timeToEvent', 'tradingRestriction']);
         assert.ok(!('bias' in r.agents.news));
     });
@@ -460,7 +460,7 @@ describe('Market status (OPEN / CLOSED / UNKNOWN) — closed market never trades
         const r = E.runPipeline(d, {}, SUN);
         assert.equal(r.marketStatus.status, 'CLOSED');
         assert.equal(r.source.status, 'UNAVAILABLE');
-        assert.equal(r.source.candidates.NQ.f15.state, 'STALE');
+        assert.equal(r.source.candidates.NQ.fStruct.state, 'STALE');
         assert.equal(r.decision.reasons[0].code, 'MARKET CLOSED');
     });
     test('UNKNOWN: schedule open but data dead (holiday / halt)', () => {
@@ -473,5 +473,76 @@ describe('Market status (OPEN / CLOSED / UNKNOWN) — closed market never trades
     test('OPEN: schedule open + current data', () => {
         const r = E.runPipeline(DEMO.scenario('long', NOW), {}, NOW);
         assert.equal(r.marketStatus.status, 'OPEN');
+    });
+});
+
+describe('Timeframes — configurable, evidence-gated, never assumed', () => {
+    const one = (t, o, h, l, c, v, contract) => ({ t, o, h, l, c, v, contract });
+    const T0 = Date.parse('2026-10-06T13:30:00Z');
+    test('resample 1m → 5m: open=first, high=max, low=min, close=last, volume=sum', () => {
+        const m = [one(T0, 10, 12, 9, 11, 5), one(T0 + 60e3, 11, 15, 10, 14, 7), one(T0 + 120e3, 14, 14, 8, 9, 1), one(T0 + 180e3, 9, 10, 9, 10, 2), one(T0 + 240e3, 10, 11, 10, 10.5, 3)];
+        const [b] = E.resampleBars(m, '1m', '5m');
+        assert.deepEqual([b.t, b.o, b.h, b.l, b.c, b.v, b.n, b.complete], [T0, 10, 15, 8, 10.5, 18, 5, true]);
+    });
+    test('resample never interpolates: gaps keep real counts, empty buckets are skipped', () => {
+        const m = [one(T0, 1, 2, 0, 1, 1), one(T0 + 60e3, 1, 3, 1, 2, 1), one(T0 + 20 * 60e3, 2, 2, 2, 2, 1)];
+        const out = E.resampleBars(m, '1m', '5m');
+        assert.equal(out.length, 2);
+        assert.equal(out[0].n, 2);
+        assert.equal(out[0].complete, false);
+        assert.equal(out[1].t, T0 + 20 * 60e3);
+    });
+    test('resample to 15m / 30m / 1h aligns to clock boundaries', () => {
+        const m = Array.from({ length: 120 }, (_, i) => one(T0 + i * 60e3, 100 + i, 101 + i, 99 + i, 100.5 + i, 1));
+        assert.equal(E.resampleBars(m, '1m', '15m').length, 8);
+        assert.equal(E.resampleBars(m, '1m', '30m').length, 4);
+        const h = E.resampleBars(m, '1m', '1h');
+        assert.equal(h.length, 3); // 13:30–14:00 partial, 14:00, 15:00 partial
+        assert.equal(h[1].n, 60);
+        assert.equal(h[1].complete, true);
+        assert.throws(() => E.resampleBars(m, '5m', '1m'), /Cannot resample/);
+    });
+    test('contract roll: bucket spanning a roll is flagged; analysis uses only the current contract', () => {
+        const m = [one(T0, 1, 2, 0, 1, 1, 'NQZ6'), one(T0 + 60e3, 1, 2, 0, 1, 1, 'NQZ6'), one(T0 + 120e3, 50, 51, 49, 50, 1, 'NQH7')];
+        const [b] = E.resampleBars(m, '1m', '5m');
+        assert.equal(b.roll, true);
+        assert.equal(b.contract, 'NQH7');
+        assert.equal(E.splitAtRolls(m).length, 2);
+        const seg = E.barsFor({ barsByTf: { '1m': m } }, '1m');
+        assert.equal(seg.rolled, true);
+        assert.equal(seg.bars.length, 1);
+        assert.equal(seg.contract, 'NQH7');
+    });
+    test('no timeframe selected → NO TRADE / NO TIMEFRAME SELECTED — INSUFFICIENT EVIDENCE, no analysis', () => {
+        const d = DEMO.scenario('long', NOW);
+        delete d.timeframes;
+        const r = E.runPipeline(d, { sessionOverride: DEMO.SESSION }, NOW);
+        assert.equal(r.timeframes.status, 'NOT_SELECTED');
+        assert.equal(r.decision.decision, 'NO TRADE');
+        assert.ok(r.decision.reasons.some((x) => x.code === 'NO TIMEFRAME SELECTED — INSUFFICIENT EVIDENCE'));
+        assert.equal(r.sStruct.status, 'UNAVAILABLE');
+        assert.equal(r.agents.analyst.timeframes, 'NOT SELECTED');
+    });
+    test('timeframe configured but evidence INSUFFICIENT → NO TRADE', () => {
+        const d = DEMO.scenario('long', NOW);
+        d.timeframes = { structure: '15m', execution: '5m', status: 'INSUFFICIENT', detail: 'n = 7 (< 30)' };
+        const r = E.runPipeline(d, { sessionOverride: DEMO.SESSION }, NOW);
+        assert.equal(r.decision.decision, 'NO TRADE');
+        assert.ok(r.decision.reasons.some((x) => x.code === 'TIMEFRAME NOT VALIDATED — INSUFFICIENT EVIDENCE'));
+    });
+    test('VALIDATED config on another timeframe pair works (nothing is tied to 15m/5m)', () => {
+        const d = DEMO.scenario('long', NOW);
+        for (const k of ['NQ', 'NAS100', 'SPX']) { const b = d.market.series[k].barsByTf; d.market.series[k].barsByTf = { '30m': b['15m'].map((x) => Object.assign({}, x)), '15m': b['5m'] }; d.market.series[k].baseTf = '15m'; }
+        // timestamps of the fixtures stay as-is; only labels differ — freshness uses the configured minutes
+        d.timeframes = { structure: '30m', execution: '15m', status: 'VALIDATED' };
+        const r = E.runPipeline(d, { sessionOverride: DEMO.SESSION }, NOW);
+        assert.equal(r.source.structTf, '30m');
+        assert.equal(r.source.execTf, '15m');
+        assert.equal(r.timeframes.label, '30m → 15m');
+        assert.match(r.tril.items.trend.why, /^30m /);
+    });
+    test('invalid execution timeframe (finer than nothing / larger than structure) is dropped', () => {
+        assert.equal(E.normalizeTimeframes({ structure: '5m', execution: '1h', status: 'VALIDATED' }).execution, null);
+        assert.equal(E.normalizeTimeframes({ structure: '2h' }).status, 'NOT_SELECTED');
     });
 });

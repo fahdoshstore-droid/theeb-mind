@@ -213,6 +213,10 @@ await check('LIVE via TradingView MCP → NQ from MCP with real-clock market sta
     assert.equal(await text(page, '#d-mkt'), isOpen ? 'OPEN' : 'CLOSED');
     if (!isOpen) assert.match(await text(page, '#d-why'), /MARKET CLOSED/);
     assert.match(await text(page, '#lin-body'), /TradingView MCP · CME_MINI:NQ1!/);
+    // no validation report → nothing selected → NO TRADE, no analysis
+    assert.match(await text(page, '#st-tf'), /NOT SELECTED — INSUFFICIENT EVIDENCE/);
+    assert.match(await text(page, '#d-why'), /NO TIMEFRAME SELECTED — INSUFFICIENT EVIDENCE/);
+    assert.equal(await text(page, '#d-word'), 'NO TRADE');
     assert.match(await text(page, '#cot-bias'), /DATA UNAVAILABLE/);
     assert.match(await text(page, '#vix-val'), /^1\d\.\d\d$/); // VIX from MCP
     assert.match(await text(page, '#smt-pair'), /CME_MINI:ES1!/);

@@ -7,8 +7,6 @@
 (function (root) {
     'use strict';
 
-    const M15 = 15 * 60000, M5 = 5 * 60000;
-
     // Bars from waypoints: [price, barsToReach] or { bar: {o,h,l,c} }
     function path(start, legs, lastStart, stepMs) {
         const raw = [];
@@ -58,6 +56,10 @@
     }
 
     const OK = 'OK';
+    // The demo bar paths are drawn at these two resolutions. This is a property of the SIMULATED
+    // fixtures only — it is NOT a validated or default THEEB MIND timeframe configuration.
+    const SIM_TF = Object.freeze({ structure: '15m', execution: '5m' });
+    const M15 = 15 * 60000, M5 = 5 * 60000;
     const SCENARIOS = {
         long:          { label: 'LONG — all aligned, SMT bullish, news clear', dir: 'LONG' },
         short:         { label: 'SHORT — all aligned, SMT bearish', dir: 'SHORT' },
@@ -87,25 +89,26 @@
         };
     }
 
-    function series(key, b15, b5, opts) {
+    function series(key, bStruct, b5, opts) {
         const mode = opts || 'fresh';
         const base = { key, symbol: { NQ: 'CME_MINI:NQ1!', NAS100: 'OANDA:NAS100USD', SPX: 'CME_MINI:ES1!' }[key] + ' (SIM)', provider: LABEL, simulated: true };
-        if (mode === 'off') return Object.assign(base, { status: 'DATA_UNAVAILABLE', bars15: null, bars5: null, errors: ['SIMULATED: source unavailable'] });
-        if (mode === 'stale') return Object.assign(base, { status: OK, delayed: false, bars15: shift(b15, 0, -3 * 3600000), bars5: shift(b5, 0, -3 * 3600000) });
-        return Object.assign(base, { status: OK, delayed: mode === 'delayed', bars15: b15, bars5: b5 });
+        if (mode === 'off') return Object.assign(base, { status: 'DATA_UNAVAILABLE', barsByTf: null, errors: ['SIMULATED: source unavailable'] });
+        const tf = (x, y) => ({ [SIM_TF.structure]: x, [SIM_TF.execution]: y });
+        if (mode === 'stale') return Object.assign(base, { status: OK, delayed: false, baseTf: SIM_TF.execution, barsByTf: tf(shift(bStruct, 0, -3 * 3600000), shift(b5, 0, -3 * 3600000)) });
+        return Object.assign(base, { status: OK, delayed: mode === 'delayed', baseTf: SIM_TF.execution, barsByTf: tf(bStruct, b5) });
     }
 
     /** Returns the same shapes the live server returns, every item flagged simulated. */
     function scenario(key, now) {
         const s = Object.assign({ cot: 'on', seas: 'on', vix: 'on', news: [['Retail Sales m/m', 'Medium', 300], ['CPI m/m', 'High', 1500]], nq: 'fresh', nas: 'fresh', spx: 'smt' }, SCENARIOS[key] || SCENARIOS.long);
-        const last15 = Math.floor(now / M15) * M15, last5 = Math.floor(now / M5) * M5;
-        let b15 = path(20380, longLegs15(s), last15, M15), b5 = path(20320, longLegs5(s), last5, M5);
-        let spx15 = scale(b15, 0.29), spx5 = scale(b5, 0.29);
-        if (s.spx === 'smt') { spx15 = noConfirmLow(spx15, 16, 32); spx5 = noConfirmLow(spx5, 24, 48); }
+        const lastStruct = Math.floor(now / M15) * M15, lastExec = Math.floor(now / M5) * M5;
+        let bStruct = path(20380, longLegs15(s), lastStruct, M15), b5 = path(20320, longLegs5(s), lastExec, M5);
+        let spxStruct = scale(bStruct, 0.29), spxExec = scale(b5, 0.29);
+        if (s.spx === 'smt') { spxStruct = noConfirmLow(spxStruct, 16, 32); spxExec = noConfirmLow(spxExec, 24, 48); }
         const sign = s.dir === 'SHORT' ? -1 : 1;
         if (sign < 0) {
-            b15 = mirror(b15, 20200); b5 = mirror(b5, 20200);
-            spx15 = mirror(spx15, 20200 * 0.29); spx5 = mirror(spx5, 20200 * 0.29);
+            bStruct = mirror(bStruct, 20200); b5 = mirror(b5, 20200);
+            spxStruct = mirror(spxStruct, 20200 * 0.29); spxExec = mirror(spxExec, 20200 * 0.29);
         }
         const report = new Date(now - 4 * 86400000).toISOString().slice(0, 10);
         const cot = s.cot === null ? { status: 'DATA_UNAVAILABLE', source: null, errors: ['SIMULATED: MarketBulls & CFTC unavailable'], simulated: true } : {
@@ -117,15 +120,16 @@
         return {
             simulated: true,
             label: s.label,
+            timeframes: { structure: SIM_TF.structure, execution: SIM_TF.execution, status: 'SIMULATED', detail: 'DEMO / SIMULATED fixture resolution — not evidence' },
             cot,
             seasonality: s.seas === null ? { status: 'DATA_UNAVAILABLE', source: null, errors: ['SIMULATED: seasonality unavailable'], simulated: true } : seasonality(sign, now),
             vix: s.vix === null ? { status: 'DATA_UNAVAILABLE', value: null, source: null, simulated: true } : { status: OK, value: sign > 0 ? 14.2 : 19.6, source: LABEL, simulated: true },
             market: {
                 simulated: true,
                 series: {
-                    NQ: series('NQ', b15, b5, s.nq),
-                    NAS100: series('NAS100', shift(b15, -45), shift(b5, -45), s.nas),
-                    SPX: series('SPX', spx15, spx5, s.spx === 'off' ? 'off' : 'fresh'),
+                    NQ: series('NQ', bStruct, b5, s.nq),
+                    NAS100: series('NAS100', shift(bStruct, -45), shift(b5, -45), s.nas),
+                    SPX: series('SPX', spxStruct, spxExec, s.spx === 'off' ? 'off' : 'fresh'),
                 },
             },
             news: { status: OK, events: s.news.map((e) => ({ title: e[0], country: 'USD', impact: e[1], time: isoIn(now, e[2]) })), source: LABEL, simulated: true },
