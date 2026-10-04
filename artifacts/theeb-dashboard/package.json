@@ -1,0 +1,15 @@
+{
+  "name": "@workspace/theeb-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "THEEB MIND — Trading Decision Intelligence Dashboard (NQ / MNQ)",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "node tests/ui.e2e.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.130.0"
+  }
+}

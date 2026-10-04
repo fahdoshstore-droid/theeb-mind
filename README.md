@@ -49,6 +49,7 @@ pnpm --filter @workspace/theeb-mind run dev
 
 ```
 artifacts/
+├── theeb-dashboard/   # THEEB MIND — Decision Dashboard لـ NQ/MNQ (LONG / SHORT / NO TRADE)
 ├── theeb-mind/        # واجهة المنصة (React + Vite، عربي RTL)
 ├── api-server/        # خادم REST (Express + SQLite)
 └── theeb-mind-pitch/  # شرائح العرض للهاكاثون
