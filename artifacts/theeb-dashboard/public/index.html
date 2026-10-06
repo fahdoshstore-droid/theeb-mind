@@ -659,7 +659,7 @@
             else if (app.serverReachable === false) { text = 'OFFLINE — DATA UNAVAILABLE'; cls = 'err'; }
             else if (app.serverReachable === null) { text = 'LOADING'; cls = ''; }
             else if (ms === 'CLOSED') { text = ok === 0 ? 'MARKET CLOSED · DATA UNAVAILABLE' : 'MARKET CLOSED · LAST AVAILABLE DATA · ' + ok + '/5 sources'; cls = ok === 0 ? 'err' : 'warn'; }
-            else if (ms === 'UNKNOWN') { text = 'MARKET UNKNOWN · ' + ok + '/5 sources'; cls = 'warn'; }
+            else if (ms === 'UNKNOWN') { text = ok === 0 ? 'MARKET UNKNOWN · DATA UNAVAILABLE' : 'MARKET UNKNOWN · ' + ok + '/5 sources'; cls = ok === 0 ? 'err' : 'warn'; }
             else if (ok === 5) { text = 'LIVE'; cls = 'ok live'; }
             else if (ok === 0) { text = 'LIVE · DATA UNAVAILABLE'; cls = 'err'; }
             else { text = 'LIVE · PARTIAL ' + ok + '/5'; cls = 'warn'; }

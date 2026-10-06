@@ -14,7 +14,8 @@ server.registerTool('get_ohlcv', {
 }, async ({ symbol, interval, bars }) => {
     if (mode === 'error') return { isError: true, content: [{ type: 'text', text: 'symbol not found: ' + symbol }] };
     if (mode === 'empty') return { content: [{ type: 'text', text: JSON.stringify({ symbol, data: [] }) }] };
-    const step = { '15m': 900, '5m': 300, '1d': 86400 }[interval] || 900;
+    const step = { '1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '1d': 86400 }[interval];
+    if (!step) return { isError: true, content: [{ type: 'text', text: 'unsupported interval: ' + interval }] };
     const last = Math.floor(Date.now() / 1000 / step) * step;
     const base = symbol.includes('VIX') ? 17 : symbol.includes('ES') ? 5800 : 20000;
     const rows = Array.from({ length: bars }, (_, i) => {
