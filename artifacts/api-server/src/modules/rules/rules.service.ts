@@ -1,6 +1,7 @@
 import { db } from '../../db/db.js';
 import { RULE_REGISTRY } from './rule-registry.js';
 import type { RuleContext } from './rule-registry.js';
+import { getUserLimits } from '../../config/user-limits.js';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -42,13 +43,15 @@ export function evaluateRules(userId: string, context: RuleContext): EvaluateRes
      VALUES (?, ?, ?, ?, ?)`
   );
 
+  const limits = getUserLimits(userId);
   for (const rule of RULE_REGISTRY) {
-    if (rule.evaluate(context)) {
+    if (rule.threshold(limits) == null) continue; // not active in this user's profile
+    if (rule.evaluate(context, limits)) {
       violations.push({
         ruleId:      rule.id,
         ruleName:    rule.name,
         severity:    rule.severity,
-        description: rule.description,
+        description: rule.description(limits),
       });
       // Persist every violation for audit trail
       insertStmt.run(userId, rule.id, rule.name, rule.severity, contextStr);
@@ -85,13 +88,16 @@ export function getViolations(userId: string, limit = 50): ViolationWithStats[] 
   }));
 }
 
-export function getRuleConfig() {
+export function getRuleConfig(userId: string) {
+  const limits = getUserLimits(userId);
   return RULE_REGISTRY.map(r => ({
     id:          r.id,
     name:        r.name,
     nameEn:      r.nameEn,
-    description: r.description,
-    threshold:   r.threshold,
+    profileKey:  r.profileKey,
+    active:      r.threshold(limits) != null,
+    description: r.threshold(limits) != null ? r.description(limits) : 'غير مفعّلة في ملفك الشخصي',
+    threshold:   r.threshold(limits),
     severity:    r.severity,
   }));
 }

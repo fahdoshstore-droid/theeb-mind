@@ -7,7 +7,7 @@
 // ============================================
 
 import { db } from '../../db/db.js';
-import { CONFIG } from '../../config/constants.js';
+import { getUserLimits } from '../../config/user-limits.js';
 import { getCurrentKillzone } from '../../config/killzones.js';
 
 // ── Types ──────────────────────────────────────────────
@@ -16,7 +16,7 @@ export interface TradeFrequencyResult {
   tradeCountToday: number;
   tradeCountThisSession: number;   // last 4 hours
   isPreMarket: boolean;
-  isOvertrading: boolean;           // > CONFIG.MAX_TRADES
+  isOvertrading: boolean;           // > user-activated daily limit (none by default)
   isAggressiveOvertrading: boolean; // > 15
   penaltyPoints: number;
   timingScore: number;              // 0–100, drops if pre-market
@@ -83,7 +83,9 @@ export function analyzeTradeFrequency(userId: string): TradeFrequencyResult {
 
   // ── Overtrading detection ─────────────────────────────
   let penaltyPoints = 0;
-  const isOvertrading = tradeCountToday > CONFIG.MAX_TRADES;
+  // Trade count is context, not a rule: a penalty applies only if YOU activated a daily trade limit.
+  const maxTrades = getUserLimits(userId).maxTradesPerDay;
+  const isOvertrading = maxTrades != null && tradeCountToday > maxTrades;
   const isAggressiveOvertrading = tradeCountToday > 15;
 
   if (isAggressiveOvertrading) {
@@ -93,17 +95,17 @@ export function analyzeTradeFrequency(userId: string): TradeFrequencyResult {
       `تداول مفرط جداً: ${tradeCountToday} صفقة اليوم (>15) — عقوبة ${penaltyPoints} نقطة`,
     );
   } else if (isOvertrading) {
-    const excess = tradeCountToday - CONFIG.MAX_TRADES;
+    const excess = tradeCountToday - maxTrades!;
     penaltyPoints = excess * 8;
     flags.push(
-      `تجاوزت الحد اليومي (${CONFIG.MAX_TRADES}): ${tradeCountToday} صفقة — عقوبة ${penaltyPoints} نقطة`,
+      `تجاوزت الحد اليومي الذي فعّلته (${maxTrades}): ${tradeCountToday} صفقة — عقوبة ${penaltyPoints} نقطة`,
     );
   }
 
   // ── Explanation ───────────────────────────────────────
   const explanation = [
     `تحليل تردد التداول:`,
-    `• صفقات اليوم: ${tradeCountToday} (الحد: ${CONFIG.MAX_TRADES})`,
+    `• صفقات اليوم: ${tradeCountToday} (${maxTrades != null ? `الحد المفعّل: ${maxTrades}` : 'لا يوجد حد لعدد الصفقات — للتحليل فقط'})`,
     `• صفقات الجلسة (4 ساعات): ${tradeCountThisSession}`,
     `• التوقيت: ${preMarket ? 'قبل افتتاح السوق ⚠️' : killzone.isActive ? 'ضمن نافذة النشاط ✓' : 'خارج نافذة النشاط ⚠️'}`,
     `• عقوبة التردد: ${penaltyPoints} نقطة`,

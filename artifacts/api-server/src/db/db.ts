@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { env } from '../config/env.js';
+import { runMigrations } from './migrations.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,10 +18,15 @@ export class Database {
     this.db.pragma('foreign_keys = ON');
   }
 
+  private initialized = false;
+
   init(): void {
+    if (this.initialized) return;
+    this.initialized = true;
     const schemaPath = join(__dirname, 'schema.sql');
     const schema = readFileSync(schemaPath, 'utf-8');
     this.db.exec(schema);
+    runMigrations(this.db);
     this.prepareStatements();
   }
 

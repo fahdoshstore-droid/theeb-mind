@@ -48,9 +48,9 @@ router.get('/violations/:userId', (req: Request, res: Response) => {
 });
 
 // GET /api/rules/config
-router.get('/config', (_req: Request, res: Response) => {
+router.get('/config', (req: Request, res: Response) => {
   try {
-    res.json({ success: true, data: getRuleConfig() });
+    res.json({ success: true, data: getRuleConfig((req as any).userId as string) });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: { message: err instanceof Error ? err.message : 'خطأ' } });
   }

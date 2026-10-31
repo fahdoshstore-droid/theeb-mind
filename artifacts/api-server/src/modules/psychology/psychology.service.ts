@@ -1,6 +1,7 @@
 import type { GateAnswer, GateVerdict, PsychologySnapshot } from '../../shared/types.js';
 import { GATE_QUESTIONS } from './gate-questions.js';
-import { CONFIG } from '../../config/constants.js';
+import { getUserLimits } from '../../config/user-limits.js';
+import { zonedParts, NY_TZ } from '../../domain/ny-time.js';
 import { db } from '../../db/db.js';
 
 export interface GateEvaluation {
@@ -79,11 +80,12 @@ export function checkBehavioralLock(userId: string): boolean {
      ORDER BY created_at DESC`
   ).all(userId, today) as { type: string; outcome: string | null }[];
 
+  // Limits come from the user's ACTIVE rules profile; historical rules are not enforced.
+  const limits = getUserLimits(userId);
   const losses = recentDecisions.filter((d) => d.outcome === 'loss').length;
-  if (losses >= CONFIG.CONSEC_LOSS_LIMIT) return true;
+  if (limits.consecutiveLossLimit != null && losses >= limits.consecutiveLossLimit) return true;
 
-  const dayOfWeek = new Date().getDay();
-  if (CONFIG.NO_TRADE_DAYS.includes(dayOfWeek as any)) return true;
+  if (limits.noTradeWeekdays?.includes(zonedParts(Date.now(), NY_TZ).weekday)) return true;
 
   return false;
 }

@@ -9,7 +9,7 @@ interface RateLimitEntry {
 const store = new Map<string, RateLimitEntry>();
 
 const WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS = 60; // 60 requests per minute
+const MAX_REQUESTS = Number(process.env.RATE_LIMIT_PER_MIN) || 240; // requests per minute per IP
 
 export function rateLimit(req: Request, _res: Response, next: NextFunction): void {
   const key = req.ip || 'unknown';
@@ -33,7 +33,7 @@ export function rateLimit(req: Request, _res: Response, next: NextFunction): voi
 }
 
 // Cleanup old entries periodically
-setInterval(() => {
+const cleanup = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of store.entries()) {
     if (now > entry.resetTime) {
@@ -41,3 +41,4 @@ setInterval(() => {
     }
   }
 }, WINDOW_MS);
+cleanup.unref();

@@ -1,5 +1,6 @@
 import type { Grade, QualityScoreResult } from '../../shared/types.js';
 import { CONFIG } from '../../config/constants.js';
+import type { UserLimits } from '../../config/user-limits.js';
 
 export interface QualityInput {
   confluenceScore: number;
@@ -7,6 +8,7 @@ export interface QualityInput {
   rrr: number;
   killzoneActive: boolean;
   alignmentScore: number;
+  limits: UserLimits;
 }
 
 export function calculateQualityScore(input: QualityInput): QualityScoreResult {
@@ -14,7 +16,7 @@ export function calculateQualityScore(input: QualityInput): QualityScoreResult {
   const weights = CONFIG.SCORING_WEIGHTS;
 
   const confluenceNormalized = (confluenceScore / CONFIG.MAX_CONFLUENCE) * 100;
-  const rrrNormalized = Math.min((rrr / CONFIG.MIN_RRR) * 100, 100);
+  const rrrNormalized = input.limits.minRrr ? Math.min((rrr / input.limits.minRrr) * 100, 100) : 100;
   const timingScore = killzoneActive ? 100 : 30;
 
   const confluenceWeighted = (confluenceNormalized / 100) * weights.confluence * 100;

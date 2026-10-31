@@ -8,6 +8,7 @@
 
 import { calculateConfluence } from '../scoring/confluence.engine.js';
 import { calculateSafetyScore } from '../scoring/safety-score.js';
+import type { UserLimits } from '../../config/user-limits.js';
 import { calculateQualityScore } from '../scoring/quality-score.js';
 import { computeJournalSafetyScore } from '../scoring/journal-safety-score.js';
 import { CONFIG } from '../../config/constants.js';
@@ -17,6 +18,7 @@ import type { ConfluenceInput } from '../scoring/confluence.engine.js';
 // ── Input / Output types ───────────────────────────────
 
 export interface UnifiedQualityInput {
+  limits: UserLimits;   // from the user's active rules profile (server-side)
   // Confluence factors (ICT)
   marketStructure: boolean;
   fairValueGap: boolean;
@@ -119,11 +121,13 @@ export function computeUnifiedQuality(input: UnifiedQualityInput): UnifiedQualit
     rrr:             input.rrr,
     killzoneActive:  input.killzoneActive,
     alignmentScore:  input.alignmentScore,
+    limits:          input.limits,
   });
   const qualityNorm = qualityResult.totalScore; // already 0–100
 
   // ── 4. Safety layer ───────────────────────────────────
   const safetyResult = calculateSafetyScore({
+    limits: input.limits,
     confluence: {
       score:     confluenceResult.score,
       maxScore:  confluenceResult.maxScore,

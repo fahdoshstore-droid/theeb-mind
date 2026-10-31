@@ -1,58 +1,40 @@
 import type { Request, Response, NextFunction } from 'express';
 import { createError } from './error-handler.js';
-import { db } from '../db/db.js';
+import { parseCookies, SESSION_COOKIE, userForSession, userForApiKey } from '../modules/auth/auth.service.js';
 
-// ── Key registry ────────────────────────────────────────────────────────────
-// Maps API key → userId. userId is looked up from this server-side registry;
-// it is NEVER derived from the key itself, preventing IDOR via crafted prefixes.
+// Identity is resolved ONLY on the server, from an HttpOnly session cookie (browser) or an
+// env-configured API key (scripts). No key is built in, and no userId from the client is trusted.
 //
-// Production: set THEEB_API_KEYS="key1:userId1,key2:userId2" in env.
-// Development: the dev key below is always available.
+// CSRF: the session cookie is SameSite=Strict, and state-changing cookie requests must carry
+// the custom header X-Requested-With (a cross-site form cannot set it without a CORS preflight).
 
-function buildKeyRegistry(): Map<string, string> {
-  const registry = new Map<string, string>();
-
-  // Always-active key — used by the embedded frontend (single-tenant app)
-  registry.set('user-1_devkey', 'user-1');
-
-  // Env-configurable keys (production)
-  const envKeys = process.env.THEEB_API_KEYS;
-  if (envKeys) {
-    for (const pair of envKeys.split(',')) {
-      const [key, uid] = pair.split(':');
-      if (key && uid) registry.set(key.trim(), uid.trim());
-    }
-  }
-
-  return registry;
-}
-
-const KEY_REGISTRY = buildKeyRegistry();
-
-// ── Middleware ───────────────────────────────────────────────────────────────
+const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
-  const apiKey = req.headers['x-api-key'] as string | undefined;
-
-  if (!apiKey) {
-    next(createError('مفتاح API مطلوب — أضف X-API-Key في الرأس', 401, 'MISSING_API_KEY'));
+  const apiKey = req.headers['x-api-key'];
+  if (typeof apiKey === 'string' && apiKey) {
+    const user = userForApiKey(apiKey);
+    if (!user) { next(createError('Invalid API key', 401, 'INVALID_API_KEY')); return; }
+    (req as any).userId = user.id;
+    (req as any).authMethod = 'api_key';
+    next();
     return;
   }
-
-  // Look up key in the server-side registry — userId is NEVER derived from the key string
-  const userId = KEY_REGISTRY.get(apiKey);
-  if (!userId) {
-    next(createError('مفتاح API غير صالح', 401, 'INVALID_API_KEY'));
+  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+  const user = token ? userForSession(token) : null;
+  if (!user) { next(createError('Sign in required', 401, 'UNAUTHENTICATED')); return; }
+  if (!SAFE.has(req.method) && req.headers['x-requested-with'] !== 'theeb-mind') {
+    next(createError('Missing X-Requested-With header', 403, 'CSRF_HEADER_REQUIRED'));
     return;
   }
-
-  // Bind immutable auth identity to request
-  (req as any).userId = userId;
-
-  // Auto-upsert user row so FK constraints are always satisfied
-  db.raw
-    .prepare(`INSERT OR IGNORE INTO users (id, username) VALUES (?, ?)`)
-    .run(userId, userId);
-
+  (req as any).userId = user.id;
+  (req as any).username = user.username;
+  (req as any).authMethod = 'session';
   next();
+}
+
+export function currentUserId(req: Request): string {
+  const id = (req as any).userId;
+  if (typeof id !== 'string' || !id) throw createError('Sign in required', 401, 'UNAUTHENTICATED');
+  return id;
 }

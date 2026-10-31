@@ -2,6 +2,7 @@ import { Router, type Router as RouterType, type Request, type Response } from '
 import { v4 as uuidv4 } from 'uuid';
 import { computeUnifiedQuality, type UnifiedQualityInput } from './quality.engine.js';
 import { db } from '../../db/db.js';
+import { getUserLimits } from '../../config/user-limits.js';
 
 const router: RouterType = Router();
 
@@ -10,7 +11,7 @@ router.post('/evaluate', (req: Request, res: Response) => {
   const userId = (req as any).userId as string;
   try {
     const body = req.body as UnifiedQualityInput & { instrument?: string; timeframe?: string };
-    const result = computeUnifiedQuality(body);
+    const result = computeUnifiedQuality({ ...body, limits: getUserLimits(userId) }); // limits never come from the client
 
     // Persist to quality_evaluations
     const evalId = uuidv4();

@@ -5,11 +5,13 @@ import { calculateConfluence } from '../scoring/confluence.engine.js';
 import { calculateQualityScore } from '../scoring/quality-score.js';
 import { calculateSafetyScore } from '../scoring/safety-score.js';
 import { analyzeTradeFrequency } from '../scoring/trade-frequency.js';
+import { getUserLimits, type UserLimits } from '../../config/user-limits.js';
+import { zonedParts, NY_TZ } from '../../domain/ny-time.js';
 import { detectAHAMoment } from '../scoring/aha-moment.js';
 import { evaluateGate } from '../psychology/psychology.service.js';
 import { GATE_QUESTIONS } from '../psychology/gate-questions.js';
 import { generateMessage } from '../coaching/coaching.service.js';
-import { getCurrentKillzone } from '../../config/killzones.js';
+import { getCurrentKillzone, KILLZONES } from '../../config/killzones.js';
 import { CONFIG } from '../../config/constants.js';
 import { db } from '../../db/db.js';
 import type { FallbackRequest } from '../../shared/validators.js';
@@ -66,6 +68,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
   const confluence = calculateConfluence(confluenceInput);
 
   const alignmentScore = calculateAlignmentScore(visionResult.type, confluence);
+  const limits = getUserLimits(input.userId);
 
   const qualityInput: QualityInput = {
     confluenceScore: confluence.score,
@@ -73,16 +76,18 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
     rrr: visionResult.rrr,
     killzoneActive: killzone.isActive,
     alignmentScore,
+    limits,
   };
 
   const quality = calculateQualityScore(qualityInput);
-  const rrrPass = visionResult.rrr >= CONFIG.MIN_RRR;
+  const rrrPass = limits.minRrr == null || visionResult.rrr >= limits.minRrr;
 
   // ── V1: Trade Frequency ───────────────────────────────
   const freq = analyzeTradeFrequency(input.userId);
 
   // ── V1: Safety Score (4-layer dynamic averaging) ──────
   const safety = calculateSafetyScore({
+    limits,
     confluence: {
       score: confluence.score,
       maxScore: CONFIG.MAX_CONFLUENCE,
@@ -104,7 +109,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
       tradeCountToday: freq.tradeCountToday,
       isPreMarket: freq.isPreMarket,
       consecutiveLosses: 0,
-      isNoTradeDay: isDayBlocked(),
+      isNoTradeDay: isDayBlocked(limits),
     },
   });
 
@@ -122,6 +127,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
 
   // ── Unified Quality Engine ────────────────────────────
   const unifiedQuality = computeUnifiedQuality({
+    limits,
     marketStructure:   visionResult.marketStructure,
     fairValueGap:      visionResult.fairValueGap,
     orderBlock:        visionResult.orderBlock,
@@ -138,7 +144,7 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
     tradeCountToday:   freq.tradeCountToday,
     isPreMarket:       freq.isPreMarket,
     consecutiveLosses: 0,
-    isNoTradeDay:      isDayBlocked(),
+    isNoTradeDay:      isDayBlocked(limits),
     alignmentScore,
     ahaSimilarityPercent: aha.similarityPercent,
   });
@@ -174,8 +180,8 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
     quality,
     coachingMessage,
     verification: null,
-    killzone: killzone.key ? { key: killzone.key, label: killzone.label!, start: CONFIG.KILLZONES[killzone.key].start, end: CONFIG.KILLZONES[killzone.key].end } : null,
-    dayBlocked: isDayBlocked(),
+    killzone: killzone.key ? { key: killzone.key, label: killzone.label!, start: KILLZONES[killzone.key].start / 60, end: KILLZONES[killzone.key].end / 60 } : null,
+    dayBlocked: isDayBlocked(limits),
     newsBlackout: false,
     timestamp: new Date().toISOString(),
     // ── V1 fields ──
@@ -257,6 +263,9 @@ export async function analyze(input: AnalyzeInput): Promise<AnalysisResult> {
 export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
   const decisionId = uuidv4();
   const killzone = getCurrentKillzone();
+  const limits = getUserLimits(input.userId);
+  // RRR is not known in the manual fallback — it is NOT assumed to equal the minimum.
+  const FALLBACK_RRR_UNKNOWN = 0;
 
   const confluenceInput: ConfluenceInput = {
     marketStructure: input.marketStructure,
@@ -276,19 +285,21 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
   const qualityInput: QualityInput = {
     confluenceScore: confluence.score,
     gatePercentage: 70,
-    rrr: CONFIG.MIN_RRR,
+    rrr: FALLBACK_RRR_UNKNOWN,
     killzoneActive: killzone.isActive,
     alignmentScore,
+    limits,
   };
 
   const quality = calculateQualityScore(qualityInput);
-  const rrrPass = true; // fallback uses MIN_RRR
+  const rrrPass = false; // RRR unknown → not passed
 
   // ── V1: Trade Frequency ───────────────────────────────
   const freq = analyzeTradeFrequency(input.userId);
 
   // ── V1: Safety Score ──────────────────────────────────
   const safety = calculateSafetyScore({
+    limits,
     confluence: {
       score: confluence.score,
       maxScore: CONFIG.MAX_CONFLUENCE,
@@ -302,7 +313,7 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
       phase: 'cautious',
     },
     risk: {
-      rrr: CONFIG.MIN_RRR,
+      rrr: FALLBACK_RRR_UNKNOWN,
       rrrPass,
       riskAmount: input.riskAmount,
     },
@@ -310,7 +321,7 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
       tradeCountToday: freq.tradeCountToday,
       isPreMarket: freq.isPreMarket,
       consecutiveLosses: 0,
-      isNoTradeDay: isDayBlocked(),
+      isNoTradeDay: isDayBlocked(limits),
     },
   });
 
@@ -328,6 +339,7 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
 
   // ── Unified Quality Engine ────────────────────────────
   const unifiedQuality = computeUnifiedQuality({
+    limits,
     marketStructure:   input.marketStructure,
     fairValueGap:      input.fairValueGap,
     orderBlock:        input.orderBlock,
@@ -338,13 +350,13 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
     gateVerdict:       'warning',
     behavioralLock:    false,
     psychPhase:        'cautious',
-    rrr:               CONFIG.MIN_RRR,
+    rrr:               FALLBACK_RRR_UNKNOWN,
     rrrPass:           true,
     riskAmount:        input.riskAmount,
     tradeCountToday:   freq.tradeCountToday,
     isPreMarket:       freq.isPreMarket,
     consecutiveLosses: 0,
-    isNoTradeDay:      isDayBlocked(),
+    isNoTradeDay:      isDayBlocked(limits),
     alignmentScore,
     ahaSimilarityPercent: aha.similarityPercent,
   });
@@ -364,7 +376,7 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
       qualityScore: unifiedQuality.composite_score,
       qualityGrade: unifiedQuality.grade,
       qualityExplanation: unifiedQuality.explanation,
-      rrr: CONFIG.MIN_RRR,
+      rrr: FALLBACK_RRR_UNKNOWN,
       rrrPass: true,
     },
     psychology: {
@@ -380,8 +392,8 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
     quality,
     coachingMessage,
     verification: null,
-    killzone: killzone.key ? { key: killzone.key, label: killzone.label!, start: CONFIG.KILLZONES[killzone.key].start, end: CONFIG.KILLZONES[killzone.key].end } : null,
-    dayBlocked: isDayBlocked(),
+    killzone: killzone.key ? { key: killzone.key, label: killzone.label!, start: KILLZONES[killzone.key].start / 60, end: KILLZONES[killzone.key].end / 60 } : null,
+    dayBlocked: isDayBlocked(limits),
     newsBlackout: false,
     timestamp: new Date().toISOString(),
     // ── V1 fields ──
@@ -420,7 +432,7 @@ export function analyzeFallback(input: FallbackAnalyzeInput): AnalysisResult {
     JSON.stringify({ manual: true, ...confluenceInput }),
     JSON.stringify(confluence),
     null,
-    JSON.stringify({ rrr: CONFIG.MIN_RRR, riskAmount: input.riskAmount ?? null }),
+    JSON.stringify({ rrr: FALLBACK_RRR_UNKNOWN, riskAmount: input.riskAmount ?? null }),
     JSON.stringify({ coachingMessage }),
     unifiedQuality.composite_score,   // ← unified composite score
     unifiedQuality.grade,             // ← unified grade
@@ -467,7 +479,8 @@ function calculateAlignmentScore(decisionType: DecisionType, confluence: { score
   return 30;
 }
 
-function isDayBlocked(): boolean {
-  const dayOfWeek = new Date().getDay();
-  return CONFIG.NO_TRADE_DAYS.includes(dayOfWeek as any);
+function isDayBlocked(limits: UserLimits): boolean {
+  // Only an ACTIVE no-trade-weekday rule applies; weekday is taken in New York time.
+  if (!limits.noTradeWeekdays) return false;
+  return limits.noTradeWeekdays.includes(zonedParts(Date.now(), NY_TZ).weekday);
 }

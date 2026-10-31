@@ -13,10 +13,12 @@ import type {
   Grade,
 } from '../../shared/types.js';
 import { CONFIG } from '../../config/constants.js';
+import type { UserLimits } from '../../config/user-limits.js';
 
 // ── Layer Inputs ──────────────────────────────────────
 
 export interface SafetyLayerInputs {
+  limits: UserLimits;   // from the user's active rules profile
   confluence: {
     score: number;        // 0–7 raw confluence
     maxScore: number;     // 7
@@ -99,19 +101,20 @@ export function calculateSafetyScore(inputs: SafetyLayerInputs): SafetyScoreResu
   }
 
   // ── Layer 3: Risk ────────────────────────────────────
-  const rrrNormalized = Math.min((inputs.risk.rrr / CONFIG.MIN_RRR) * 100, 100);
+  const minRrr = inputs.limits.minRrr;
+  const rrrNormalized = minRrr ? Math.min((inputs.risk.rrr / minRrr) * 100, 100) : 100;
   layers.risk.raw = inputs.risk.rrr;
   layers.risk.normalized = rrrNormalized;
 
   if (!inputs.risk.rrrPass) {
     layers.risk.normalized = Math.min(layers.risk.normalized, 30);
-    flags.push(`نسبة المخاطرة للعائد غير كافية (${inputs.risk.rrr.toFixed(1)} < ${CONFIG.MIN_RRR})`);
+    flags.push(`نسبة المخاطرة للعائد غير كافية (${inputs.risk.rrr.toFixed(1)} < ${minRrr})`);
   }
 
   // Daily loss penalty
-  if (inputs.risk.dailyLossTotal != null && inputs.risk.dailyLossTotal >= CONFIG.DAILY_LOSS_LIMIT) {
+  if (inputs.risk.dailyLossTotal != null && inputs.limits.dailyLossLimitUsd != null && inputs.risk.dailyLossTotal >= inputs.limits.dailyLossLimitUsd) {
     layers.risk.normalized = 0;
-    flags.push(`تجاوزت حد الخسارة اليومي (${CONFIG.DAILY_LOSS_LIMIT}) — مخاطرة صفر`);
+    flags.push(`تجاوزت حد الخسارة اليومي (${inputs.limits.dailyLossLimitUsd}) — مخاطرة صفر`);
   }
 
   // ── Layer 4: Behavior ────────────────────────────────
@@ -123,11 +126,12 @@ export function calculateSafetyScore(inputs: SafetyLayerInputs): SafetyScoreResu
     const penalty = Math.min(excess * 5, 60); // 5 points per excess trade, max 60 penalty
     behaviorScore -= penalty;
     flags.push(`تداول مفرط: ${inputs.behavior.tradeCountToday} صفقة اليوم — عقوبة ${penalty} نقطة`);
-  } else if (inputs.behavior.tradeCountToday > CONFIG.MAX_TRADES) {
-    const excess = inputs.behavior.tradeCountToday - CONFIG.MAX_TRADES;
+  } else if (inputs.limits.maxTradesPerDay != null && inputs.behavior.tradeCountToday > inputs.limits.maxTradesPerDay) {
+    // only when YOU activated a daily trade-count rule in your profile
+    const excess = inputs.behavior.tradeCountToday - inputs.limits.maxTradesPerDay;
     const penalty = excess * 8;
     behaviorScore -= penalty;
-    flags.push(`تجاوزت الحد اليومي (${CONFIG.MAX_TRADES}): ${inputs.behavior.tradeCountToday} صفقة — عقوبة ${penalty} نقطة`);
+    flags.push(`تجاوزت الحد اليومي (${inputs.limits.maxTradesPerDay}): ${inputs.behavior.tradeCountToday} صفقة — عقوبة ${penalty} نقطة`);
   }
 
   // Pre-market penalty

@@ -1,4 +1,4 @@
-import { CONFIG } from '../../config/constants.js';
+import type { UserLimits } from '../../config/user-limits.js';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -15,67 +15,53 @@ export interface RuleDefinition {
   id: string;
   name: string;             // Arabic name shown in UI
   nameEn: string;           // English id-friendly name
-  description: string;      // Arabic description of the violation
-  threshold: number | readonly number[];
+  profileKey: string;       // rule key in the user's rules profile
   severity: 'warning' | 'block';
-  evaluate: (ctx: RuleContext) => boolean; // true = rule violated
+  /** null when the rule is not ACTIVE in the user's profile → the rule is not evaluated. */
+  threshold: (l: UserLimits) => number | readonly number[] | null;
+  description: (l: UserLimits) => string;
+  evaluate: (ctx: RuleContext, l: UserLimits) => boolean; // true = rule violated
 }
 
 // ── Registry ──────────────────────────────────────────
+// Thresholds come from the user's active rules profile (Settings), never from constants.
+// The daily trade-count rule only exists if the user activates it: by default it is historical and not enforced.
 
 export const RULE_REGISTRY: RuleDefinition[] = [
   {
-    id: 'max_trades',
-    name: 'حد الصفقات اليومي',
-    nameEn: 'Daily Trade Limit',
-    description: `تجاوزت الحد الأقصى (${CONFIG.MAX_TRADES} صفقات) لهذا اليوم`,
-    threshold: CONFIG.MAX_TRADES,
-    severity: 'block',
-    evaluate: (ctx) => ctx.tradesTaken >= CONFIG.MAX_TRADES,
+    id: 'max_trades', name: 'حد الصفقات اليومي', nameEn: 'Daily Trade Limit', profileKey: 'max_trades_per_day', severity: 'block',
+    threshold: (l) => l.maxTradesPerDay,
+    description: (l) => `تجاوزت الحد الأقصى (${l.maxTradesPerDay} صفقات) لهذا اليوم — قاعدة فعّلتها أنت`,
+    evaluate: (ctx, l) => ctx.tradesTaken >= l.maxTradesPerDay!,
   },
   {
-    id: 'min_rrr',
-    name: 'نسبة المخاطرة/العائد',
-    nameEn: 'Minimum RRR',
-    description: `نسبة المخاطرة/العائد أقل من ${CONFIG.MIN_RRR}:1 المطلوبة`,
-    threshold: CONFIG.MIN_RRR,
-    severity: 'block',
-    evaluate: (ctx) => ctx.rrr > 0 && ctx.rrr < CONFIG.MIN_RRR,
+    id: 'min_rrr', name: 'نسبة المخاطرة/العائد', nameEn: 'Minimum RRR', profileKey: 'min_rrr', severity: 'block',
+    threshold: (l) => l.minRrr,
+    description: (l) => `نسبة المخاطرة/العائد أقل من ${l.minRrr}:1 المطلوبة`,
+    evaluate: (ctx, l) => ctx.rrr > 0 && ctx.rrr < l.minRrr!,
   },
   {
-    id: 'daily_loss_limit',
-    name: 'حد الخسارة اليومية',
-    nameEn: 'Daily Loss Limit',
-    description: `وصلت إلى حد الخسارة اليومية (${CONFIG.DAILY_LOSS_LIMIT}$)`,
-    threshold: CONFIG.DAILY_LOSS_LIMIT,
-    severity: 'block',
-    evaluate: (ctx) => ctx.dailyPnl <= -CONFIG.DAILY_LOSS_LIMIT,
+    id: 'daily_loss_limit', name: 'حد الخسارة اليومية', nameEn: 'Daily Loss Limit', profileKey: 'daily_loss_limit_usd', severity: 'block',
+    threshold: (l) => l.dailyLossLimitUsd,
+    description: (l) => `وصلت إلى حد الخسارة اليومية (${l.dailyLossLimitUsd}$)`,
+    evaluate: (ctx, l) => ctx.dailyPnl <= -l.dailyLossLimitUsd!,
   },
   {
-    id: 'max_risk_per_trade',
-    name: 'حد المخاطرة في الصفقة',
-    nameEn: 'Max Risk Per Trade',
-    description: `المخاطرة (${CONFIG.MAX_RISK_PER_TRADE}$) تتجاوز الحد الأقصى المسموح`,
-    threshold: CONFIG.MAX_RISK_PER_TRADE,
-    severity: 'warning',
-    evaluate: (ctx) => ctx.riskAmount > 0 && ctx.riskAmount > CONFIG.MAX_RISK_PER_TRADE,
+    id: 'max_risk_per_trade', name: 'حد المخاطرة في الصفقة', nameEn: 'Max Risk Per Trade', profileKey: 'max_trade_risk_usd', severity: 'warning',
+    threshold: (l) => l.maxRiskPerTradeUsd,
+    description: (l) => `المخاطرة تتجاوز الحد الأقصى المسموح (${l.maxRiskPerTradeUsd}$)`,
+    evaluate: (ctx, l) => ctx.riskAmount > 0 && ctx.riskAmount > l.maxRiskPerTradeUsd!,
   },
   {
-    id: 'no_trade_day',
-    name: 'يوم حظر التداول',
-    nameEn: 'No-Trade Day',
-    description: 'هذا يوم محظور للتداول وفق الدستور',
-    threshold: CONFIG.NO_TRADE_DAYS as unknown as number,
-    severity: 'block',
-    evaluate: (ctx) => (CONFIG.NO_TRADE_DAYS as readonly number[]).includes(ctx.dayOfWeek),
+    id: 'no_trade_day', name: 'يوم حظر التداول', nameEn: 'No-Trade Day', profileKey: 'no_trade_weekdays', severity: 'block',
+    threshold: (l) => l.noTradeWeekdays,
+    description: () => 'هذا يوم محظور للتداول وفق ملفك الشخصي',
+    evaluate: (ctx, l) => l.noTradeWeekdays!.includes(ctx.dayOfWeek),
   },
   {
-    id: 'consec_losses',
-    name: 'سلسلة الخسائر المتتالية',
-    nameEn: 'Consecutive Loss Limit',
-    description: `تجاوزت حد الخسائر المتتالية (${CONFIG.CONSEC_LOSS_LIMIT})`,
-    threshold: CONFIG.CONSEC_LOSS_LIMIT,
-    severity: 'block',
-    evaluate: (ctx) => ctx.consecLosses >= CONFIG.CONSEC_LOSS_LIMIT,
+    id: 'consec_losses', name: 'سلسلة الخسائر المتتالية', nameEn: 'Consecutive Loss Limit', profileKey: 'stop_after_consecutive_losses', severity: 'block',
+    threshold: (l) => l.consecutiveLossLimit,
+    description: (l) => `تجاوزت حد الخسائر المتتالية (${l.consecutiveLossLimit})`,
+    evaluate: (ctx, l) => ctx.consecLosses >= l.consecutiveLossLimit!,
   },
 ];
