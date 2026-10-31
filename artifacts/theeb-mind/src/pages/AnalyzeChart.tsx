@@ -9,7 +9,7 @@ const WOLF = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtAAAALQCAIAAAA2NdDL
 //  5 components only · Constitution overrides everything · Single verdict
 // ════════════════════════════════════════════════════
 
-import { getPsychologyState, submitGate, evaluateRules, getMarketSnapshots, getMacroNarrative, evaluateQuality } from '../lib/api';
+import { getPsychologyState, submitGate, evaluateRules, getMarketSnapshots, getMacroNarrative, evaluateQuality, getUserId } from '../lib/api';
 import type { MarketSnapshot, UnifiedQualityResult } from '../lib/types';
 
 // ── Psychology gate questions (mirrors backend gate-questions.ts ids 1-5) ──
@@ -175,7 +175,7 @@ export default function TheebMindGate() {
   },[]);
 
   useEffect(()=>{
-    getPsychologyState('user-1')
+    getPsychologyState(getUserId())
       .then(s=>{ setPsychVerdict(s.riskTolerance==='high'?'STOP':null); setGateChecked(true); })
       .catch(()=>setGateChecked(true));
   },[]);
@@ -183,7 +183,7 @@ export default function TheebMindGate() {
   // Load live market snapshots + macro narrative on mount
   useEffect(()=>{
     getMarketSnapshots().then(s=>setMktSnaps(s)).catch(()=>{});
-    getMacroNarrative('user-1').then(n=>setMacroNarr(n?.narrativeText??'')).catch(()=>{});
+    getMacroNarrative(getUserId()).then(n=>setMacroNarr(n?.narrativeText??'')).catch(()=>{});
   },[]);
 
   // Debounced live quality evaluation via the real scoring engine

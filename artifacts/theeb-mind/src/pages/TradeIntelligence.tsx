@@ -5,10 +5,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Zap, RefreshCw, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
-import { getIntelligencePatterns, getIntelligenceTrends } from '../lib/api';
+import { getIntelligencePatterns, getIntelligenceTrends, getUserId } from '../lib/api';
 import type { PatternSummary, TrendSummary } from '../lib/types';
 
-const USER_ID = 'user-1';
 
 // ── Grade colour helpers ─────────────────────────────────
 
@@ -142,8 +141,8 @@ export default function TradeIntelligence() {
     setError(null);
     try {
       const [p, t] = await Promise.all([
-        getIntelligencePatterns(USER_ID),
-        getIntelligenceTrends(USER_ID),
+        getIntelligencePatterns(getUserId()),
+        getIntelligenceTrends(getUserId()),
       ]);
       setPatterns(p);
       setTrends(t);

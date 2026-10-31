@@ -36,7 +36,15 @@ export const USE_DEMO_MODE = false;
 
 // ── Constants ──
 const API_BASE = '/api';
-const USER_ID = 'user-1';
+
+// Identity comes from the server session (HttpOnly cookie). The id below is only used to build
+// legacy URL paths; the server ignores it for authorization and checks it against the session.
+let sessionUserId: string | null = null;
+export function setSessionUser(id: string | null): void { sessionUserId = id; }
+export function getUserId(): string {
+  if (!sessionUserId) throw new Error('غير مسجل الدخول');
+  return sessionUserId;
+}
 
 // ── Helpers ──
 
@@ -44,8 +52,9 @@ const USER_ID = 'user-1';
 async function requestUnwrapped<T>(url: string, options?: RequestInit): Promise<T> {
   const merged: RequestInit = {
     ...options,
+    credentials: 'same-origin',
     headers: {
-      'X-Api-Key': 'user-1_devkey',
+      'X-Requested-With': 'theeb-mind',
       ...(options?.headers as Record<string, string> | undefined),
     },
   };
@@ -124,7 +133,7 @@ export async function analyzeChart(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      userId: USER_ID,
+      userId: getUserId(),
       imageBase64: base64,
       instrument,
       timeframe,
@@ -148,7 +157,7 @@ export async function submitManualAnalysis(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      userId: USER_ID,
+      userId: getUserId(),
       instrument: data.instrument,
       timeframe: data.timeframe,
       marketStructure: toBool('q1'),
@@ -169,7 +178,7 @@ export async function verifyContent(text: string): Promise<VerificationResult> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      userId: USER_ID,
+      userId: getUserId(),
       content: text,
     }),
   });
@@ -224,7 +233,7 @@ export async function submitGate(answers: GateAnswer[]): Promise<GateResult> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      userId: USER_ID,
+      userId: getUserId(),
       answers: mapped,
     }),
   });

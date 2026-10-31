@@ -118,7 +118,7 @@ function makeDemoDecision(
   d.setHours(9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 60));
   return {
     id,
-    userId: 'user-1',
+    userId: 'demo-user',
     type: 'chart_analysis' as const,
     instrument,
     timeframe: timeframe as '1m' | '5m' | '15m' | '1h' | '4h' | '1d',

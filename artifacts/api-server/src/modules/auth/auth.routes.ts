@@ -1,9 +1,10 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
+import { timingSafeEqual } from 'node:crypto';
 import { createError } from '../../middleware/error-handler.js';
 import {
   authenticate, createSession, createUser, registrationOpen, hasAnyCredentials, parseCookies, revokeSession,
-  sessionCookie, SESSION_COOKIE, SESSION_TTL_MS, userForSession,
+  sessionCookie, SESSION_COOKIE, SESSION_TTL_MS, userForSession, sha256,
 } from './auth.service.js';
 
 const router = Router();
@@ -12,6 +13,7 @@ const credsSchema = z.object({
   username: z.string().trim().min(3).max(64).regex(/^[A-Za-z0-9_.\-@]+$/, 'letters, digits, _ . - @ only'),
   password: z.string().min(10, 'at least 10 characters').max(200),
   claimLegacyData: z.boolean().optional(),
+  bootstrapToken: z.string().max(200).optional(),
 });
 
 // Login throttling: 5 failures per username+IP per 15 minutes.
@@ -28,7 +30,7 @@ function requireHeader(req: Request, _res: Response, next: NextFunction) {
 router.get('/status', (req, res) => {
   const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
   const user = token ? userForSession(token) : null;
-  res.json({ success: true, data: { authenticated: Boolean(user), user, bootstrapRequired: !hasAnyCredentials(), registrationOpen: registrationOpen() } });
+  res.json({ success: true, data: { authenticated: Boolean(user), user, bootstrapRequired: !hasAnyCredentials(), bootstrapTokenRequired: !hasAnyCredentials() && Boolean(process.env.BOOTSTRAP_TOKEN || process.env.NODE_ENV === 'production'), registrationOpen: registrationOpen() } });
 });
 
 router.post('/register', requireHeader, (req, res, next) => {
@@ -36,6 +38,13 @@ router.post('/register', requireHeader, (req, res, next) => {
     if (!registrationOpen()) throw createError('Registration is closed', 403, 'REGISTRATION_CLOSED');
     const body = credsSchema.parse(req.body);
     const bootstrap = !hasAnyCredentials();
+    // On a reachable deployment the first account becomes the owner — require an out-of-band token there.
+    const expected = process.env.BOOTSTRAP_TOKEN;
+    if (bootstrap && process.env.NODE_ENV === 'production' && !expected) throw createError('Set BOOTSTRAP_TOKEN on the server before creating the first account', 403, 'BOOTSTRAP_TOKEN_REQUIRED');
+    if (bootstrap && expected) {
+      const a = Buffer.from(sha256(body.bootstrapToken ?? '')), b = Buffer.from(sha256(expected));
+      if (!timingSafeEqual(a, b)) throw createError('Invalid bootstrap token', 403, 'BOOTSTRAP_TOKEN_INVALID');
+    }
     // Only the very first account on a server may adopt the legacy single-tenant data ("user-1").
     const user = createUser(body.username, body.password, { claimLegacyUserId: bootstrap && body.claimLegacyData ? 'user-1' : null });
     const s = createSession(user.id);

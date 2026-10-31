@@ -14,11 +14,9 @@ import {
   setMacroNarrative,
   getCotData,
   getLiveMarket,
-  type CotRow,
-} from '../lib/api';
+  type CotRow, getUserId } from '../lib/api';
 import type { MarketSnapshot, EconomicEvent, WeeklyBias, MacroNarrative, LiveTick } from '../lib/types';
 
-const USER_ID = 'user-1';
 
 const C = {
   bg: '#050508',
@@ -128,8 +126,8 @@ export default function MarketIntelligence() {
       const [snaps, evs, bias, narr] = await Promise.all([
         getMarketSnapshots(),
         getEconomicEvents(),
-        getWeeklyBias(USER_ID),
-        getMacroNarrative(USER_ID),
+        getWeeklyBias(getUserId()),
+        getMacroNarrative(getUserId()),
       ]);
       setSnapshots(snaps);
       setEvents(evs);
@@ -196,11 +194,11 @@ export default function MarketIntelligence() {
   const handleSetBias = async (instrument: string, bias: 'bullish' | 'bearish' | 'neutral') => {
     setBiasSaving(instrument);
     try {
-      await setWeeklyBias(USER_ID, { instrument, bias, notes: getBiasNotes(instrument) });
+      await setWeeklyBias(getUserId(), { instrument, bias, notes: getBiasNotes(instrument) });
       setBiasRows(prev => {
         const exists = prev.find(b => b.instrument === instrument);
         if (exists) return prev.map(b => b.instrument === instrument ? { ...b, bias } : b);
-        return [...prev, { id: '', userId: USER_ID, instrument, bias, weekKey: '', notes: undefined }];
+        return [...prev, { id: '', userId: getUserId(), instrument, bias, weekKey: '', notes: undefined }];
       });
     } catch {/* silent */ } finally {
       setBiasSaving(null);
@@ -212,7 +210,7 @@ export default function MarketIntelligence() {
     if (!narrativeText.trim()) return;
     setNarrativeSaving(true);
     try {
-      const updated = await setMacroNarrative(USER_ID, narrativeText);
+      const updated = await setMacroNarrative(getUserId(), narrativeText);
       setNarrative(updated);
       setNarrativeSaved(true);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);

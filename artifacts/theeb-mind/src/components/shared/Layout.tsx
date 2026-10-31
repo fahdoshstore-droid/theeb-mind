@@ -11,18 +11,17 @@ const STATION_NAMES: Record<string, string> = {
   '/performance':  'السجل والأداء',
   '/intelligence': 'أنماط الفشل',
   '/verify':       'التحقق',
+  '/ledger':       'Journal',
 };
 
-// ── Killzone helper ───────────────────────────────────────────────────────────
+// ── Killzone helper — America/New_York (DST-aware), windows from the TRIL source summary ──
 function getKillzone(): { nameAr: string; active: boolean } {
-  const now = new Date();
-  const t = now.getUTCHours() * 60 + now.getUTCMinutes();
-  if (t >= 60  && t < 240)  return { nameAr: 'الآسيوية',   active: true  };
-  if (t >= 480 && t < 660)  return { nameAr: 'اللندنية',   active: true  };
-  if (t >= 780 && t < 960)  return { nameAr: 'نيويورك ص',  active: true  };
-  if (t >= 960 && t < 1080) return { nameAr: 'نيويورك غ',  active: false };
-  if (t >= 1080&& t < 1260) return { nameAr: 'نيويورك م',  active: true  };
-  return { nameAr: 'خارج النافذة', active: false };
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' }).formatToParts(new Date());
+  const h = Number(p.find((x) => x.type === 'hour')?.value) % 24, m = Number(p.find((x) => x.type === 'minute')?.value);
+  const t = h * 60 + m;
+  if (t >= 570 && t < 730) return { nameAr: 'NY AM KZ', active: true };   // 09:30–12:10 NY
+  if (t >= 810 && t < 970) return { nameAr: 'NY PM KZ', active: true };   // 13:30–16:10 NY
+  return { nameAr: 'خارج NY KZ', active: false };
 }
 
 // ── HUD Bar ───────────────────────────────────────────────────────────────────
@@ -208,6 +207,7 @@ function Divider({ expanded }: { expanded: boolean }) {
 const NAV_PRIMARY   = [{ to: '/analyze',      icon: BarChart3,   label: 'مركز القرار',  micro: 'قرار'  }];
 const NAV_SECONDARY = [
   { to: '/market',       icon: Globe,       label: 'السياق الكلي',  micro: 'سوق'   },
+  { to: '/ledger',       icon: BookOpen,    label: 'Journal · Ledger', micro: 'Ledger' },
   { to: '/journal',      icon: BookOpen,    label: 'السجل والأداء', micro: 'سجل'   },
   { to: '/intelligence', icon: Zap,         label: 'أنماط الفشل',  micro: 'أنماط' },
 ];
@@ -217,7 +217,7 @@ const NAV_UTILITY   = [{ to: '/verify',       icon: ShieldCheck, label: 'الت�
 export default function Layout({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   const location = useLocation();
-  const stationName = STATION_NAMES[location.pathname] ?? 'THEEB MIND';
+  const stationName = STATION_NAMES[location.pathname] ?? (location.pathname.startsWith('/ledger') ? 'Journal' : 'THEEB MIND');
 
   return (
     <div

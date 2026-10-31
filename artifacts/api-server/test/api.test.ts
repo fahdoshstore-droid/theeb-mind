@@ -37,7 +37,10 @@ test('bootstrap: first registration creates owner; registration then closes', as
   const st = await anon.get('/api/auth/status');
   assert.equal(st.json.data.bootstrapRequired, true);
   assert.equal((await alice.post('/api/auth/register', { username: 'alice', password: 'short' })).status, 400);
-  const r = await alice.post('/api/auth/register', { username: 'alice', password: 'correct horse battery' });
+  process.env.BOOTSTRAP_TOKEN = 'owner-setup-token-123';
+  assert.equal((await alice.post('/api/auth/register', { username: 'alice', password: 'correct horse battery', bootstrapToken: 'wrong' })).json.error.code, 'BOOTSTRAP_TOKEN_INVALID');
+  const r = await alice.post('/api/auth/register', { username: 'alice', password: 'correct horse battery', bootstrapToken: 'owner-setup-token-123' });
+  delete process.env.BOOTSTRAP_TOKEN;
   assert.equal(r.status, 201);
   assert.match(r.headers.get('set-cookie')!, /HttpOnly; SameSite=Strict; Path=\/api/);
   assert.equal((await bob.post('/api/auth/register', { username: 'bob', password: 'another long password' })).status, 403);
@@ -312,6 +315,6 @@ test('frontend source contains no API keys or hard-coded user ids', () => {
     assert.ok(!s.includes('devkey'), `${f} contains a dev key`);
     assert.ok(!/X-Api-Key/i.test(s), `${f} sends an API key header`);
     assert.ok(!/sk-ant-|ANTHROPIC_API_KEY/.test(s), `${f} references an AI key`);
-    assert.ok(!/const USER_ID = 'user-1'/.test(s), `${f} hard-codes USER_ID`);
+    assert.ok(!/USER_ID\s*=\s*'user-1'|'user-1'/.test(s), `${f} hard-codes the legacy user id`);
   }
 });

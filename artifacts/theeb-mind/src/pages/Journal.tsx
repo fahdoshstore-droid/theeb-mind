@@ -16,11 +16,10 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getJournal, getAnalytics, recordOutcome, getRuleViolations, getTradeFingerprint } from '../lib/api';
+import { getJournal, getAnalytics, recordOutcome, getRuleViolations, getTradeFingerprint, getUserId } from '../lib/api';
 import type { Decision, AnalyticsResult, Outcome, Grade, RuleViolationRecord, TradeFingerprint } from '../lib/types';
 import GuardBadge from '../components/shared/GuardBadge';
 
-const USER_ID = 'user-1';
 
 const GRADE_OPTIONS: (Grade | 'all')[] = ['all', 'A+', 'A', 'B', 'C', 'NO_TRADE'];
 const OUTCOME_OPTIONS: (Outcome | 'all')[] = ['all', 'win', 'loss', 'breakeven'];
@@ -198,7 +197,7 @@ export default function Journal() {
     if (next && !fingerprints[next]) {
       setFingerprints((prev) => ({ ...prev, [next]: 'loading' }));
       try {
-        const fp = await getTradeFingerprint(next, USER_ID);
+        const fp = await getTradeFingerprint(next, getUserId());
         setFingerprints((prev) => ({ ...prev, [next]: fp }));
       } catch {
         setFingerprints((prev) => ({ ...prev, [next]: 'none' }));
@@ -211,9 +210,9 @@ export default function Journal() {
     setError(null);
     try {
       const [j, a, v] = await Promise.allSettled([
-        getJournal(USER_ID),
-        getAnalytics(USER_ID),
-        getRuleViolations(USER_ID, 50),
+        getJournal(getUserId()),
+        getAnalytics(getUserId()),
+        getRuleViolations(getUserId(), 50),
       ]);
       if (j.status === 'fulfilled') setDecisions(j.value.decisions);
       if (a.status === 'fulfilled') setAnalytics(a.value);

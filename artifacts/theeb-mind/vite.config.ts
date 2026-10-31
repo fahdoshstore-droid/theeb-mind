@@ -72,6 +72,10 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Local development only: forward /api to the API server (same-origin in deployment).
+    proxy: {
+      '/api': { target: process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8080', changeOrigin: false },
+    },
   },
   preview: {
     port,

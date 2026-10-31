@@ -257,3 +257,8 @@ body {
   50%       { transform: translateY(6px); }
 }
 .scroll-hint { animation: bounce-y 2s ease-in-out infinite; }
+
+/* Ledger: collapse two-column review layout on narrow screens */
+@media (max-width: 900px) {
+  .tril-grid { grid-template-columns: minmax(0, 1fr) !important; }
+}

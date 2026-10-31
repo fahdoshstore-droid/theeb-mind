@@ -9,8 +9,7 @@ import {
   getPsychCorrelation,
   getTimeAnalysis,
   getFailurePatterns,
-  getQualityTrend,
-} from '../lib/api';
+  getQualityTrend, getUserId } from '../lib/api';
 import type {
   PerformanceSummary,
   EquityPoint,
@@ -22,7 +21,6 @@ import type {
   QualityTrendPoint,
 } from '../lib/types';
 
-const USER_ID = 'user-1';
 
 const KILLZONE_AR: Record<string, string> = {
   asian:    'الآسيوية',
@@ -561,14 +559,14 @@ export default function Performance() {
     setError(null);
     try {
       const [s, e, qt, d, ins, p, k, fp] = await Promise.allSettled([
-        getPerformanceSummary(USER_ID),
-        getEquityCurve(USER_ID),
-        getQualityTrend(USER_ID),
-        getDrawdown(USER_ID),
-        getInstrumentBreakdown(USER_ID),
-        getPsychCorrelation(USER_ID),
-        getTimeAnalysis(USER_ID),
-        getFailurePatterns(USER_ID, 5),
+        getPerformanceSummary(getUserId()),
+        getEquityCurve(getUserId()),
+        getQualityTrend(getUserId()),
+        getDrawdown(getUserId()),
+        getInstrumentBreakdown(getUserId()),
+        getPsychCorrelation(getUserId()),
+        getTimeAnalysis(getUserId()),
+        getFailurePatterns(getUserId(), 5),
       ]);
       if (s.status === 'fulfilled') setSummary(s.value);
       if (e.status === 'fulfilled') setEquity(e.value);
