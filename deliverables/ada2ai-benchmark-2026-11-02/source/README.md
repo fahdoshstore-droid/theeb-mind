@@ -1,7 +1,7 @@
 # Rebuilding the deck
 
-`deck.js` generates the .pptx with pptxgenjs. The capability scores (slide 23) sit in the
-`SCORES` object at the top of the file. They are empty on purpose because the source report
+`deck.js` (Arabic, RTL) and `deck_en.js` (English, LTR) generate the .pptx files with pptxgenjs. The capability scores (slide 23) sit in the
+`SCORES` object at the top of each file. They are empty on purpose because the source report
 file was not available when this was built. Paste the report's 0–5 values there exactly,
 keeping `"N/A"` and `"U"`, then rebuild:
 
