@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>ADA2AI — D3 Grounds</title>
+<link rel="stylesheet" href="../../assets/fonts.css">
+<style>
+:root{--sand:#EADCC4;--sand2:#E0CDAE;--sand3:#D3BC97;--ink:#000A0F;--ink2:#3A332A;--mute:#7A6C58;--blue:#007ABA;--bluel:#0095E0;--teal:#00DCC8;--teald:#009E8A}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#cdb994;font-family:Cairo,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.screen{width:1440px;background:var(--sand);margin:0 auto 80px;position:relative;overflow:hidden}
+.screen::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;mix-blend-mode:multiply;z-index:5;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .35 0 0 0 0 .2 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E")}
+.kufi{font-family:'Reem Kufi',Cairo,sans-serif}
+.sadu{height:26px;background:
+ linear-gradient(135deg,var(--ink) 25%,transparent 25%) -13px 0/26px 26px,
+ linear-gradient(225deg,var(--ink) 25%,transparent 25%) -13px 0/26px 26px,
+ linear-gradient(315deg,var(--blue) 25%,transparent 25%) 0 0/26px 26px,
+ linear-gradient(45deg,var(--blue) 25%,transparent 25%) 0 0/26px 26px,var(--sand2)}
+.sadu.thin{height:14px;background-size:14px 14px;background-position:-7px 0,-7px 0,0 0,0 0}
+.top{display:flex;justify-content:space-between;align-items:center;padding:26px 64px}
+.top nav{display:flex;gap:30px;font-size:15px;font-weight:600;color:var(--ink2)}
+.top nav a.on{color:var(--ink);position:relative}
+.top nav a.on::after{content:"";position:absolute;right:0;left:0;bottom:-8px;height:6px;border-radius:6px 6px 0 0;background:var(--blue)}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 30px;border-radius:999px;font-weight:700;font-size:15px;border:2px solid var(--ink);color:var(--ink);text-decoration:none}
+.btn.b{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.k{background:var(--ink);color:var(--sand)}
+.arch{border-radius:999px 999px 0 0;overflow:hidden;position:relative}
+.arch img{width:100%;height:100%;object-fit:cover;display:block}
+.hero{display:grid;grid-template-columns:1.05fr 1fr;gap:56px;padding:20px 64px 0;height:744px}
+.hero .txt{padding-top:80px;position:relative}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:var(--blue)}
+.eyebrow::before{content:"";width:12px;height:12px;background:var(--blue);transform:rotate(45deg)}
+.hero h1{font-family:'Reem Kufi';font-weight:700;font-size:128px;line-height:1.08;margin:22px 0 26px;letter-spacing:-.01em}
+.hero h1 span{color:var(--blue)}
+.hero p{font-size:20px;line-height:1.85;color:var(--ink2);max-width:560px}
+.hero .ctas{display:flex;gap:14px;margin-top:38px}
+.hero .ph{position:relative;height:724px}
+.hero .ph .arch{position:absolute;inset:0 40px 0 0}
+.stamp{position:absolute;bottom:70px;left:0;width:170px;height:170px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;text-align:center;font-family:'Reem Kufi';font-size:22px;line-height:1.3;transform:rotate(-10deg);box-shadow:0 0 0 8px var(--sand),0 0 0 10px var(--blue);z-index:2}
+.plate{font-size:12px;font-weight:700;color:var(--mute);display:flex;justify-content:space-between;margin-top:10px}
+.sec{padding:110px 64px 0}
+.sh{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:44px}
+.sh h2{font-family:'Reem Kufi';font-size:72px;line-height:1.1}
+.sh h2 span{color:var(--blue)}
+.sh p{max-width:460px;font-size:17px;line-height:1.85;color:var(--ink2)}
+.arches{display:grid;grid-template-columns:repeat(4,1fr);gap:26px}
+.arches .arch{height:420px}
+.arches h3{font-family:'Reem Kufi';font-size:30px;margin:22px 0 8px}
+.arches p{font-size:15px;line-height:1.8;color:var(--ink2)}
+.arches .no{font-family:'Reem Kufi';font-size:16px;color:var(--blue)}
+.band{margin-top:110px;position:relative;height:640px}
+.band img{width:100%;height:100%;object-fit:cover;object-position:50% 60%}
+.band .card{position:absolute;right:64px;bottom:-60px;width:560px;background:var(--sand);padding:44px 44px 40px;border-radius:280px 280px 0 0;text-align:center;z-index:2}
+.band .card h2{font-family:'Reem Kufi';font-size:52px;line-height:1.2;margin:16px 0 14px}
+.band .card p{font-size:16px;line-height:1.85;color:var(--ink2)}
+.pillars{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:150px;border-top:2px solid var(--ink)}
+.pillars div{padding:30px 26px 0;border-left:1px solid var(--sand3)}
+.pillars div:last-child{border-left:0}
+.pillars b{font-family:'Reem Kufi';font-size:26px;display:block;margin-bottom:10px}
+.pillars p{font-size:15px;line-height:1.8;color:var(--ink2)}
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.role{background:var(--sand2);border-radius:28px;padding:36px}
+.role .n{font-family:'Reem Kufi';font-size:84px;line-height:1;color:var(--blue)}
+.role h3{font-family:'Reem Kufi';font-size:40px;margin:8px 0 16px}
+.role li{list-style:none;font-size:16px;padding:10px 0;border-top:1px solid var(--sand3);display:flex;gap:10px}
+.role li::before{content:"◆";color:var(--blue);font-size:10px;padding-top:6px}
+.cta{margin:110px 64px 0;background:var(--blue);color:#fff;border-radius:40px;overflow:hidden;display:grid;grid-template-columns:1.3fr 1fr}
+.cta .t{padding:70px 64px}
+.cta h2{font-family:'Reem Kufi';font-size:84px;line-height:1.1}
+.cta p{font-size:18px;opacity:.9;margin:18px 0 30px;line-height:1.8}
+.cta .btn{border-color:#fff;color:#fff}.cta .btn.k{background:var(--ink);border-color:var(--ink);color:#fff}
+.cta img{width:100%;height:100%;object-fit:cover}
+footer{display:flex;justify-content:space-between;align-items:center;padding:30px 64px 40px;font-size:13px;color:var(--mute)}
+/* app */
+.app-top{display:flex;justify-content:space-between;align-items:center;padding:20px 56px;background:var(--sand)}
+.demo{font-size:12px;font-weight:700;color:var(--blue);background:rgba(0,122,186,.1);padding:6px 14px;border-radius:999px}
+.ava{width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--sand);display:grid;place-items:center;font-weight:800}
+.ch{display:grid;grid-template-columns:1fr 460px;gap:48px;padding:30px 56px 0;align-items:end}
+.ch h1{font-family:'Reem Kufi';font-size:96px;line-height:1.1;margin:14px 0}
+.ch p{font-size:18px;line-height:1.85;color:var(--ink2);max-width:600px}
+.ch .arch{height:430px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;padding:34px 56px 0}
+.kpi{background:var(--sand2);border-radius:24px;padding:26px 28px}
+.kpi small{font-size:14px;font-weight:700;color:var(--mute)}
+.kpi b{font-family:'Reem Kufi';font-size:96px;line-height:1;display:block;margin-top:6px}
+.kpi.b{background:var(--blue);color:#fff}.kpi.b small{color:rgba(255,255,255,.8)}
+.body2{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;padding:24px 56px 70px}
+.card{background:var(--sand2);border-radius:28px;padding:32px}
+.card h3{font-family:'Reem Kufi';font-size:32px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:baseline}
+.card h3 a{font-family:Cairo;font-size:14px;color:var(--blue)}
+.m{display:grid;grid-template-columns:1fr auto auto;gap:20px;align-items:center;padding:16px 0;border-top:1px solid var(--sand3)}
+.m b{font-size:17px}.m small{display:block;font-size:13px;color:var(--mute)}
+.m .s{font-family:'Reem Kufi';font-size:34px;direction:ltr;background:var(--sand);border-radius:999px;padding:2px 20px}
+.pill{font-size:13px;font-weight:800;padding:5px 14px;border-radius:999px;background:var(--sand3)}
+.pill.w{background:var(--blue);color:#fff}.pill.l{background:var(--ink);color:var(--sand)}
+.pl{display:grid;grid-template-columns:50px 1fr auto;gap:16px;align-items:center;padding:14px 0;border-top:1px solid var(--sand3)}
+.pl i{width:50px;height:50px;border-radius:50%;background:var(--sand);display:grid;place-items:center;font-style:normal;font-family:'Reem Kufi';font-size:20px}
+.pl b{font-size:17px}.pl small{display:block;font-size:13px;color:var(--mute)}
+.pl .r{font-family:'Reem Kufi';font-size:36px;color:var(--blue)}
+.ai{background:var(--ink);color:var(--sand);border-radius:28px;overflow:hidden;margin-top:24px}
+.ai .in{padding:30px 32px}
+.ai h4{font-family:'Reem Kufi';font-size:30px;margin:10px 0}
+.ai p{font-size:15px;line-height:1.85;opacity:.8;margin-bottom:20px}
+/* player */
+.pp{display:grid;grid-template-columns:520px 1fr;gap:56px;padding:30px 56px 70px}
+.pp .arch{height:720px;background:var(--sand2)}
+.pp .arch img{mix-blend-mode:multiply;object-position:50% 0%;filter:sepia(.25) contrast(1.05)}
+.pp h1{font-family:'Reem Kufi';font-size:120px;line-height:1.05;margin:16px 0 6px}
+.facts{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 30px}
+.facts span{background:var(--sand2);border-radius:999px;padding:10px 18px;font-size:15px}
+.facts b{font-weight:800}
+.rings{display:grid;grid-template-columns:auto repeat(4,1fr);gap:18px;align-items:center}
+.ring{width:132px;height:132px;border-radius:50%;display:grid;place-items:center;position:relative;margin:0 auto}
+.ring::before{content:"";position:absolute;inset:12px;border-radius:50%;background:var(--sand)}
+.ring b{position:relative;font-family:'Reem Kufi';font-size:40px}
+.rings small{display:block;text-align:center;font-size:14px;font-weight:700;margin-top:10px}
+.ovr{background:var(--blue);color:#fff;border-radius:200px 200px 24px 24px;padding:30px 34px 24px;text-align:center}
+.ovr b{font-family:'Reem Kufi';font-size:120px;line-height:1;display:block}
+.ovr small{font-size:14px;font-weight:700}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:28px 0}
+.trio div{background:var(--sand2);border-radius:22px;padding:20px 24px}
+.trio b{font-family:'Reem Kufi';font-size:56px;display:block;line-height:1.1}
+.trio small{font-size:14px;color:var(--mute);font-weight:700}
+.bars{display:grid;grid-template-columns:1fr 1fr;gap:16px 40px}
+.br{display:grid;grid-template-columns:90px 1fr 44px;align-items:center;gap:14px;font-size:15px;font-weight:700}
+.br .t{height:12px;border-radius:12px;background:var(--sand2);overflow:hidden}
+.br .t i{display:block;height:100%;background:var(--ink);border-radius:12px;margin-right:0}
+.br .t i.b{background:var(--blue)}
+.br b{font-family:'Reem Kufi';font-size:22px;text-align:left}
+/* video */
+.vw{display:grid;grid-template-columns:1fr 420px;gap:24px;padding:20px 56px 70px}
+.player{background:var(--ink);border-radius:32px;overflow:hidden}
+.player img{width:100%;height:520px;object-fit:cover;display:block}
+.ctrl{display:flex;align-items:center;gap:18px;padding:18px 26px;color:var(--sand);direction:ltr}
+.ctrl .pb{width:46px;height:46px;border-radius:50%;background:var(--sand);color:var(--ink);display:grid;place-items:center}
+.ctrl .tl{flex:1;height:8px;border-radius:8px;background:rgba(234,220,196,.2);position:relative}
+.ctrl .tl i{position:absolute;left:0;top:0;bottom:0;width:41%;border-radius:8px;background:var(--blue)}
+.ctrl .tl i::after{content:"";position:absolute;right:-8px;top:-5px;width:18px;height:18px;border-radius:50%;background:#fff}
+.ctrl span{font-family:'IBM Plex Mono';font-size:13px}
+.q{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}
+.qi{background:var(--sand2);border-radius:24px;overflow:hidden}
+.qi img{width:100%;height:120px;object-fit:cover}
+.qi div{padding:14px 18px 18px}
+.qi b{font-size:15px;display:block;margin-bottom:10px;line-height:1.5}
+.st{font-size:12px;font-weight:800;padding:4px 12px;border-radius:999px;display:inline-block}
+.st.q1{background:#F59E0B;color:var(--ink)}.st.p{background:var(--blue);color:#fff}.st.c{background:var(--teal);color:var(--ink)}.st.f{background:#EF4444;color:#fff}
+.form{background:var(--sand2);border-radius:32px;padding:32px}
+.form h3{font-family:'Reem Kufi';font-size:34px;margin:8px 0 20px}
+.f{background:var(--sand);border-radius:18px;padding:14px 20px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.f small{font-size:14px;font-weight:700;color:var(--mute)}
+.f b{font-family:'Reem Kufi';font-size:34px}
+.zn{display:flex;height:52px;border-radius:999px;overflow:hidden;margin:10px 0 18px}
+.zn div{display:grid;place-items:center;font-size:13px;font-weight:800}
+.tabs{display:flex;gap:8px;padding:10px 56px 0}
+.tabs span{padding:10px 22px;border-radius:999px;font-weight:700;font-size:14px;background:var(--sand2)}
+.tabs span.on{background:var(--ink);color:var(--sand)}
+</style>
+</head>
+<body>
+
+<section class="screen" id="home">
+  <div class="sadu"></div>
+  <div class="top">
+    <span data-logo="#000A0F,#EADCC4,#000A0F,#007ABA" data-size="42"></span>
+    <nav><a class="on">الرئيسية</a><a>الهوية الرياضية</a><a>الكشافون</a><a>المدربون</a><a>المنشآت</a><a>الترتيب</a></nav>
+    <a class="btn k">تسجيل الدخول</a>
+  </div>
+  <div class="hero">
+    <div class="txt">
+      <span class="eyebrow">منصة سعودية · متكاملة وموثوقة</span>
+      <h1>من الحارة<br>إلى <span>المنصة.</span></h1>
+      <p>كل موهبة تبدأ على أرضٍ ترابية. Ada2AI تمنح كل لاعب هوية رياضية رقمية، وتعطي المدربين والكشافين الأدوات لاكتشاف النجوم قبل الجميع.</p>
+      <div class="ctas"><a class="btn b">استكشف المنصة ←</a><a class="btn">شاهد كيف تعمل</a></div>
+    </div>
+    <div class="ph">
+      <div class="arch"><img src="../../assets/photo/04-sandlot-golden.jpg" style="object-position:58% 50%" alt=""></div>
+      <div class="stamp">نبني<br>المواهب</div>
+    </div>
+  </div>
+  <div class="sadu thin" style="margin-top:0"></div>
+
+  <div class="sec">
+    <div class="sh"><h2>حلول متكاملة<br><span>للعالم الرياضي</span></h2><p>أربع منتجات رئيسية مصممة خصيصاً لتلبية احتياجات جميع الأطراف في النظام الرياضي.</p></div>
+    <div class="arches">
+      <div><div class="arch" style="background:var(--sand2)"><img src="../../assets/photo/06-studio-player.jpg" style="mix-blend-mode:multiply;object-position:50% 5%;filter:sepia(.3)"></div><span class="no" style="display:block;margin-top:18px">لوحة ٠١</span><h3>الهوية الرياضية</h3><p>بطاقة رقمية لكل لاعب مع تقييم شامل وتحليل أداء مستمر.</p></div>
+      <div><div class="arch"><img src="../../assets/photo/08-match-broadcast.jpg" style="object-position:35% 50%;filter:sepia(.35) saturate(.9)"></div><span class="no" style="display:block;margin-top:18px">لوحة ٠٢</span><h3>لوحة الكشافين</h3><p>اكتشاف ومقارنة المواهب مع تقارير احترافية وتتبع الأداء.</p></div>
+      <div><div class="arch"><img src="../../assets/photo/05-coach-touchline.jpg" style="object-position:22% 50%"></div><span class="no" style="display:block;margin-top:18px">لوحة ٠٣</span><h3>لوحة المدربين</h3><p>إدارة الفريق والتدريبات مع خطط تكتيكية مدعومة بالذكاء الاصطناعي.</p></div>
+      <div><div class="arch"><img src="../../assets/photo/03-aerial-bw.jpg" style="object-position:20% 50%;filter:sepia(.8) saturate(1.3) brightness(1.05)"></div><span class="no" style="display:block;margin-top:18px">لوحة ٠٤</span><h3>لوحة المنشآت</h3><p>إدارة شاملة للاعبين والمؤسسات الرياضية مع تقارير مفصلة.</p></div>
+    </div>
+  </div>
+
+  <div class="band"><img src="../../assets/photo/04-sandlot-golden.jpg" alt="">
+    <div class="card"><span class="eyebrow">لماذا Ada2AI؟</span><h2>تقنية متقدمة<br>لعالمٍ رياضي أفضل</h2><p>نستخدم أحدث تقنيات الذكاء الاصطناعي لتحليل الأداء الرياضي، ونربط اللاعب بالمدرب والكشاف في منظومة واحدة.</p></div>
+  </div>
+  <div style="padding:0 64px"><div class="pillars">
+    <div><b>هوية رقمية موثقة</b><p>بطاقة لكل لاعب تتضمن بياناته وإحصائياته وإنجازاته.</p></div>
+    <div><b>إحصائيات متقدمة</b><p>مؤشرات أداء ومقارنات تفصيلية بين اللاعبين.</p></div>
+    <div><b>كشف المواهب</b><p>أدوات تساعد على اكتشاف المواهب الواعدة.</p></div>
+    <div><b>تقييم احترافي</b><p>تقييم فني وتكتيكي وبدني وذهني لكل لاعب.</p></div>
+  </div></div>
+
+  <div class="sec">
+    <div class="sh"><h2>ثلاثة أدوار، <span>أرضٌ واحدة</span></h2></div>
+    <div class="roles">
+      <div class="role"><div class="n">١</div><h3>اللاعب</h3><ul><li>إنشاء الهوية الرياضية</li><li>رفع فيديو الأداء</li><li>متابعة التقييم والتحليل</li><li>طلب مراجعة كاشف</li></ul></div>
+      <div class="role"><div class="n">٢</div><h3>المدرب</h3><ul><li>متابعة المباريات والنتائج</li><li>تقييم اللاعبين</li><li>تحليل المنافس وتحليل اللاعب</li><li>خطط تدريبية مخصصة</li></ul></div>
+      <div class="role"><div class="n">٣</div><h3>الكشاف</h3><ul><li>تصفية اللاعبين حسب المركز</li><li>مقارنة لاعبَين</li><li>عرض الملف ومشاركته</li><li>الترتيب العام</li></ul></div>
+    </div>
+  </div>
+
+  <div class="cta"><div class="t"><h2>اكتشف النجوم<br>قبل الجميع</h2><p>انضم إلى المنصة السعودية لاكتشاف المواهب الرياضية وتطوير الأداء.</p><a class="btn k">ابدأ رحلتك المجانية</a> <a class="btn">استكشف الترتيب</a></div><img src="../../assets/photo/02-portrait-bw.jpg" style="filter:sepia(.6) contrast(1.05);object-position:50% 30%" alt=""></div>
+  <footer><span data-logo="#000A0F,#EADCC4,#000A0F,#007ABA" data-size="26"></span><span>سياسة الخصوصية · ada2ai.com</span><span>الصور مولّدة بالذكاء الاصطناعي (Figma AI)</span></footer>
+  <div class="sadu"></div>
+</section>
+
+<section class="screen" id="coach">
+  <div class="sadu thin"></div>
+  <div class="app-top"><span data-logo="#000A0F,#EADCC4,#000A0F,#007ABA" data-size="34"></span>
+    <nav class="top" style="padding:0"><nav><a class="on">لوحة المدربين</a><a>مساحة العمل</a><a>تحليل الفيديو</a><a>الترتيب</a></nav></nav>
+    <div style="display:flex;gap:12px;align-items:center"><span class="demo">بيانات توضيحية — ليست حقيقية</span><span class="ava">م</span></div></div>
+  <div class="ch">
+    <div><span class="eyebrow">لوحة المدربين</span><h1>إدارة فريقك<br>باحترافية عالية</h1><p>أدوات متكاملة لإدارة الفريق، تخطيط التدريبات، تحليل الأداء، واتخاذ قرارات تكتيكية مبنية على البيانات.</p>
+      <div style="display:flex;gap:12px;margin-top:26px"><a class="btn b">مساحة العمل</a><a class="btn">لوحة الإدارة</a></div></div>
+    <div class="arch"><img src="../../assets/photo/05-coach-touchline.jpg" style="object-position:18% 50%" alt=""></div>
+  </div>
+  <div class="kpis"><div class="kpi"><small>المباريات</small><b>١٠</b></div><div class="kpi b"><small>الفوز</small><b>٦</b></div><div class="kpi"><small>التعادل</small><b>٢</b></div><div class="kpi"><small>الخسارة</small><b>٢</b></div></div>
+  <div class="body2">
+    <div>
+      <div class="card"><h3>المباريات الأخيرة <a>عرض الكل</a></h3>
+        <div class="m"><div><b>فريق النخبة ب</b><small>الجولة ٥ · ٢٨ أكتوبر</small></div><span class="s">2 – 1</span><span class="pill w">فوز</span></div>
+        <div class="m"><div><b>أكاديمية الشمال</b><small>الجولة ٤ · ٢١ أكتوبر</small></div><span class="s">1 – 1</span><span class="pill">تعادل</span></div>
+        <div class="m"><div><b>فريق الساحل</b><small>الجولة ٣ · ١٤ أكتوبر</small></div><span class="s">3 – 0</span><span class="pill w">فوز</span></div>
+        <div class="m"><div><b>نادي الوادي</b><small>الجولة ٢ · ٧ أكتوبر</small></div><span class="s">0 – 2</span><span class="pill l">خسارة</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="card"><h3>أداء اللاعبين <a>الفريق</a></h3>
+        <div class="pl"><i>ع</i><div><b>عبدالله ن.</b><small>جناح · العمر ١٧ · ١٧٦ سم</small></div><span class="r">78</span></div>
+        <div class="pl"><i>ف</i><div><b>فهد س.</b><small>وسط · العمر ١٨ · ١٧٩ سم</small></div><span class="r">75</span></div>
+        <div class="pl"><i>س</i><div><b>سعود م.</b><small>مدافع · العمر ١٧ · ١٨٤ سم</small></div><span class="r">73</span></div>
+      </div>
+      <div class="ai"><div class="sadu thin"></div><div class="in"><span class="eyebrow" style="color:var(--teal)">الذكاء الاصطناعي</span><h4>خطط تدريبية مدعومة بالذكاء الاصطناعي</h4><p>احصل على خطط تدريبية مخصصة لكل لاعب بناءً على تحليل أدائه ونقاط القوة والضعف.</p><a class="btn b">إنشاء خطة تدريبية</a></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="player">
+  <div class="sadu thin"></div>
+  <div class="app-top"><span data-logo="#000A0F,#EADCC4,#000A0F,#007ABA" data-size="34"></span>
+    <div class="top" style="padding:0"><nav><a>لوحة الكشافين</a><a class="on">ملف اللاعب</a><a>الترتيب</a></nav></div>
+    <div style="display:flex;gap:12px;align-items:center"><span class="demo">ملف توضيحي — ليس لاعباً حقيقياً</span><a class="btn" style="padding:9px 18px;font-size:13px">مشاركة الملف</a></div></div>
+  <div class="pp">
+    <div><div class="arch"><img src="../../assets/photo/06-studio-player.jpg" alt=""></div><div class="plate"><span>الهوية الرياضية</span><span>صورة مولّدة</span></div></div>
+    <div>
+      <span class="eyebrow">جناح · القدم اليمنى</span>
+      <h1>عبدالله ناصر</h1>
+      <div class="facts"><span>العمر <b>١٧</b></span><span>النادي <b>أكاديمية نموذجية</b></span><span>الطول <b>١٧٦ سم</b></span><span>الوزن <b>٦٨ كغ</b></span><span>القدم <b>يمنى</b></span></div>
+      <div class="rings">
+        <div class="ovr"><b>78</b><small>التقييم العام</small></div>
+        <div><div class="ring" style="background:conic-gradient(var(--blue) 0 81%,var(--sand2) 0)"><b>81</b></div><small>فني</small></div>
+        <div><div class="ring" style="background:conic-gradient(var(--ink) 0 74%,var(--sand2) 0)"><b>74</b></div><small>تكتيكي</small></div>
+        <div><div class="ring" style="background:conic-gradient(var(--ink) 0 79%,var(--sand2) 0)"><b>79</b></div><small>بدني</small></div>
+        <div><div class="ring" style="background:conic-gradient(var(--ink) 0 72%,var(--sand2) 0)"><b>72</b></div><small>ذهني</small></div>
+      </div>
+      <div class="trio"><div><small>أهداف</small><b>12</b></div><div><small>تمريرات</small><b>9</b></div><div><small>مباريات</small><b>24</b></div></div>
+      <h3 class="kufi" style="font-size:30px;margin-bottom:16px">إحصائيات اللعب</h3>
+      <div class="bars">
+        <div class="br">السرعة<div class="t"><i class="b" style="width:84%"></i></div><b>84</b></div>
+        <div class="br">التمرير<div class="t"><i style="width:76%"></i></div><b>76</b></div>
+        <div class="br">التسديد<div class="t"><i style="width:71%"></i></div><b>71</b></div>
+        <div class="br">اللياقة<div class="t"><i style="width:80%"></i></div><b>80</b></div>
+        <div class="br">المراوغة<div class="t"><i class="b" style="width:82%"></i></div><b>82</b></div>
+        <div class="br">الدفاع<div class="t"><i style="width:58%"></i></div><b>58</b></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:34px"><a class="btn b">▶ فيديو اللاعب</a><a class="btn">مقارنة</a></div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="video">
+  <div class="sadu thin"></div>
+  <div class="app-top"><span data-logo="#000A0F,#EADCC4,#000A0F,#007ABA" data-size="34"></span>
+    <div class="top" style="padding:0"><nav><a>لوحة المدربين</a><a class="on">مساحة العمل</a><a>تحليل الفيديو</a></nav></div>
+    <div style="display:flex;gap:12px;align-items:center"><span class="demo">بيانات توضيحية — ليست حقيقية</span><a class="btn b" style="padding:9px 18px;font-size:13px">+ رفع فيديو</a></div></div>
+  <div style="padding:10px 56px 0"><span class="eyebrow">مساحة العمل</span><h1 class="kufi" style="font-size:64px;margin:8px 0 6px">تحليلات الفيديو</h1></div>
+  <div class="tabs"><span class="on">التحليلات</span><span>تحليل المنافس</span><span>تحليل لاعب</span><span>تشكيل الفريق</span></div>
+  <div class="vw">
+    <div>
+      <div class="player"><img src="../../assets/photo/08-match-broadcast.jpg" style="filter:sepia(.18)" alt="">
+        <div class="ctrl"><span class="pb">▶</span><span>00:38:12</span><div class="tl"><i></i></div><span>01:32:40</span></div></div>
+      <div class="q">
+        <div class="qi"><img src="../../assets/photo/08-match-broadcast.jpg"><div><b>تحليل لاعب: عبدالله ن.</b><span class="st p">جارٍ التحليل</span></div></div>
+        <div class="qi"><img src="../../assets/photo/03-aerial-bw.jpg" style="filter:sepia(.7)"><div><b>تحليل منافس: أكاديمية الشمال</b><span class="st q1">في الانتظار</span></div></div>
+        <div class="qi"><img src="../../assets/photo/04-sandlot-golden.jpg"><div><b>تحليل لاعب: فهد س.</b><span class="st c">مكتمل</span></div></div>
+        <div class="qi"><img src="../../assets/photo/05-coach-touchline.jpg"><div><b>تحليل منافس: فريق الساحل</b><span class="st f">فشل</span></div></div>
+      </div>
+    </div>
+    <div class="form">
+      <span class="eyebrow">تسجيل نتائج التحليل</span>
+      <h3>نشاط اللاعب</h3>
+      <div class="f"><small>عدد اللمسات</small><b>45</b></div>
+      <div class="f"><small>السرعة (كم/س)</small><b>28</b></div>
+      <div class="f"><small>مشاركة في الاستحواذ</small><b>62٪</b></div>
+      <small style="font-size:14px;font-weight:700;color:var(--mute)">مناطق التحرك (يجب أن مجموعها 100%)</small>
+      <div class="zn"><div style="width:20%;background:var(--sand3)">دفاعي ٢٠</div><div style="width:45%;background:var(--blue);color:#fff">وسط ٤٥</div><div style="width:35%;background:var(--ink);color:var(--sand)">هجومي ٣٥</div></div>
+      <div class="f" style="display:block;min-height:150px"><small>ملاحظات</small><p style="font-size:16px;line-height:1.8;margin-top:8px">تحرّك جيد بين الخطوط في الشوط الأول، يحتاج إلى سرعة أكبر في التحول الدفاعي.</p></div>
+      <div style="display:flex;gap:10px;margin-top:8px"><a class="btn b">حفظ النتائج</a><a class="btn">إلغاء</a></div>
+    </div>
+  </div>
+</section>
+
+<script src="../../assets/brand.js"></script>
+</body>
+</html>

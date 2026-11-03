@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>ADA2AI — D4 Poster</title>
+<link rel="stylesheet" href="../../assets/fonts.css">
+<style>
+:root{--teal:#00DCC8;--tealD:#009E8A;--navy:#000A0F;--navyL:#0D1E35;--ice:#EEEFEE;--white:#fff;--blue:#007ABA}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#cfd2d0;font-family:Cairo,sans-serif;color:var(--navy);-webkit-font-smoothing:antialiased}
+.screen{width:1440px;background:var(--ice);margin:0 auto 80px;position:relative;overflow:hidden}
+.g{font-family:'Space Grotesk',sans-serif;direction:ltr;display:inline-block;letter-spacing:-.04em}
+.gridlines{position:absolute;inset:0;pointer-events:none;z-index:6;background:repeating-linear-gradient(90deg,rgba(0,10,15,.07) 0 1px,transparent 1px 120px)}
+.bar{display:grid;grid-template-columns:repeat(12,120px);height:80px;align-items:center;border-bottom:2px solid var(--navy)}
+.bar > *{padding:0 20px}
+.bar nav{grid-column:span 7;display:flex;gap:26px;font-size:14px;font-weight:700}
+.bar nav a.on{background:var(--navy);color:var(--teal);padding:4px 10px}
+.btn{display:inline-flex;align-items:center;justify-content:space-between;gap:30px;padding:16px 22px;font-weight:800;font-size:15px;background:var(--navy);color:var(--ice);text-decoration:none}
+.btn.t{background:var(--teal);color:var(--navy)}.btn.o{background:transparent;color:var(--navy);box-shadow:inset 0 0 0 2px var(--navy)}
+.btn .g{font-weight:700}
+/* hero */
+.hero{display:grid;grid-template-columns:repeat(12,120px);grid-template-rows:640px 180px;position:relative}
+.h-photo{grid-column:1/6;grid-row:1/2;background:var(--teal);position:relative;overflow:hidden}
+.h-photo img{position:absolute;bottom:0;left:50%;transform:translateX(-50%);height:104%;mix-blend-mode:multiply;filter:grayscale(1) contrast(1.35) brightness(1.08)}
+.h-photo .two{position:absolute;top:-80px;left:-30px;font-family:'Space Grotesk';font-weight:700;font-size:760px;line-height:1;color:transparent;-webkit-text-stroke:4px var(--navy);direction:ltr;z-index:2}
+.h-txt{grid-column:6/13;grid-row:1/2;padding:50px 20px 0 40px;position:relative}
+.h-txt .idx{font-family:'Space Grotesk';font-weight:700;font-size:14px;display:flex;justify-content:space-between;direction:rtl;border-bottom:2px solid var(--navy);padding-bottom:10px}
+.h-txt h1{font-weight:900;font-size:122px;line-height:1.28;letter-spacing:-.01em;margin-top:22px}
+.h-txt h1 .hl{background:var(--navy);color:var(--teal);padding:0 22px 0 22px;display:inline-block;line-height:1.3}
+.h-foot{grid-column:1/13;grid-row:2/3;display:grid;grid-template-columns:repeat(12,120px);background:var(--navy);color:var(--ice)}
+.h-foot .p{grid-column:span 5;padding:30px 20px;font-size:18px;line-height:1.75;color:#c9cfd2}
+.h-foot .c{grid-column:span 7;display:flex;align-items:center;gap:2px;padding:0 20px;justify-content:flex-start}
+.vert{position:absolute;left:14px;top:80px;writing-mode:vertical-rl;transform:rotate(180deg);font-family:'Space Grotesk';font-weight:700;font-size:12px;letter-spacing:.3em;color:var(--navy);z-index:3}
+/* index */
+.sechead{display:grid;grid-template-columns:repeat(12,120px);border-top:2px solid var(--navy);margin-top:100px}
+.sechead .n{grid-column:span 2;font-family:'Space Grotesk';font-weight:700;font-size:120px;line-height:.9;padding:16px 20px;letter-spacing:-.05em}
+.sechead h2{grid-column:span 6;font-weight:900;font-size:76px;line-height:1.02;padding:20px 20px}
+.sechead p{grid-column:span 4;font-size:16px;line-height:1.8;padding:30px 20px}
+.prods{display:grid;grid-template-columns:repeat(4,360px);margin-top:20px}
+.prod{height:520px;padding:28px 24px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.prod .k{font-family:'Space Grotesk';font-weight:700;font-size:200px;line-height:.8;letter-spacing:-.06em;direction:ltr}
+.prod h3{font-weight:900;font-size:36px;line-height:1.3;margin-top:auto}
+.prod p{font-size:15px;line-height:1.75;margin-top:12px;max-width:290px}
+.prod.a{background:var(--teal)}.prod.b{background:var(--navy);color:var(--ice)}.prod.c{background:var(--white)}.prod.d{background:var(--blue);color:var(--white)}
+.prod.b .k{color:var(--teal)}
+.split{display:grid;grid-template-columns:repeat(12,120px);margin-top:100px;height:620px}
+.split .ph{grid-column:1/8;position:relative;overflow:hidden;background:var(--navy)}
+.split .ph img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.2);mix-blend-mode:screen;opacity:.85}
+.split .ph::after{content:"";position:absolute;inset:0;background:var(--teal);mix-blend-mode:multiply}
+.split .tx{grid-column:8/13;padding:40px 20px 0 40px}
+.split .tx h2{font-weight:900;font-size:66px;line-height:1.05}
+.list li{list-style:none;display:grid;grid-template-columns:60px 1fr;padding:18px 0;border-top:2px solid var(--navy);font-size:16px;line-height:1.6}
+.list li b{font-weight:900;font-size:20px;display:block}
+.list .g{font-weight:700;font-size:20px}
+.roles{display:grid;grid-template-columns:repeat(3,480px);margin-top:20px}
+.roles div{padding:30px 24px 40px;border-left:2px solid var(--navy)}
+.roles div:last-child{border-left:0}
+.roles h3{font-weight:900;font-size:64px;line-height:1.3}
+.roles li{list-style:none;font-size:17px;font-weight:600;padding:10px 0;border-bottom:1px solid rgba(0,10,15,.25)}
+.final{display:grid;grid-template-columns:repeat(12,120px);background:var(--teal);margin-top:100px;height:560px;position:relative;overflow:hidden}
+.final h2{grid-column:1/10;font-weight:900;font-size:180px;line-height:1.15;padding:50px 20px;letter-spacing:-.03em}
+.final .c{position:absolute;left:20px;bottom:40px;display:flex;gap:2px;flex-direction:column;width:340px}
+footer{display:grid;grid-template-columns:repeat(12,120px);background:var(--navy);color:#9aa3a8;font-size:13px;height:90px;align-items:center}
+footer > *{padding:0 20px}
+/* app */
+.demo{font-size:12px;font-weight:800;background:var(--navy);color:var(--teal);padding:4px 10px}
+.ph1{display:grid;grid-template-columns:repeat(12,120px);border-bottom:2px solid var(--navy)}
+.ph1 h1{grid-column:1/9;font-weight:900;font-size:100px;line-height:1.2;padding:36px 20px 30px;letter-spacing:-.02em}
+.ph1 .side{grid-column:9/13;padding:40px 20px;font-size:16px;line-height:1.8;display:flex;flex-direction:column;gap:20px;border-right:2px solid var(--navy)}
+.nums{display:grid;grid-template-columns:repeat(4,360px)}
+.nums div{height:300px;padding:22px 24px;display:flex;flex-direction:column;justify-content:space-between}
+.nums small{font-size:16px;font-weight:800}
+.nums b{font-family:'Space Grotesk';font-weight:700;font-size:230px;line-height:.75;letter-spacing:-.07em;direction:ltr;text-align:left}
+.cg{display:grid;grid-template-columns:repeat(12,120px)}
+.matches{grid-column:1/8;padding:30px 20px 50px}
+.mt{display:grid;grid-template-columns:200px 1fr 120px;align-items:center;border-top:2px solid var(--navy);padding:14px 0}
+.mt .s{font-family:'Space Grotesk';font-weight:700;font-size:76px;letter-spacing:-.05em;direction:ltr;text-align:right;line-height:1}
+.mt b{font-size:22px;font-weight:900}.mt small{display:block;font-size:13px;font-weight:600}
+.mt .r{font-size:14px;font-weight:900;padding:8px 12px;text-align:center}
+.r.w{background:var(--teal)}.r.d{box-shadow:inset 0 0 0 2px var(--navy)}.r.l{background:var(--navy);color:var(--ice)}
+.squad{grid-column:8/13;background:var(--white);padding:30px 20px 40px}
+h3.s2{font-weight:900;font-size:30px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:baseline}
+h3.s2 span{font-size:13px;font-weight:800}
+.sq{display:grid;grid-template-columns:1fr 110px;align-items:center;border-top:2px solid var(--navy);padding:12px 0}
+.sq b{font-size:19px;font-weight:900}.sq small{display:block;font-size:13px}
+.sq .v{font-family:'Space Grotesk';font-weight:700;font-size:56px;letter-spacing:-.05em;text-align:left;direction:ltr;line-height:1}
+.aiblk{background:var(--navy);color:var(--ice);padding:24px;margin-top:22px}
+.aiblk h4{font-weight:900;font-size:28px;line-height:1.2;margin:8px 0}
+.aiblk p{font-size:14px;line-height:1.8;color:#b9c1c5;margin-bottom:18px}
+/* player */
+.pg{display:grid;grid-template-columns:repeat(12,120px);grid-template-rows:auto}
+.pimg{grid-column:1/6;background:var(--teal);height:900px;position:relative;overflow:hidden}
+.pimg img{position:absolute;bottom:0;left:50%;transform:translateX(-50%);height:100%;mix-blend-mode:multiply;filter:grayscale(1) contrast(1.35) brightness(1.08)}
+.pimg .ov{position:absolute;bottom:10px;left:20px;font-family:'Space Grotesk';font-weight:700;font-size:300px;line-height:.85;letter-spacing:-.07em;color:var(--navy);direction:ltr}
+.pimg .ovl{position:absolute;top:24px;left:20px;font-size:14px;font-weight:900;background:var(--navy);color:var(--teal);padding:4px 10px}
+.ptx{grid-column:6/13;padding:30px 40px 0 20px}
+.ptx h1{font-weight:900;font-size:120px;line-height:1.15;letter-spacing:-.02em}
+.facts{display:grid;grid-template-columns:repeat(5,1fr);border-top:2px solid var(--navy);border-bottom:2px solid var(--navy);margin:24px 0}
+.facts div{padding:12px 10px;border-left:1px solid var(--navy)}.facts div:last-child{border-left:0}
+.facts small{font-size:12px;font-weight:700}.facts b{display:block;font-size:20px;font-weight:900}
+.kpi3{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:24px}
+.kpi3 div{background:var(--navy);color:var(--ice);padding:14px 18px}
+.kpi3 b{font-family:'Space Grotesk';font-weight:700;font-size:80px;line-height:.9;display:block;color:var(--teal);letter-spacing:-.05em;direction:ltr;text-align:left}
+.sk{display:grid;grid-template-columns:1fr 1fr;gap:0 30px}
+.blk{display:grid;grid-template-columns:90px 1fr;align-items:center;height:44px;border-top:2px solid var(--navy);font-weight:800;font-size:15px}
+.blk .w{height:30px;position:relative}
+.blk .w i{position:absolute;right:0;top:0;bottom:0;background:var(--navy);color:var(--teal);font-family:'Space Grotesk';font-weight:700;font-style:normal;font-size:20px;display:flex;align-items:center;justify-content:flex-start;padding-left:8px;direction:ltr}
+.blk .w i.t{background:var(--teal);color:var(--navy)}
+/* video */
+.vg{display:grid;grid-template-columns:repeat(12,120px)}
+.vmain{grid-column:1/9;background:var(--navy);padding:20px;color:var(--ice)}
+.vmain img{width:100%;height:500px;object-fit:cover;display:block}
+.vbar{display:grid;grid-template-columns:60px 1fr 120px;gap:16px;align-items:center;margin-top:14px;direction:ltr}
+.vbar .p{width:60px;height:60px;background:var(--teal);color:var(--navy);display:grid;place-items:center;font-size:22px}
+.vbar .t{height:20px;background:repeating-linear-gradient(90deg,#24323b 0 2px,transparent 2px 12px);position:relative}
+.vbar .t i{position:absolute;left:0;top:0;bottom:0;width:41%;background:var(--teal)}
+.vbar span{font-family:'Space Grotesk';font-weight:700;font-size:18px}
+.vform{grid-column:9/13;background:var(--teal);padding:24px 20px}
+.vform h3{font-weight:900;font-size:36px;line-height:1.1;margin:8px 0 14px}
+.ff{border-top:2px solid var(--navy);padding:10px 0;display:flex;justify-content:space-between;align-items:baseline}
+.ff small{font-size:13px;font-weight:800}
+.ff b{font-family:'Space Grotesk';font-weight:700;font-size:56px;letter-spacing:-.05em;line-height:1}
+.zn{display:flex;height:56px;margin:8px 0 16px;gap:2px}
+.zn div{display:grid;place-items:center;font-weight:900;font-size:13px}
+.tbl{grid-column:1/13;padding:30px 20px 60px}
+.tr{display:grid;grid-template-columns:80px 1fr 200px 180px 160px;align-items:center;border-top:2px solid var(--navy);padding:16px 0;font-size:16px}
+.tr.h{font-size:12px;font-weight:800;border-top-width:4px}
+.tr b{font-weight:900;font-size:19px}
+.tr .g{font-weight:700;font-size:26px}
+.chip{font-size:13px;font-weight:900;padding:6px 12px;text-align:center;justify-self:start}
+.chip.q{box-shadow:inset 0 0 0 2px #F59E0B;color:#9a6200}.chip.p{background:var(--blue);color:#fff}.chip.c{background:var(--teal)}.chip.f{background:#EF4444;color:#fff}
+.tabs{display:flex;gap:2px;padding:0 20px 20px}
+.tabs span{padding:12px 20px;font-weight:800;font-size:14px;box-shadow:inset 0 0 0 2px var(--navy)}
+.tabs span.on{background:var(--navy);color:var(--teal)}
+</style>
+</head>
+<body>
+
+<section class="screen" id="home">
+  <div class="gridlines"></div>
+  <div class="bar">
+    <span style="grid-column:span 3" data-logo="#000A0F,#00DCC8,#000A0F,#009E8A" data-size="40"></span>
+    <nav><a class="on">الرئيسية</a><a>الهوية الرياضية</a><a>الكشافون</a><a>المدربون</a><a>المنشآت</a><a>الترتيب</a></nav>
+    <span style="grid-column:span 2;display:flex;justify-content:flex-end"><a class="btn" style="padding:10px 18px">تسجيل الدخول</a></span>
+  </div>
+  <div class="hero">
+    <div class="h-photo"><span class="two">2</span><img src="../../assets/photo/06-studio-player.jpg" alt=""></div>
+    <div class="h-txt">
+      <div class="idx"><span>Ada2AI / منصة سعودية</span><span class="g" style="letter-spacing:.1em">INDEX 01—05</span></div>
+      <h1>اكتشف<br><span class="hl">النجوم</span><br>قبل الجميع.</h1>
+    </div>
+    <div class="h-foot">
+      <div class="p">الجيل القادم من تحليل المواهب الرياضية. حلول ذكية للكشافين والمدربين والأندية — هوية رياضية، تقييم أداء، وتحليل فيديو.</div>
+      <div class="c"><a class="btn t" style="width:300px">استكشف المنصة <span class="g">→</span></a><a class="btn o" style="background:var(--ice);width:260px">شاهد كيف تعمل <span class="g">▷</span></a></div>
+    </div>
+  </div>
+
+  <div class="sechead"><span class="n g">01</span><h2>منتجاتنا<br>الرئيسية</h2><p>أربع منتجات رئيسية مصممة خصيصاً لتلبية احتياجات جميع الأطراف في النظام الرياضي.</p></div>
+  <div class="prods">
+    <div class="prod a"><span class="k">ID</span><h3>الهوية<br>الرياضية</h3><p>بطاقة رقمية لكل لاعب مع تقييم شامل وتحليل أداء مستمر.</p></div>
+    <div class="prod b"><span class="k">SC</span><h3>لوحة<br>الكشافين</h3><p>اكتشاف ومقارنة المواهب مع تقارير احترافية وتتبع الأداء.</p></div>
+    <div class="prod c"><span class="k">CO</span><h3>لوحة<br>المدربين</h3><p>إدارة الفريق والتدريبات مع خطط تكتيكية مدعومة بالذكاء الاصطناعي.</p></div>
+    <div class="prod d"><span class="k">OR</span><h3>لوحة<br>المنشآت</h3><p>إدارة شاملة للاعبين والمؤسسات الرياضية مع تقارير مفصلة.</p></div>
+  </div>
+
+  <div class="sechead"><span class="n g">02</span><h2>لماذا Ada2AI؟</h2><p>تقنية متقدمة لعالمٍ رياضي أفضل.</p></div>
+  <div class="split" style="margin-top:0">
+    <div class="ph"><img src="../../assets/photo/03-aerial-bw.jpg" alt=""></div>
+    <div class="tx"><h2>تقنية متقدمة<br>لعالمٍ رياضي<br>أفضل.</h2>
+      <ul class="list" style="margin-top:30px">
+        <li><span class="g">A</span><div><b>هوية رقمية موثقة</b>بطاقة لكل لاعب تتضمن بياناته وإحصائياته وإنجازاته.</div></li>
+        <li><span class="g">B</span><div><b>إحصائيات متقدمة</b>مؤشرات أداء ومقارنات تفصيلية بين اللاعبين.</div></li>
+        <li><span class="g">C</span><div><b>كشف المواهب</b>أدوات لاكتشاف المواهب الواعدة.</div></li>
+        <li><span class="g">D</span><div><b>تقييم احترافي</b>فني، تكتيكي، بدني، ذهني.</div></li>
+      </ul></div>
+  </div>
+
+  <div class="sechead"><span class="n g">03</span><h2>ثلاثة أدوار</h2><p>كل مستخدم يدخل إلى لوحته الخاصة بحسب دوره في المنصة.</p></div>
+  <div class="roles">
+    <div><h3>اللاعب</h3><ul style="margin-top:20px"><li>الهوية الرياضية</li><li>رفع فيديو الأداء</li><li>التقييم والتحليل</li><li>طلب مراجعة كاشف</li></ul></div>
+    <div style="background:var(--teal)"><h3>المدرب</h3><ul style="margin-top:20px"><li>المباريات والنتائج</li><li>تقييم اللاعبين</li><li>تحليل المنافس</li><li>خطط تدريبية</li></ul></div>
+    <div><h3>الكشاف</h3><ul style="margin-top:20px"><li>تصفية حسب المركز</li><li>مقارنة لاعبَين</li><li>مشاركة الملف</li><li>الترتيب العام</li></ul></div>
+  </div>
+
+  <div class="final"><h2>نبني<br>المواهب.</h2>
+    <div class="c"><a class="btn">ابدأ رحلتك المجانية <span class="g">→</span></a><a class="btn o" style="background:var(--teal)">استكشف الترتيب <span class="g">→</span></a></div></div>
+  <footer><span style="grid-column:span 4" data-logo="#00DCC8,#000A0F,#EEEFEE,#00DCC8" data-size="26"></span><span style="grid-column:span 4">سياسة الخصوصية</span><span style="grid-column:span 4;text-align:left" class="g">ADA2AI.COM</span></footer>
+</section>
+
+<section class="screen" id="coach">
+  <div class="gridlines"></div>
+  <div class="bar">
+    <span style="grid-column:span 3" data-logo="#000A0F,#00DCC8,#000A0F,#009E8A" data-size="34"></span>
+    <nav><a class="on">لوحة المدربين</a><a>مساحة العمل</a><a>تحليل الفيديو</a><a>الترتيب</a></nav>
+    <span style="grid-column:span 2;display:flex;justify-content:flex-end"><span class="demo">بيانات توضيحية — ليست حقيقية</span></span>
+  </div>
+  <div class="ph1"><h1>إدارة فريقك<br>باحترافية عالية.</h1>
+    <div class="side">أدوات متكاملة لإدارة الفريق، تخطيط التدريبات، تحليل الأداء، واتخاذ قرارات تكتيكية مبنية على البيانات.<a class="btn t">مساحة العمل <span class="g">→</span></a><a class="btn o">لوحة الإدارة <span class="g">→</span></a></div></div>
+  <div class="nums">
+    <div style="background:var(--white)"><small>المباريات</small><b>10</b></div>
+    <div style="background:var(--teal)"><small>الفوز</small><b>6</b></div>
+    <div style="background:var(--navy);color:var(--ice)"><small>التعادل</small><b>2</b></div>
+    <div style="background:var(--blue);color:#fff"><small>الخسارة</small><b>2</b></div>
+  </div>
+  <div class="cg">
+    <div class="matches"><h3 class="s2">المباريات الأخيرة <span>عرض الكل →</span></h3>
+      <div class="mt"><span class="s">2–1</span><div><b>فريق النخبة ب</b><small>الجولة ٥ · ٢٨ أكتوبر</small></div><span class="r w">فوز</span></div>
+      <div class="mt"><span class="s">1–1</span><div><b>أكاديمية الشمال</b><small>الجولة ٤ · ٢١ أكتوبر</small></div><span class="r d">تعادل</span></div>
+      <div class="mt"><span class="s">3–0</span><div><b>فريق الساحل</b><small>الجولة ٣ · ١٤ أكتوبر</small></div><span class="r w">فوز</span></div>
+      <div class="mt"><span class="s">0–2</span><div><b>نادي الوادي</b><small>الجولة ٢ · ٧ أكتوبر</small></div><span class="r l">خسارة</span></div>
+    </div>
+    <div class="squad"><h3 class="s2">أداء اللاعبين <span>التقييم</span></h3>
+      <div class="sq"><div><b>عبدالله ن.</b><small>جناح · ١٧ سنة · ١٧٦ سم</small></div><span class="v">78</span></div>
+      <div class="sq"><div><b>فهد س.</b><small>وسط · ١٨ سنة · ١٧٩ سم</small></div><span class="v">75</span></div>
+      <div class="sq"><div><b>سعود م.</b><small>مدافع · ١٧ سنة · ١٨٤ سم</small></div><span class="v">73</span></div>
+      <div class="aiblk"><span class="demo" style="background:var(--teal);color:var(--navy)">AI</span><h4>خطط تدريبية مدعومة بالذكاء الاصطناعي</h4><p>احصل على خطط تدريبية مخصصة لكل لاعب بناءً على تحليل أدائه ونقاط القوة والضعف.</p><a class="btn t">إنشاء خطة تدريبية <span class="g">→</span></a></div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="player">
+  <div class="gridlines"></div>
+  <div class="bar">
+    <span style="grid-column:span 3" data-logo="#000A0F,#00DCC8,#000A0F,#009E8A" data-size="34"></span>
+    <nav><a>لوحة الكشافين</a><a class="on">ملف اللاعب</a><a>الترتيب</a></nav>
+    <span style="grid-column:span 2;display:flex;justify-content:flex-end"><span class="demo">ملف توضيحي</span></span>
+  </div>
+  <div class="pg">
+    <div class="pimg"><img src="../../assets/photo/06-studio-player.jpg" alt=""><span class="ov">78</span><span class="ovl">التقييم العام</span></div>
+    <div class="ptx">
+      <div class="idx" style="font-weight:800;font-size:14px;display:flex;justify-content:space-between;border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:24px"><span>الهوية الرياضية · جناح</span><span class="g">SPORT ID</span></div>
+      <h1>عبدالله<br>ناصر</h1>
+      <div class="facts"><div><small>العمر</small><b>١٧</b></div><div><small>النادي</small><b style="font-size:16px">أكاديمية نموذجية</b></div><div><small>الطول</small><b>١٧٦ سم</b></div><div><small>الوزن</small><b>٦٨ كغ</b></div><div><small>القدم</small><b>يمنى</b></div></div>
+      <div class="kpi3"><div><small>أهداف</small><b>12</b></div><div><small>تمريرات</small><b>9</b></div><div><small>مباريات</small><b>24</b></div></div>
+      <div class="sk">
+        <div><h3 class="s2">المهارات</h3>
+          <div class="blk">فني<div class="w"><i class="t" style="width:81%">81</i></div></div>
+          <div class="blk">تكتيكي<div class="w"><i style="width:74%">74</i></div></div>
+          <div class="blk">بدني<div class="w"><i style="width:79%">79</i></div></div>
+          <div class="blk">ذهني<div class="w"><i style="width:72%">72</i></div></div></div>
+        <div><h3 class="s2">إحصائيات اللعب</h3>
+          <div class="blk">السرعة<div class="w"><i class="t" style="width:84%">84</i></div></div>
+          <div class="blk">التمرير<div class="w"><i style="width:76%">76</i></div></div>
+          <div class="blk">التسديد<div class="w"><i style="width:71%">71</i></div></div>
+          <div class="blk">اللياقة<div class="w"><i style="width:80%">80</i></div></div>
+          <div class="blk">المراوغة<div class="w"><i class="t" style="width:82%">82</i></div></div>
+          <div class="blk">الدفاع<div class="w"><i style="width:58%">58</i></div></div></div>
+      </div>
+      <div style="display:flex;gap:2px;margin-top:24px"><a class="btn t" style="width:260px">فيديو اللاعب <span class="g">▷</span></a><a class="btn o" style="width:220px">مشاركة الملف <span class="g">↗</span></a></div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="video">
+  <div class="gridlines"></div>
+  <div class="bar">
+    <span style="grid-column:span 3" data-logo="#000A0F,#00DCC8,#000A0F,#009E8A" data-size="34"></span>
+    <nav><a>لوحة المدربين</a><a class="on">مساحة العمل</a><a>تحليل الفيديو</a></nav>
+    <span style="grid-column:span 2;display:flex;justify-content:flex-end"><span class="demo">بيانات توضيحية</span></span>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:30px 20px 20px"><h1 style="font-weight:900;font-size:84px;line-height:1">تحليلات الفيديو</h1><a class="btn t" style="width:240px">رفع فيديو <span class="g">+</span></a></div>
+  <div class="tabs"><span class="on">التحليلات</span><span>تحليل المنافس</span><span>تحليل لاعب</span><span>تشكيل الفريق</span></div>
+  <div class="vg">
+    <div class="vmain"><div style="display:flex;justify-content:space-between;font-weight:800;font-size:14px;margin-bottom:12px"><span>تحليل لاعب: عبدالله ن. — مشاهدة الفيديو</span><span class="g" style="color:var(--teal)">00:38:12</span></div>
+      <img src="../../assets/photo/08-match-broadcast.jpg" alt="">
+      <div class="vbar"><span class="p">▶</span><div class="t"><i></i></div><span>01:32:40</span></div></div>
+    <div class="vform"><span class="demo">تسجيل نتائج التحليل</span><h3>نشاط<br>اللاعب</h3>
+      <div class="ff"><small>عدد اللمسات</small><b>45</b></div>
+      <div class="ff"><small>السرعة (كم/س)</small><b>28</b></div>
+      <div class="ff"><small>مشاركة في الاستحواذ</small><b>62%</b></div>
+      <div class="ff" style="display:block"><small>مناطق التحرك (يجب أن مجموعها 100%)</small>
+        <div class="zn"><div style="width:20%;background:var(--white)">دفاعي ٢٠</div><div style="width:45%;background:var(--navy);color:var(--teal)">وسط ٤٥</div><div style="width:35%;background:var(--blue);color:#fff">هجومي ٣٥</div></div></div>
+      <div style="display:flex;gap:2px"><a class="btn" style="flex:1">حفظ النتائج</a><a class="btn o">إلغاء</a></div>
+    </div>
+    <div class="tbl">
+      <div class="tr h"><span>#</span><span>التحليل</span><span>التاريخ</span><span>الحالة</span><span></span></div>
+      <div class="tr"><span class="g">01</span><b>تحليل لاعب: عبدالله ن.</b><span>٢٨ أكتوبر</span><span class="chip p">جارٍ التحليل</span><span>مشاهدة الفيديو →</span></div>
+      <div class="tr"><span class="g">02</span><b>تحليل منافس: أكاديمية الشمال</b><span>٢٧ أكتوبر</span><span class="chip q">في الانتظار</span><span>بدء التحليل →</span></div>
+      <div class="tr"><span class="g">03</span><b>تحليل لاعب: فهد س.</b><span>٢١ أكتوبر</span><span class="chip c">مكتمل</span><span>عرض اللاعب →</span></div>
+      <div class="tr"><span class="g">04</span><b>تحليل منافس: فريق الساحل</b><span>١٤ أكتوبر</span><span class="chip f">فشل</span><span>إعادة المحاولة →</span></div>
+    </div>
+  </div>
+</section>
+
+<script src="../../assets/brand.js"></script>
+</body>
+</html>
