@@ -6,7 +6,7 @@ import { USE_DEMO_MODE } from '../../lib/api';
 // ── Route → station name ──────────────────────────────────────────────────────
 const STATION_NAMES: Record<string, string> = {
   '/analyze':      'مركز القرار',
-  '/market':       'السياق الكلي',
+  '/market':       'مكتب السوق',
   '/journal':      'السجل والأداء',
   '/performance':  'السجل والأداء',
   '/intelligence': 'أنماط الفشل',

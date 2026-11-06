@@ -7,7 +7,7 @@ import Journal from './pages/Journal';
 import Landing from './pages/Landing';
 import Performance from './pages/Performance';
 import TradeIntelligence from './pages/TradeIntelligence';
-import MarketIntelligence from './pages/MarketIntelligence';
+import MarketDesk from './pages/MarketDesk';
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -30,7 +30,7 @@ export default function App() {
         <Route path="/journal"      element={<Layout><Journal /></Layout>} />
         <Route path="/performance"  element={<Layout><Performance /></Layout>} />
         <Route path="/intelligence" element={<Layout><TradeIntelligence /></Layout>} />
-        <Route path="/market"       element={<Layout><MarketIntelligence /></Layout>} />
+        <Route path="/market"       element={<Layout><MarketDesk /></Layout>} />
       </Routes>
     </>
   );

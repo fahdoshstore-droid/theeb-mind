@@ -11,6 +11,7 @@ const WOLF = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtAAAALQCAIAAAA2NdDL
 
 import { getPsychologyState, submitGate, evaluateRules, getMarketSnapshots, getMacroNarrative, evaluateQuality } from '../lib/api';
 import type { MarketSnapshot, UnifiedQualityResult } from '../lib/types';
+import TrilPanel from '../components/desk/TrilPanel';
 
 // ── Psychology gate questions (mirrors backend gate-questions.ts ids 1-5) ──
 const GATE_QS = [
@@ -36,13 +37,10 @@ const C = {
 type Trend = 'bullish' | 'bearish' | 'neutral';
 type Location = 'discount' | 'equilibrium' | 'premium';
 
-interface TrilInput { trend: Trend; raid: boolean; imbalance: boolean; location: Location; orderBlock: boolean; immediateRebalance: boolean; }
-interface TrilResult { trend: boolean; raid: boolean; imbalance: boolean; location: boolean; orderBlock: boolean; immediateRebalance: boolean; }
 interface ConstitutionInput {
   tradesTaken: number; riskAmount: number; rrr: number;
   dailyPnl: number; consecLosses: number; dayOfWeek: number;
 }
-interface Verdict { verdict: string; ar: string; color: string; reason: string; }
 
 // ── THEEB CONSTITUTION — overrides everything ──
 const CONSTITUTION = {
@@ -61,61 +59,17 @@ function checkConstitution(i: ConstitutionInput): string[] {
   return v;
 }
 
-function checkTRIL(i: TrilInput): TrilResult {
-  return {
-    trend: i.trend !== 'neutral', raid: i.raid, imbalance: i.imbalance,
-    location: i.location !== 'equilibrium', orderBlock: i.orderBlock, immediateRebalance: i.immediateRebalance,
-  };
-}
-
-function getVerdict(trilPass: TrilResult, violations: string[]): Verdict {
-  if (violations.length > 0)
-    return { verdict:'DO NOT TRADE', ar:'لا تتداول', color:C.red, reason:violations[0] };
-  const n = Object.values(trilPass).filter(Boolean).length;
-  if (n >= 5) return { verdict:'SAFE TO TRADE', ar:'آمن للتداول', color:C.green, reason:'كل عوامل TRIL متوافقة والدستور سليم' };
-  if (n >= 3) return { verdict:'CAUTION', ar:'تحفّظ', color:C.amber, reason:n+'/6 من TRIL متوافقة' };
-  return { verdict:'DO NOT TRADE', ar:'لا تتداول', color:C.red, reason:'بنية الشارت غير متوافقة' };
-}
-
-function getCoach(verdict: Verdict, trilPass: TrilResult, violations: string[]): string[] {
+// TRIL is the approved four-factor methodology (Time, Raid, Inversion, Liquidity),
+// rendered by <TrilPanel/>. The legacy six-factor check and its SAFE / CAUTION
+// verdict were removed from this page. The legacy quality score below is kept,
+// is labelled as not TRIL, and is driven only by the scoring API.
+function constitutionCoach(violations: string[]): string[] {
   if (violations.length > 0)
     return ['القرار متوقف بسبب مخالفة الدستور.', violations[0]+'.', 'لا استثناءات على هذه القاعدة.'];
-  if (verdict.verdict === 'SAFE TO TRADE') {
-    const l: string[] = ['الاتجاه متوافق مع الفكرة.'];
-    if (trilPass.raid) l.push('تم سحب السيولة قبل الدخول.');
-    if (trilPass.orderBlock) l.push('كتلة الأوامر تدعم منطقة الدخول.');
-    if (trilPass.immediateRebalance) l.push('إعادة التوازن الفوري متوفرة — تأكيد إضافي.');
-    if (trilPass.location) l.push('الموقع ضمن منطقة الاهتمام الصحيحة.');
-    l.push('المخاطرة ضمن الحدود المسموحة.');
-    return l.slice(0, 4);
-  }
-  const f: string[] = [];
-  if (!trilPass.trend) f.push('الاتجاه غير واضح');
-  if (!trilPass.raid) f.push('السيولة لم تُسحب بعد');
-  if (!trilPass.imbalance) f.push('لا يوجد عدم توازن واضح (FVG/OB)');
-  if (!trilPass.orderBlock) f.push('كتلة الأوامر غير مؤكدة');
-  if (!trilPass.immediateRebalance) f.push('إعادة التوازن الفوري غير متوفر');
-  if (!trilPass.location) f.push('الموقع في منطقة محايدة');
-  const missing = f.length > 0 ? f[0]+'.' : 'راجع عوامل TRIL.';
-  return ['القرار يحتاج مراجعة قبل التنفيذ.', missing, 'انتظر تأكيداً أوضح قبل الدخول.'];
+  return ['القرار لك. TRIL يسجّل قراءتك ولا يعطي حكماً.', 'راجع الوقت والغارة والانعكاس والسيولة قبل أي قرار.'];
 }
 
 // ── atoms ──
-function TrilRow({ label, en, pass }: { label: string; en: string; pass: boolean }) {
-  const c = pass ? C.green : C.red;
-  return(
-    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 0',borderBottom:'1px solid '+C.border2}}>
-      <div>
-        <div style={{fontSize:13,fontWeight:700,color:C.t1}}>{label}</div>
-        <div style={{fontSize:9,color:C.t3,fontFamily:'JetBrains Mono',letterSpacing:'.05em'}}>{en}</div>
-      </div>
-      <div style={{width:26,height:26,borderRadius:8,background:c+'15',border:'1px solid '+c+'40',display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <span style={{fontSize:14,color:c,fontWeight:800}}>{pass?'✓':'✕'}</span>
-      </div>
-    </div>
-  );
-}
-
 function Toggle({ label, active, onToggle }: { label: string; active: boolean; onToggle: () => void }) {
   return(
     <button onClick={onToggle} style={{padding:'5px 11px',borderRadius:7,border:'1px solid '+(active?C.green+'40':C.border2),
@@ -245,11 +199,10 @@ export default function TheebMindGate() {
   }
 
   const dow = new Date().getDay();
-  const trilPass = checkTRIL({trend,raid,imbalance,location,orderBlock,immediateRebalance});
   // Use backend violations when available; fall back to local for instant response
   const violations = backendViolations ?? checkConstitution({tradesTaken,riskAmount,rrr,dailyPnl,consecLosses,dayOfWeek:dow});
-  const verdict = getVerdict(trilPass, violations);
-  const coach = getCoach(verdict, trilPass, violations);
+  const coach = constitutionCoach(violations);
+  const coachColor = violations.length > 0 ? C.red : C.gold;
 
   return(
     <div className="tm-root" style={{height:'100%',minHeight:0,display:'flex',flexDirection:'column',background:C.bg,color:C.t1,fontFamily:"'Cairo',sans-serif",direction:'rtl',overflow:'hidden',position:'relative'}}>
@@ -353,7 +306,6 @@ export default function TheebMindGate() {
         </div>
         <div style={{width:1,height:24,background:C.border}}/>
         <div className="tm-mkt" style={{display:'flex',gap:14,fontFamily:'JetBrains Mono',fontSize:11,color:C.t2,flex:1,overflow:'hidden',alignItems:'center'}}>
-          <span>NQ <b style={{color:C.t1}}>18,642.25</b> <span style={{color:C.green}}>+0.62%</span></span>
           {['DXY','VIX','US10Y'].map(inst=>{
             const snap=mktSnaps.find(s=>s.instrument===inst);
             if(!snap)return null;
@@ -385,44 +337,34 @@ export default function TheebMindGate() {
 
         {/* LEFT */}
         <div className="tm-left" style={{background:C.card,overflow:'auto',padding:'14px',display:'flex',flexDirection:'column',gap:12}}>
-          {/* C2 — DECISION GATE */}
-          <div className="tm-verdict" style={{padding:'16px 12px',borderRadius:12,textAlign:'center',background:'linear-gradient(160deg,'+verdict.color+'12,transparent)',border:'1.5px solid '+verdict.color+'45',animation:'fadeIn .4s ease'}}>
-            <div className="tm-vlabel" style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.2em',marginBottom:8}}>DECISION GATE</div>
-            <div className="tm-verdict-en" style={{fontSize:24,fontWeight:900,color:verdict.color,lineHeight:1.25,textShadow:'0 0 24px '+verdict.color+'50'}}>{verdict.verdict}</div>
-            <div className="tm-verdict-ar" style={{fontSize:13,color:verdict.color,fontWeight:700,marginTop:4}}>{verdict.ar}</div>
-            <div className="tm-verdict-reason" style={{fontSize:10,color:C.t2,marginTop:8,lineHeight:1.5}}>{verdict.reason}</div>
-          </div>
-          {/* C3 — TRIL */}
-          <div style={{padding:'12px',borderRadius:10,background:C.card2,border:'1px solid '+C.border}}>
-            <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.gold,letterSpacing:'.18em',marginBottom:4}}>TRIL VALIDATION</div>
-            <TrilRow label="الاتجاه" en="TREND" pass={trilPass.trend}/>
-            <TrilRow label="السيولة" en="RAID" pass={trilPass.raid}/>
-            <TrilRow label="عدم التوازن" en="IMBALANCE" pass={trilPass.imbalance}/>
-            <TrilRow label="الموقع" en="LOCATION" pass={trilPass.location}/>
-            <TrilRow label="كتلة الأوامر" en="ORDER BLOCK" pass={trilPass.orderBlock}/>
-            <TrilRow label="إعادة التوازن" en="IMM. REBALANCE" pass={trilPass.immediateRebalance}/>
-          </div>
+          {/* TRIL — approved four-factor panel (Time from the clock; R, I, L marked by hand) */}
+          <TrilPanel instrument="NQ" defaultTimeframe="15m" embedded />
           {/* C4 — QUALITY BREAKDOWN */}
+          {/* LEGACY QUALITY SCORE — scoring API only; not part of TRIL */}
           {(() => {
-            const trilFactors = [trilPass.trend, trilPass.raid, trilPass.imbalance, trilPass.location, trilPass.orderBlock, trilPass.immediateRebalance];
-            const confNorm   = apiQuality ? Math.round(apiQuality.breakdown.confluence.normalized)  : Math.round((trilFactors.filter(Boolean).length / 6) * 100);
-            const psychNorm  = apiQuality ? Math.round(apiQuality.breakdown.psychology.normalized)  : (violations.length === 0 ? 100 : Math.max(20, 100 - violations.length * 20));
-            const rrrNorm    = apiQuality ? Math.round(apiQuality.breakdown.quality.normalized)     : Math.min(100, Math.round((rrr / 2.5) * 100));
-            const safetyNorm = apiQuality ? Math.round(apiQuality.breakdown.safety.normalized)      : (riskAmount > 500 ? 35 : tradesTaken >= 2 ? 45 : 90);
-            const composite  = apiQuality ? apiQuality.composite_score : Math.round(confNorm * 0.30 + psychNorm * 0.25 + rrrNorm * 0.25 + safetyNorm * 0.15);
-            const barColor   = (v: number) => v >= 75 ? C.green : v >= 50 ? C.gold : C.red;
+            const barColor = (v: number) => v >= 75 ? C.green : v >= 50 ? C.gold : C.red;
+            if (!apiQuality) {
+              return (
+                <div style={{padding:'12px',borderRadius:10,background:C.card2,border:'1px solid '+C.border}}>
+                  <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.18em',marginBottom:6}}>LEGACY QUALITY SCORE · NOT TRIL</div>
+                  <div style={{fontSize:10.5,color:C.t2,lineHeight:1.6}}>غير متاحة — تعذّر الوصول إلى محرك الجودة. لا تُحسب قيمة محلية بديلة.</div>
+                </div>
+              );
+            }
+            const composite = apiQuality.composite_score;
             const rows: [string, string, number, number][] = [
-              ['التوافق',  'CONFLUENCE', confNorm,  30],
-              ['النفسية',  'PSYCHOLOGY', psychNorm, 25],
-              ['الجودة',   'QUALITY',    rrrNorm,   25],
-              ['الأمان',   'SAFETY',     safetyNorm,15],
+              ['التوافق',  'CONFLUENCE', Math.round(apiQuality.breakdown.confluence.normalized), Math.round(apiQuality.breakdown.confluence.weight * 100)],
+              ['النفسية',  'PSYCHOLOGY', Math.round(apiQuality.breakdown.psychology.normalized), Math.round(apiQuality.breakdown.psychology.weight * 100)],
+              ['الجودة',   'QUALITY',    Math.round(apiQuality.breakdown.quality.normalized),    Math.round(apiQuality.breakdown.quality.weight * 100)],
+              ['الأمان',   'SAFETY',     Math.round(apiQuality.breakdown.safety.normalized),     Math.round(apiQuality.breakdown.safety.weight * 100)],
             ];
             return (
               <div style={{padding:'12px',borderRadius:10,background:C.card2,border:'1px solid '+C.border}}>
-                <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.18em',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span>QUALITY BREAKDOWN</span>
+                <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.18em',marginBottom:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span>LEGACY QUALITY SCORE · NOT TRIL</span>
                   <span style={{color: composite>=75?C.green:composite>=55?C.gold:C.red,fontWeight:800,fontSize:16}}>{composite}</span>
                 </div>
+                <div style={{fontSize:9,color:C.t3,marginBottom:10,lineHeight:1.5}}>درجة الجودة القديمة من محرك التقييم. منفصلة عن TRIL ولا تمثّل حكماً عليه.</div>
                 {rows.map(([ar, en, val, wt])=>(
                   <div key={en} style={{marginBottom:7}}>
                     <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
@@ -563,7 +505,8 @@ export default function TheebMindGate() {
         <div className="tm-right" style={{background:C.card,overflow:'auto',padding:'14px',display:'flex',flexDirection:'column',gap:12}}>
           {/* قراءة الشارت — inputs moved here so verdict reacts immediately */}
           <div style={{padding:'10px 12px',borderRadius:10,background:C.card2,border:'1px solid '+C.border}}>
-            <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.14em',marginBottom:8}}>قراءة الشارت</div>
+            <div style={{fontFamily:'JetBrains Mono',fontSize:8,color:C.t3,letterSpacing:'.14em',marginBottom:2}}>مدخلات درجة الجودة القديمة</div>
+            <div style={{fontSize:9,color:C.t3,marginBottom:8,lineHeight:1.5}}>تغذّي محرك الجودة فقط — ليست TRIL.</div>
             <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:8}}>
               <Toggle label={trend==='bullish'?'صاعد':trend==='bearish'?'هابط':'محايد'} active={trend!=='neutral'} onToggle={()=>setTrend(trendCycle[(trendCycle.indexOf(trend)+1)%3])}/>
               <Toggle label={raid?'Raid ✓':'Raid ✕'} active={raid} onToggle={()=>setRaid(!raid)}/>
@@ -584,7 +527,7 @@ export default function TheebMindGate() {
             </div>
             <div style={{display:'flex',flexDirection:'column',gap:9}}>
               {coach.map((line,i)=>(
-                <div key={i} style={{fontSize:13,lineHeight:1.7,color:i===0?C.t1:C.t2,fontWeight:i===0?700:400,paddingRight:10,borderRight:i===0?'2px solid '+verdict.color:'2px solid '+C.border2}}>{line}</div>
+                <div key={i} style={{fontSize:13,lineHeight:1.7,color:i===0?C.t1:C.t2,fontWeight:i===0?700:400,paddingRight:10,borderRight:i===0?'2px solid '+coachColor:'2px solid '+C.border2}}>{line}</div>
               ))}
             </div>
           </div>

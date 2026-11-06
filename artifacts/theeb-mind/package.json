@@ -7,7 +7,9 @@
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "test:tz": "for z in UTC Asia/Riyadh Pacific/Kiritimati America/Los_Angeles Europe/London; do TZ=$z node --experimental-strip-types --no-warnings --test test/tril-time.test.ts >/dev/null || { echo \"failed under TZ=$z\"; exit 1; }; echo \"ok TZ=$z\"; done"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
