@@ -1,5 +1,6 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import { getCotData } from './cot.service.js';
+import { getLegacyCot, getLegacyCotObservations } from './cot-legacy.service.js';
 import { getLiveMarket } from './live.service.js';
 import {
   seedMarketDataIfEmpty,
@@ -49,6 +50,26 @@ marketRoutes.get('/cot', async (_req, res) => {
     console.error('[market] cot error:', err);
     return res.status(500).json({ success: false, error: { message: 'فشل جلب بيانات COT' } });
   }
+});
+
+// ── GET /api/market/cot/legacy ────────────────
+// Legacy COT for NASDAQ-100: MarketBulls (primary) validated against CFTC.
+// Always 200 with data.status = VERIFIED | MISMATCH | DATA_UNAVAILABLE.
+marketRoutes.get('/cot/legacy', async (_req, res) => {
+  try {
+    const data = await getLegacyCot();
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[market] cot/legacy error:', err);
+    return res.status(500).json({ success: false, error: { message: 'فشل فحص بيانات COT Legacy' } });
+  }
+});
+
+// ── GET /api/market/cot/legacy/observations ───
+// Recent comparisons between MarketBulls and CFTC (in memory, newest first),
+// used to document observed differences before a permanent validation rule.
+marketRoutes.get('/cot/legacy/observations', (_req, res) => {
+  return res.json({ success: true, data: getLegacyCotObservations() });
 });
 
 // ── GET /api/market/live ──────────────────────

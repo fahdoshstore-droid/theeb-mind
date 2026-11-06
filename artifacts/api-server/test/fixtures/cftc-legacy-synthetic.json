@@ -1,0 +1,18 @@
+[
+  {"report_date_as_yyyy_mm_dd":"2026-11-03T00:00:00.000","cftc_contract_market_code":"209742",
+   "noncomm_positions_long_all":"41000","noncomm_positions_short_all":"29500",
+   "comm_positions_long_all":"149000","comm_positions_short_all":"162600",
+   "nonrept_positions_long_all":"21400","nonrept_positions_short_all":"19300"},
+  {"report_date_as_yyyy_mm_dd":"2026-10-27T00:00:00.000","cftc_contract_market_code":"209742",
+   "noncomm_positions_long_all":"40100","noncomm_positions_short_all":"30000",
+   "comm_positions_long_all":"150000","comm_positions_short_all":"162300",
+   "nonrept_positions_long_all":"21000","nonrept_positions_short_all":"18800"},
+  {"report_date_as_yyyy_mm_dd":"2026-10-20T00:00:00.000","cftc_contract_market_code":"209742",
+   "noncomm_positions_long_all":"39000","noncomm_positions_short_all":"30500",
+   "comm_positions_long_all":"151000","comm_positions_short_all":"161200",
+   "nonrept_positions_long_all":"20500","nonrept_positions_short_all":"18800"},
+  {"report_date_as_yyyy_mm_dd":"2026-11-03T00:00:00.000","cftc_contract_market_code":"20974+",
+   "noncomm_positions_long_all":"1","noncomm_positions_short_all":"1",
+   "comm_positions_long_all":"1","comm_positions_short_all":"1",
+   "nonrept_positions_long_all":"1","nonrept_positions_short_all":"1"}
+]

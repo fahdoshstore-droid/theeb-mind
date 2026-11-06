@@ -413,5 +413,10 @@ export async function getCotData(): Promise<CotRow[]> {
   return requestUnwrapped<CotRow[]>('/market/cot');
 }
 
+/** Legacy COT for NASDAQ-100 — MarketBulls validated against CFTC. */
+export async function getCotLegacy(): Promise<import('./types').LegacyCotResult> {
+  return requestUnwrapped<import('./types').LegacyCotResult>('/market/cot/legacy');
+}
+
 // ── Re-export demo data for sample text ──
 export { DEMO_MISLEADING_TEXT } from './demo-data';

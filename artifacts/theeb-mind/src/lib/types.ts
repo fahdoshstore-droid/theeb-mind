@@ -449,3 +449,36 @@ export interface TradeFingerprint {
     type: string;
   };
 }
+// ── Legacy COT (NASDAQ-100) — /api/market/cot/legacy ───
+// MarketBulls (primary) validated against CFTC. Mirrors the server types.
+export type LegacyGroupKey = 'nonCommercial' | 'commercial' | 'nonReportable';
+export interface LegacyGroupPositions { long: number | null; short: number | null; net: number | null }
+export type LegacyGroups = Record<LegacyGroupKey, LegacyGroupPositions>;
+export interface LegacyWeek { reportDate: string; groups: LegacyGroups }
+export type LegacyCotStatus = 'VERIFIED' | 'MISMATCH' | 'DATA_UNAVAILABLE';
+export type LegacyCotReason =
+  | 'PRIMARY_UNAVAILABLE' | 'VALIDATION_UNAVAILABLE' | 'BOTH_UNAVAILABLE'
+  | 'VALIDATION_WEEK_NOT_FOUND' | 'NO_COMPARABLE_FIELDS' | 'VALUES_DIFFER';
+export interface LegacyDifference {
+  reportDate: string; group: LegacyGroupKey; field: 'long' | 'short' | 'net';
+  primary: number; validation: number; delta: number;
+}
+export interface LegacySourceReport {
+  name: 'MarketBulls' | 'CFTC'; url: string; status: 'OK' | 'UNAVAILABLE';
+  fetchedAt: string; latestReportDate: string | null; error: string | null;
+  unverifiedLatest?: LegacyWeek;
+}
+export interface LegacyCotResult {
+  status: LegacyCotStatus;
+  reason: LegacyCotReason | null;
+  instrument: 'NASDAQ-100';
+  report: 'CFTC_LEGACY_FUTURES_ONLY';
+  cftcContractCode: string;
+  reportDate: string | null;
+  groups: LegacyGroups | null;
+  netChange: Record<LegacyGroupKey, number | null> | null;
+  history: { reportDate: string; nonCommercialNet: number | null; commercialNet: number | null; nonReportableNet: number | null }[] | null;
+  validation: { rule: 'PROVISIONAL_EXACT_MATCH'; note: string; comparedWeek: string | null; fieldsCompared: number; differences: LegacyDifference[] };
+  sources: { primary: LegacySourceReport; validation: LegacySourceReport };
+  checkedAt: string;
+}

@@ -170,6 +170,14 @@ function parseDisagg(csv: string): CotRow[] {
 }
 
 // ── Public API ────────────────────────────────────────────
+// The downloader is injectable for tests only; production uses fetchAndExtract.
+type Extractor = (url: string, tmpLabel: string) => string;
+let extract: Extractor = fetchAndExtract;
+export function __setCotExtractorForTests(fn: Extractor | null): void {
+  extract = fn ?? fetchAndExtract;
+  cache = null;
+}
+
 export async function getCotData(): Promise<CotRow[]> {
   // Return cache if fresh
   if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
@@ -178,8 +186,8 @@ export async function getCotData(): Promise<CotRow[]> {
 
   try {
     const [finCsv, disaggCsv] = await Promise.all([
-      Promise.resolve(fetchAndExtract(FIN_URL, 'fin')),
-      Promise.resolve(fetchAndExtract(DISAGG_URL, 'disagg')),
+      Promise.resolve(extract(FIN_URL, 'fin')),
+      Promise.resolve(extract(DISAGG_URL, 'disagg')),
     ]);
 
     const finRows    = parseFinancial(finCsv);
@@ -198,17 +206,9 @@ export async function getCotData(): Promise<CotRow[]> {
     console.log(`[cot] fetched ${combined.length} instruments, latest: ${combined[0]?.reportDate}`);
     return combined;
   } catch (err) {
-    console.error('[cot] fetch failed, using fallback:', err);
-    // Fallback static data (clearly flagged as stale)
-    return FALLBACK_COT;
+    // No hard-coded fallback values: a failed download returns an empty list,
+    // which keeps the CotRow[] contract and lets the UI show "unavailable".
+    console.error('[cot] fetch failed, no data returned:', err);
+    return [];
   }
 }
-
-// ── Fallback (only used if CFTC is unreachable) ───────────
-const FALLBACK_COT: CotRow[] = [
-  { instrument: 'GOLD', netLong: 116000, change: 4000,  bias: 'bullish', reportDate: 'fallback' },
-  { instrument: 'NAS',  netLong: -6000,  change: -2000, bias: 'bearish', reportDate: 'fallback' },
-  { instrument: 'DXY',  netLong: -12000, change: -3000, bias: 'bearish', reportDate: 'fallback' },
-  { instrument: 'EUR',  netLong:  18000, change: 5000,  bias: 'bullish', reportDate: 'fallback' },
-  { instrument: 'GBP',  netLong:  -3000, change: 800,   bias: 'neutral', reportDate: 'fallback' },
-];
