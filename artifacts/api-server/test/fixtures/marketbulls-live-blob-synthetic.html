@@ -1,0 +1,15 @@
+<html><body>
+<script>
+// LIVE-blob structure: the real key names and the real 2026-10-27 values
+// from https://market-bulls.com/cot-report-nasdaq-100/ (trimmed to two
+// history rows). `var data` carries net-only history; `lcot_data` carries
+// the latest report's long/short detail.
+var data = JSON.parse(JSON.stringify([
+{"Market and Exchange Names":"Nasdaq 100 E-Mini","As of Date in Form YYYY-MM-DD":"2026-10-27","Net Positions Commercials":"-62092","Net Positions Noncommercial":"48839","Net Positions Total Reportable":"-13253","Net Positions Nonreportable":"13253","Open Interest (All)":"268508","Net_Dealer_Positions_All":"-85514","COT Index 36m":"7.4","COT Index 6m":"7.4"},
+{"Market and Exchange Names":"Nasdaq 100 E-Mini","As of Date in Form YYYY-MM-DD":"2026-10-20","Net Positions Commercials":"-63576","Net Positions Noncommercial":"50726","Net Positions Total Reportable":"-12850","Net Positions Nonreportable":"12850","Open Interest (All)":"272462","Net_Dealer_Positions_All":"-94122","COT Index 36m":"5.7","COT Index 6m":"5.7"}
+]));
+var lcot_data = JSON.parse(JSON.stringify([
+{"Market and Exchange Names":"Nasdaq 100 E-Mini","As of Date in Form YYYY-MM-DD":"2026-10-27","Commercial Positions-Long (All)":"136338","Change in Commercial-Long (All)":"-604","Commercial Positions-Short (All)":"198430","Net Positions Commercials":"-62092","Noncommercial Positions-Long (All)":"84567","Noncommercial Positions-Short (All)":"35728","Net Positions Noncommercial":"48839","Nonreportable Positions-Long (All)":"41642","Nonreportable Positions-Short (All)":"28389","Net Positions Nonreportable":"13253"}
+]));
+</script>
+</body></html>

@@ -9,7 +9,7 @@ const WOLF = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtAAAALQCAIAAAA2NdDL
 //  5 components only · Constitution overrides everything · Single verdict
 // ════════════════════════════════════════════════════
 
-import { getPsychologyState, submitGate, evaluateRules, getMarketSnapshots, getMacroNarrative, evaluateQuality } from '../lib/api';
+import { USE_DEMO_MODE, getPsychologyState, submitGate, evaluateRules, getMarketSnapshots, getMacroNarrative, evaluateQuality } from '../lib/api';
 import type { MarketSnapshot, UnifiedQualityResult } from '../lib/types';
 import TrilPanel from '../components/desk/TrilPanel';
 
@@ -90,7 +90,7 @@ export default function TheebMindGate() {
   const [tradesTaken,setTradesTaken]=useState(1);
   const [riskAmount,setRiskAmount]=useState(500);
   const [rrr,setRrr]=useState(2.5);
-  const [dailyPnl]=useState(245);
+  const [dailyPnl]=useState(USE_DEMO_MODE ? 245 : 0);
   const [consecLosses,setConsecLosses]=useState(0);
 
   // Zone / level notes
@@ -151,10 +151,10 @@ export default function TheebMindGate() {
           liquiditySweep:  raid,
           killzoneActive:  false,
           immediateRebalance,
-          gatePercentage:  psychVerdict===null ? 80 : 30,
+          gatePercentage:  USE_DEMO_MODE ? (psychVerdict===null ? 80 : 30) : 0,
           gateVerdict:     psychVerdict===null ? 'pass' : 'fail',
           behavioralLock:  psychVerdict==='STOP',
-          psychPhase:      'green',
+          psychPhase:      USE_DEMO_MODE ? 'green' : '',
           rrr,
           rrrPass:         rrr>=2.5,
           riskAmount,
@@ -162,7 +162,7 @@ export default function TheebMindGate() {
           isPreMarket:     false,
           consecutiveLosses: consecLosses,
           isNoTradeDay:    false,
-          alignmentScore:  75,
+          alignmentScore:  USE_DEMO_MODE ? 75 : 0,
         });
         setApiQuality(result);
       }catch{ /* keep local fallback */ }

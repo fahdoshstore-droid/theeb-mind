@@ -18,6 +18,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const fx = (f: string) => readFileSync(path.join(here, 'fixtures', f), 'utf8');
 
 const MB_HTML = fx('marketbulls-legacy-synthetic.html');
+const MB_LIVE = fx('marketbulls-live-blob-synthetic.html');
 const CFTC_ROWS = JSON.parse(fx('cftc-legacy-synthetic.json'));
 const NOW = new Date('2026-11-06T15:00:00Z');
 const T = '2026-11-06T15:00:00.000Z';
@@ -48,12 +49,33 @@ describe('MarketBulls Legacy parser', () => {
     });
   });
 
-  test('rejects TFF / Disaggregated tables instead of mapping them to Non-commercial', () => {
-    assert.throws(() => parseMarketBullsLegacyCot(fx('marketbulls-tff-synthetic.html')), /no complete Legacy table/);
+  test('rejects Disaggregated / TFF categories instead of mapping them to Non-commercial', () => {
+    assert.throws(() => parseMarketBullsLegacyCot(fx('marketbulls-tff-synthetic.html')), /no recognisable Legacy data/);
   });
 
   test('throws on an unrecognised page and never guesses', () => {
-    assert.throws(() => parseMarketBullsLegacyCot('<html><p>maintenance</p></html>'), /no complete Legacy table/);
+    assert.throws(() => parseMarketBullsLegacyCot('<html><p>maintenance</p></html>'), /no recognisable Legacy data/);
+  });
+
+  test('history weeks are net-only (long/short null) and only the latest week carries long/short', () => {
+    const weeks = parseMarketBullsLegacyCot(MB_HTML);
+    assert.deepEqual(weeks[1].groups.nonCommercial, { long: null, short: null, net: 10100 });
+    assert.deepEqual(weeks[1].groups.commercial, { long: null, short: null, net: -12300 });
+    assert.deepEqual(weeks[1].groups.nonReportable, { long: null, short: null, net: 2200 });
+  });
+
+  test('parses the live JSON-blob structure with the real key names', () => {
+    const weeks = parseMarketBullsLegacyCot(MB_LIVE);
+    assert.equal(weeks.length, 2);
+    assert.deepEqual(weeks.map((w) => w.reportDate), ['2026-10-27', '2026-10-20']);
+    assert.deepEqual(weeks[0].groups, {
+      nonCommercial: { long: 84567, short: 35728, net: 48839 },
+      commercial: { long: 136338, short: 198430, net: -62092 },
+      nonReportable: { long: 41642, short: 28389, net: 13253 },
+    });
+    assert.deepEqual(weeks[1].groups.nonCommercial, { long: null, short: null, net: 50726 });
+    assert.deepEqual(weeks[1].groups.commercial, { long: null, short: null, net: -63576 });
+    assert.deepEqual(weeks[1].groups.nonReportable, { long: null, short: null, net: 12850 });
   });
 
   test('header classification is strict', () => {
@@ -69,7 +91,7 @@ describe('MarketBulls Legacy parser', () => {
   });
 
   test('a missing cell becomes null, never 0', () => {
-    const html = MB_HTML.replace('<td>41,000</td>', '<td>n/a</td>');
+    const html = MB_HTML.replace('"Noncommercial Positions-Long (All)":"41000"', '"Noncommercial Positions-Long (All)":"n/a"');
     const w = parseMarketBullsLegacyCot(html)[0];
     assert.equal(w.groups.nonCommercial.long, null);
     assert.equal(w.groups.nonCommercial.net, 11500); // the page's own net is kept

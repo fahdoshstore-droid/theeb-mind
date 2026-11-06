@@ -69,6 +69,10 @@ export function currentWeekKey(): string {
 let seeded = false;
 
 export function seedMarketDataIfEmpty(): void {
+  // Demo-mode gate: the seeded snapshots / events / weekly-bias rows are
+  // fabricated values for demonstration only. Never insert them (and never
+  // surface them as live data) unless demo mode is explicitly enabled.
+  if (process.env.DEMO_MODE !== 'true') return;
   if (seeded) return;
   seeded = true;
 
